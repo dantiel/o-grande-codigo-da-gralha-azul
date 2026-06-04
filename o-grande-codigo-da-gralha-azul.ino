@@ -20,7 +20,7 @@
 
 // --- Oráculos e Conexões com o Cosmos: Os Sentidos da Gralha ---
 //#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA // Se definido, a Gralha partilha seus estados (Debug).
-#define FREQUENCIA_DO_SOPRO_COSMICO 42000 // O ritmo da comunicação com o éter.
+#define FREQUENCIA_DO_SOPRO_COSMICO 420000 // O ritmo da comunicação com o éter (CRSF: 420000 baud).
 #define PORTAL_DOS_VENTOS_CELESTES Serial1  // O limiar por onde as influências astrais tocam a Gralha.
 
 #include <Arduino.h>

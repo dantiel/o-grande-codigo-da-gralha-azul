@@ -129,12 +129,12 @@ Configure these ELRS receiver parameters via the **ExpressLRS Lua script** on yo
 | Parameter | Required Setting | Reason |
 |-----------|-----------------|--------|
 | **Protocol** | `CRSF` | The receiver must output CRSF over UART |
-| **Baud Rate** | `420000` (420k) | Must match `FREQUENCIA_DO_SOPRO_COSMICO` in the code (42000 = 420000 baud — the CRSF library divides by 10 internally) |
+| **Baud Rate** | `420000` (420k) | Must match `FREQUENCIA_DO_SOPRO_COSMICO` in the code |
 | **Packet Rate** | `50 Hz` (or higher) | Standard for CRSF; higher rates reduce latency |
 | **Telem Ratio** | `1:2` or `1:4` | Controls how often telemetry is sent back; higher ratios reduce RC channel update rate |
 | **Model Match** | Enabled (optional) | Prevents flying with the wrong model selected |
 
-**Important:** The baud rate in the ELRS WiFi/web configuration tool must be set to **420000** (not 42000). The code constant `FREQUENCIA_DO_SOPRO_COSMICO = 42000` is the value passed to the CRSF library, which internally configures the UART at 10× this value (420000 baud). If you change this constant, you must also update the ELRS receiver's baud rate accordingly.
+**Important:** The baud rate in the ELRS WiFi/web configuration tool must be set to **420000** — the same value as `FREQUENCIA_DO_SOPRO_COSMICO` in the code. If you change this constant, update the ELRS receiver's baud rate accordingly.
 
 ### Channel Configuration
 
@@ -220,7 +220,7 @@ All configurable parameters are `#define` constants at the top of the sketch:
 
 | Constant | Default | Description |
 |----------|---------|-------------|
-| `FREQUENCIA_DO_SOPRO_COSMICO` | 42000 | CRSF UART baud rate (actual UART speed = 10× this = 420000 baud) |
+| `FREQUENCIA_DO_SOPRO_COSMICO` | 420000 | CRSF UART baud rate |
 | `CICLO_DO_CORACAO_ALADO` | 0.052 | Wingbeat cycle period (seconds) — base frequency ~19 Hz |
 | `LIMIAR_DO_VOO_ATIVO` | 1040 | Throttle threshold to enter flapping mode (CRSF value) |
 | `LIMIAR_DO_VOO_ATIVO_HISTERESE` | 20 | Hysteresis band to prevent mode oscillation |
