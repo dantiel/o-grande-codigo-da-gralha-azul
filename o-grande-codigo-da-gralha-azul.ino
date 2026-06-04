@@ -125,8 +125,9 @@ float mapear_entre_escalas_harmonicas(float valor, float minimo_origem, float ma
 }
 
 
-float forma_do_bater_das_asas(float canto_do_vento, float ferocidade_do_bater, float ferocidade_do_retorno) {
-  float ferocidade = (canto_do_vento >= 0.0f) ? ferocidade_do_bater : ferocidade_do_retorno;
+float forma_do_bater_das_asas(float canto_do_vento, float direcao_do_bater, float ferocidade_do_bater, float ferocidade_do_retorno) {
+  // A 'direcao_do_bater' revela se a asa desce ou retorna.
+  float ferocidade = (direcao_do_bater >= 0.0f) ? ferocidade_do_bater : ferocidade_do_retorno;
   float equilibrio_do_ceu = tanh(ferocidade);
   if (equilibrio_do_ceu < 0.001f) {
     return canto_do_vento;
@@ -336,12 +337,14 @@ void ManifestarOVooNosVentos() {
     float magnitude_da_batida = ((voz_do_sopro_vital - LIMIAR_DO_VOO_ATIVO) * 0.06f) * (1.0f - (voz_do_compasso_da_alma - 1500.0f) * 0.0003f);
     // O 'canto_original_da_asa' é o coração senoidal do movimento.
     float canto_original_da_asa = sin(angulo_da_danca_alada);
+    // A 'direcao_do_bater' revela se a asa desce ou retorna.
+    float direcao_do_bater = cos(angulo_da_danca_alada);
     // A 'ferocidade_do_bater' afia o canto da descida.
     float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, 1.0f, 8.0f);
     // A 'ferocidade_do_retorno' molda a canção da subida.
     float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, 1.0f, 8.0f);
     // O canto da asa ganha ferocidade.
-    pulso_do_sopro_vital = forma_do_bater_das_asas(canto_original_da_asa, ferocidade_do_bater, ferocidade_do_retorno);
+    pulso_do_sopro_vital = forma_do_bater_das_asas(canto_original_da_asa, direcao_do_bater, ferocidade_do_bater, ferocidade_do_retorno);
 
     float graus_do_movimento_alado = magnitude_da_batida * pulso_do_sopro_vital;
 
