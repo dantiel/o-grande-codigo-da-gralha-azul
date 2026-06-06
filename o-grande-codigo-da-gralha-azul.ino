@@ -307,10 +307,6 @@ void AnimarPulsarDoCoracaoAlado() {
 void ManifestarOVooNosVentos() {
   float comando_aletao = (voz_do_aletao - 1500.0f) * 0.06f;
   float comando_profundor = (voz_do_profundor - 1500.0f) * 0.06f;
-  // Proteção contra divisão por zero: se o canal do leme estiver em 0 (link down), usa 1500 como fallback.
-  int leme_seguro = (voz_do_leme_estelar == 0) ? 1500 : voz_do_leme_estelar;
-  float fator_leme_sutil = ((1500.0f / leme_seguro) - 1.0f) * 2.0f + 1.0f;
-
   int angulo_portal_esquerdo, angulo_portal_direito;
 
   // Histerese: uma vez no modo de batida, permanece até abaixo do limiar - histerese
@@ -344,26 +340,27 @@ void ManifestarOVooNosVentos() {
     // Ferocidade para as asas (CH7 = down, CH8 = up)
     float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, 1.0f, 8.0f);
     float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, 1.0f, 8.0f);
-    // Ferocidade para o leme (CH5 — gilt für beide Richtungen)
+    // Ferocidade para o leme (CH5 — vale para ambas as direções)
     float ferocidade_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, 1.0f, 8.0f);
 
-    // Cada servo recebe sua própria fórmula de ferocidade
-    // Leme (CH4) modula a ferocidade diferencialmente: CH5 = força da modulação
-    float modulacao_leme_esquerda = constrain((1500.0f - (float)voz_do_leme_estelar) * 0.0005f * ferocidade_do_leme, -1.0f, 1.0f);
-    float modulacao_leme_direita  = constrain(((float)voz_do_leme_estelar - 1500.0f) * 0.0005f * ferocidade_do_leme, -1.0f, 1.0f);
-
-    float pulso_asa_esquerda = forma_do_bater_das_asas(
+    // Ferocidade base das asas: CH7 (bater) e CH8 (retorno)
+    float pulso_asa_base = forma_do_bater_das_asas(
         canto_original_da_asa, direcao_do_bater,
-        ferocidade_do_bater + modulacao_leme_esquerda,
-        ferocidade_do_retorno + modulacao_leme_esquerda);
-    float pulso_asa_direita  = forma_do_bater_das_asas(
-        canto_original_da_asa, direcao_do_bater,
-        ferocidade_do_bater + modulacao_leme_direita,
-        ferocidade_do_retorno + modulacao_leme_direita);
+        ferocidade_do_bater,
+        ferocidade_do_retorno);
 
-    // Yaw-Mixing: differentielle Amplitude pro Servo
-    float graus_asa_esquerda = magnitude_da_batida * pulso_asa_esquerda;
-    float graus_asa_direita  = magnitude_da_batida * pulso_asa_direita;
+    // Ferocidade do leme: CH5 — separada, modula diferencialmente o Yaw
+    float pulso_leme = forma_do_bater_das_asas(
+        canto_original_da_asa, direcao_do_bater,
+        ferocidade_do_leme,
+        ferocidade_do_leme);
+
+    // Modulação diferencial: CH4 define direção (-1 a 1)
+    float mod_leme = ((float)voz_do_leme_estelar - 1500.0f) * 0.0005f;
+
+    // Yaw-Mixing: componente do leme é adicionada/subtraída diferencialmente
+    float graus_asa_esquerda = magnitude_da_batida * (pulso_asa_base - pulso_leme * mod_leme);
+    float graus_asa_direita  = magnitude_da_batida * (pulso_asa_base + pulso_leme * mod_leme);
 
     angulo_portal_esquerdo = (int)((comando_aletao - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
     angulo_portal_direito  = (int)((comando_aletao + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
