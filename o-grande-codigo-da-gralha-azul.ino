@@ -67,13 +67,14 @@ CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
 
 
 /*
-  Os Estados da Alma Alada: Fases da Consciência da Gralha
-  A Gralha responde ao cosmos, seu ser uma manifestação da lenda.
-*/
-enum EstadoDaAlmaAlada {
-  EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
-  EM_SONHO_NA_QUIETUDE_DA_FLORESTA   // A conexão se abranda, a Gralha medita em seu ninho de estrelas.
-};
+  /* Os Estados da Alma Alada: Fases da Consciência da Gralha
+    O 'despertar' concede à Gralha o sopro da vida; o 'sonho' é seu repouso sagrado,
+    mas o voo só se inicia quando o espírito alado a comanda.
+  */
+  enum EstadoDaAlmaAlada {
+    EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
+    EM_SONHO_NA_QUIETUDE_DA_FLORESTA   // A conexão se abranda, a Gralha medita em seu ninho de estrelas.
+  };
 
 enum ModoDoEspiritoAlado {
   EM_RITMO_DE_BATIDA_DAS_ASAS, // O voo impulsionado, a semeadura em ação.
@@ -104,7 +105,7 @@ int voz_do_aletao = VIBRACAO_NEUTRA_DO_ALETAO;
 int voz_do_profundor = VIBRACAO_NEUTRA_DO_PROFUNDOR;
 int voz_do_sopro_vital = VIBRACAO_MINIMA_DO_SOPRO_VITAL;
 int voz_do_leme_estelar = VIBRACAO_NEUTRA_DO_LEME_ESTELAR;
-int voz_do_compasso_da_alma = VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA;
+int voz_do_despertar = 0;
 int voz_da_ferocidade_do_bater = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_retorno = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
@@ -168,17 +169,17 @@ public:
   void IrradiarLuzDaAlma() {
     float posicao_das_asas_no_ciclo = (sin(angulo_da_danca_alada) + 1.0f) * 0.5f; // [0-1]
     float eixo_do_profundor_celeste = mapear_entre_escalas_harmonicas(voz_do_profundor, 1000.0f, 2000.0f, -1.0f, 1.0f);
-    float eixo_do_compasso_animico = mapear_entre_escalas_harmonicas(voz_do_compasso_da_alma, 1000.0f, 2000.0f, -1.0f, 1.0f);
     float eixo_do_sopro_de_vida = mapear_entre_escalas_harmonicas(voz_do_sopro_vital, 1000.0f, 2000.0f, 0.0f, 1.0f);
+    float eixo_do_despertar_da_alma = mapear_entre_escalas_harmonicas(voz_do_despertar, 1000.0f, 2000.0f, 0.0f, 1.0f);
     byte r=0, g=0, b=0;
 
     if (estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
       if (modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
         // Azul da Gralha, com toques de verde (esperança/floresta) e um brilho solar (força).
-        // A intensidade e matiz variam com o sopro vital e o compasso da alma.
-        b = (150 + 105 * (1.0f - eixo_do_compasso_animico * 0.5f)) * eixo_do_sopro_de_vida;
+        // A intensidade e matiz variam com o sopro vital e o despertar da alma.
+        b = (150 + 105 * eixo_do_despertar_da_alma) * eixo_do_sopro_de_vida;
         g = (80 + 70 * (1.0f + eixo_do_profundor_celeste * 0.5f)) * eixo_do_sopro_de_vida;
-        r = (30 + 20 * (1.0f + eixo_do_compasso_animico * 0.3f)) * eixo_do_sopro_de_vida;
+        r = (30 + 20 * eixo_do_despertar_da_alma * 0.5f) * eixo_do_sopro_de_vida;
 
         // O pulsar das asas modula o brilho.
         float modulador_de_brilho = posicao_das_asas_no_ciclo * 0.8f + 0.2f; // Evita apagar totalmente.
@@ -212,16 +213,16 @@ Servo motor_asa_matutina, motor_asa_vespertina;
 
 // --- Rituais de Sintonia e Percepção da Alma Alada ---
 void AoDespertarParaOCantoDoEter() {
-  estado_presente_da_alma = EM_DANCA_COM_OS_VENTOS;
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
-  Serial.println("A Gralha desperta, atenta aos ventos cósmicos!");
+  Serial.println("A Gralha sente o chamado do éter!");
 #endif
 }
 
 
 void AoRecolherSeAoSilencioDaMata() {
+  // A ligação com o éter se perdeu — a Gralha adormece forçadamente.
   estado_presente_da_alma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
-  modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO; // Em sonho, sempre serena.
+  modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   Serial.println("O éter silencia. A Gralha retorna ao seu sonho na floresta.");
 #endif
@@ -229,14 +230,21 @@ void AoRecolherSeAoSilencioDaMata() {
 
 
 void InterpretarAsVozesDoFirmamento() {
+  // O despertar: se a voz do ritual ultrapassa o limiar, a Gralha se ergue.
+  // Apenas o comando do espírito alado inicia o bater das asas — o despertar
+  // concede apenas a prontidão da alma.
+
+  estado_presente_da_alma = (voz_do_despertar > 1500)
+    ? EM_DANCA_COM_OS_VENTOS
+    : EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
   voz_do_aletao = guardiao_dos_ventos_siderais.getChannel(1);
   voz_do_profundor = guardiao_dos_ventos_siderais.getChannel(2);
   voz_do_sopro_vital = guardiao_dos_ventos_siderais.getChannel(3);
   voz_do_leme_estelar = guardiao_dos_ventos_siderais.getChannel(4);
-  voz_do_compasso_da_alma = guardiao_dos_ventos_siderais.getChannel(6);
+  voz_do_despertar = guardiao_dos_ventos_siderais.getChannel(5);
+  voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(6);
   voz_da_ferocidade_do_bater = guardiao_dos_ventos_siderais.getChannel(7);
   voz_da_ferocidade_do_retorno = guardiao_dos_ventos_siderais.getChannel(8);
-  voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(5);
 }
 
 
@@ -284,8 +292,7 @@ void AnimarPulsarDoCoracaoAlado() {
 
   if(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
     // A 'intencao_de_cadencia' é a força e o ritmo desejados para o bater das asas.
-    float intencao_de_cadencia = (voz_do_sopro_vital - 480.0f) * ((1.0f / (120.0f * CICLO_DO_CORACAO_ALADO)) +
-                               ((voz_do_compasso_da_alma - 1500.0f) * 0.0000725f)); // Fator de modulação de ritmo.
+    float intencao_de_cadencia = (voz_do_sopro_vital - 480.0f) * (1.0f / (120.0f * CICLO_DO_CORACAO_ALADO));
     // 'variacao_do_destino_alado' é a "aceleração" angular para a batida.
     // O termo '- 10.0f * cadencia_do_destino_alado' é um amortecimento, como a resistência do ar ou a inércia da alma.
     float variacao_do_destino_alado = 1.0f * intencao_de_cadencia - 10.0f * cadencia_do_destino_alado;
@@ -310,6 +317,7 @@ void ManifestarOVooNosVentos() {
   int angulo_portal_esquerdo, angulo_portal_direito;
 
   // Histerese: uma vez no modo de batida, permanece até abaixo do limiar - histerese
+  // O despertar é necessário para o voo, mas não o inicia — o sopro vital decide.
   static bool limiar_elevado = true;
   if (modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     limiar_elevado = true;
@@ -332,7 +340,7 @@ void ManifestarOVooNosVentos() {
 
   if(modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     // A 'magnitude_da_batida' é a força com que a Gralha impulsiona o ar.
-    float magnitude_da_batida = ((voz_do_sopro_vital - LIMIAR_DO_VOO_ATIVO) * 0.06f) * (1.0f - (voz_do_compasso_da_alma - 1500.0f) * 0.0003f);
+    float magnitude_da_batida = ((voz_do_sopro_vital - LIMIAR_DO_VOO_ATIVO) * 0.06f);
     // O 'canto_original_da_asa' é o coração senoidal do movimento.
     float canto_original_da_asa = sin(angulo_da_danca_alada);
     // A 'direcao_do_bater' revela se a asa desce ou retorna.
@@ -401,7 +409,7 @@ void loop() {
     Serial.print(" | Alet: "); Serial.print(voz_do_aletao);
     Serial.print(" | Prof: "); Serial.print(voz_do_profundor);
     Serial.print(" | Leme: "); Serial.print(voz_do_leme_estelar);
-    Serial.print(" | Compasso: "); Serial.print(voz_do_compasso_da_alma);
+    Serial.print(" | Despertar: "); Serial.print(voz_do_despertar);
     Serial.print(" | FerBater: "); Serial.print(voz_da_ferocidade_do_bater);
     Serial.print(" | FerRetorno: "); Serial.print(voz_da_ferocidade_do_retorno);
     Serial.print(" | FerLeme: "); Serial.print(voz_da_ferocidade_do_leme);
