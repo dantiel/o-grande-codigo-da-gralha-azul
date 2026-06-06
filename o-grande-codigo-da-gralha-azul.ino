@@ -67,10 +67,12 @@ CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
 
 
 /*
-  /* Os Estados da Alma Alada: Fases da Consciência da Gralha
+  Os Estados da Alma Alada: Fases da Consciência da Gralha
     O 'despertar' concede à Gralha o sopro da vida; o 'sonho' é seu repouso sagrado,
     mas o voo só se inicia quando o espírito alado a comanda.
   */
+  bool limiar_elevado = true;
+
   enum EstadoDaAlmaAlada {
     EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
     EM_SONHO_NA_QUIETUDE_DA_FLORESTA   // A conexão se abranda, a Gralha medita em seu ninho de estrelas.
@@ -184,7 +186,6 @@ public:
     float posicao_das_asas_no_ciclo = (sin(angulo_da_danca_alada) + 1.0f) * 0.5f;
     float eixo_do_profundor_celeste = mapear_entre_escalas_harmonicas(voz_do_profundor, 1000.0f, 2000.0f, -1.0f, 1.0f);
     float eixo_do_sopro_de_vida = mapear_entre_escalas_harmonicas(voz_do_sopro_vital, 1000.0f, 2000.0f, 0.0f, 1.0f);
-    float eixo_do_despertar_da_alma = mapear_entre_escalas_harmonicas(voz_do_despertar, 1000.0f, 2000.0f, 0.0f, 1.0f);
     float eixo_do_compasso_animico = mapear_entre_escalas_harmonicas(voz_do_compasso_da_alma, 1000.0f, 2000.0f, -1.0f, 1.0f);
     bool despertou = (voz_do_despertar > 1500);
     byte r=0, g=0, b=0;
@@ -240,8 +241,6 @@ public:
       }
 
       // Link caído: pulsa entre amarelo do silêncio e azul noturno
-      uint16_t matiz_amarelo = 10000;
-      uint32_t cor_alerta = chama_azul_pixel.ColorHSV(matiz_amarelo, 200, 180);
       float peso = respiro * 0.6f;
       uint32_t cor_mesclada = chama_azul_pixel.gamma32(chama_azul_pixel.ColorHSV(
           matiz_base + (int)(sin(millis()*0.0003f)*1800.0f), 210, 90 * (1.0f - peso) + 180 * peso));
@@ -371,7 +370,6 @@ void ManifestarOVooNosVentos() {
   // Histerese: uma vez no modo de batida, permanece até abaixo do limiar - histerese
   // O despertar é necessário para o voo: ao acordar, a Gralha plana em silêncio
   // até que o sopro vital a chame ao bater das asas.
-  static bool limiar_elevado = true;
   if (modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     limiar_elevado = true;
   }
