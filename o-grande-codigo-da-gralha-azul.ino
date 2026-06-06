@@ -349,18 +349,15 @@ void ManifestarOVooNosVentos() {
         ferocidade_do_bater,
         ferocidade_do_retorno);
 
-    // Ferocidade do leme: CH5 — separada, modula diferencialmente o Yaw
+    // Ferocidade do leme: CH5 — aplicada igualmente em ambos os servos
     float pulso_leme = forma_do_bater_das_asas(
         canto_original_da_asa, direcao_do_bater,
         ferocidade_do_leme,
         ferocidade_do_leme);
 
-    // Modulação diferencial: CH4 define direção (-1 a 1)
-    float mod_leme = ((float)voz_do_leme_estelar - 1500.0f) * 0.0005f;
-
-    // Yaw-Mixing: componente do leme é adicionada/subtraída diferencialmente
-    float graus_asa_esquerda = magnitude_da_batida * (pulso_asa_base - pulso_leme * mod_leme);
-    float graus_asa_direita  = magnitude_da_batida * (pulso_asa_base + pulso_leme * mod_leme);
+    // Mistura: ferocidade do leme é adicionada igualmente em ambos os lados
+    float graus_asa_esquerda = magnitude_da_batida * (pulso_asa_base + pulso_leme);
+    float graus_asa_direita  = magnitude_da_batida * (pulso_asa_base + pulso_leme);
 
     angulo_portal_esquerdo = (int)((comando_aletao - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
     angulo_portal_direito  = (int)((comando_aletao + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);

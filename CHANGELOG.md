@@ -1,14 +1,11 @@
 # Changelog — O Grande Código da Gralha Azul
 
-## [1.2.0] — 2026-06-04
+## [1.3.0] — 2026-06-04
 
 ### Changed
-- **Per-servo ferocity with rudder modulation** — CH5 (`voz_da_ferocidade_do_leme`) now modulates the ferocity **differentially** between left and right wings via CH4 (rudder) input. Left wing gets CH5 scaled by `(1500 - CH4)`, right wing gets CH5 scaled by `(CH4 - 1500)`. This means CH5 controls how strongly the rudder affects the asymmetry of the wingbeat waveform. The old `fator_leme_sutil` formula (multiplicative amplitude modulation) has been replaced by **ferocity modulation** — the rudder now changes the shape (sharpness) of the wingbeat rather than just the amplitude.
-- **Removed `fator_leme_sutil`** — the old `((1500/leme_seguro) - 1) * 2 + 1` formula is gone. Yaw is now achieved purely through differential ferocity modulation per servo.
-- **Removed `graus_leme`** — unused variable, the rudder channel (CH4) directly modulates per-servo ferocity instead.
-
-### Fixed
-- **Identical servo outputs** — left and right wings no longer receive identical `pulso_do_sopro_vital`. Each servo now has its own ferocity calculation, with CH5/CH4 determining the differential.
+- **CH5 ferocity independent of CH4** — Rudder ferocity (`voz_da_ferocidade_do_leme`) is now applied equally to both wing servos, independent of the CH4 (rudder stick) input. Yaw mixing is handled entirely in the transmitter.
+- **Removed CH4-based differential modulation** — the old `mod_leme = (CH4 - 1500) * 0.0005` calculation is gone. CH5 simply adds its ferocity shape to both wings symmetrically.
+- **Removed `fator_leme_sutil`** — the old yaw amplitude modulation formula is gone.
 
 ---
 

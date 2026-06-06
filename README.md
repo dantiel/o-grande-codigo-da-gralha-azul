@@ -269,10 +269,10 @@ The **wingbeat waveform** is shaped by the `forma_do_bater_das_asas()` function,
 
 - **Downstroke** uses `voz_da_ferocidade_do_bater` (CH7) — higher values = sharper, more aggressive downstroke
 - **Upstroke** uses `voz_da_ferocidade_do_retorno` (CH8) — higher values = quicker recovery
-- **Rudder** (CH4) modulates ferocity **differentially** between left and right wings using CH5 (`voz_da_ferocidade_do_leme`) as gain
-- **Each servo** gets its own `forma_do_bater_das_asas()` calculation — left wing ferocity = CH7/CH8 + CH5 × (1500 - CH4), right wing = CH7/CH8 + CH5 × (CH4 - 1500)
+- **Rudder ferocity** (CH5) is applied equally to both wings — CH4 (rudder) is mixed in the transmitter, not in code
+- **Each servo** gets its own `forma_do_bater_das_asas()` calculation — both receive `pulso_asa_base + pulso_leme` from CH5
 
-This creates an asymmetric wingbeat: a powerful downstroke (thrust) and a gentler upstroke (recovery), mimicking natural bird flight. Yaw is achieved by making one wing's waveform sharper than the other, controlled by CH4 (rudder) and CH5 (rudder ferocity gain).
+This creates an asymmetric wingbeat: a powerful downstroke (thrust) and a gentler upstroke (recovery), mimicking natural bird flight. Yaw is achieved by mixing CH4 differentially onto the two wing outputs in the transmitter.
 
 ### Servo Mixing
 
@@ -285,20 +285,10 @@ Right Wing = Roll + WingBeat + Pitch
 
 - **Roll** (CH1): Both wings move together — bank left/right
 - **Pitch** (CH2): Differential — dive (both wings forward) or climb (both wings back)
-- **Yaw** (CH4): Modulates the **ferocity** (waveform sharpness) of each wing differentially
+- **Yaw** (CH4): Mixing is done in the transmitter, not in code
 
-**Yaw (CH4) and rudder ferocity (CH5):**
-The rudder input (CH4) modulates the ferocity values differentially between left and right wings. CH5 (`voz_da_ferocidade_do_leme`) controls how strongly the rudder affects the waveform shape:
-
-```
-Left Wing Ferocity  = CH7 + (1500 - CH4) × 0.0005 × CH5
-Right Wing Ferocity = CH7 + (CH4 - 1500) × 0.0005 × CH5
-```
-
-Same for upstroke ferocity (CH8). This means:
-- **CH4 = 1500** (center): Both wings have equal ferocity — no yaw
-- **CH4 < 1500**: Left wing gets sharper waveform → turn right
-- **CH4 > 1500**: Right wing gets sharper waveform → turn left
+**Rudder ferocity (CH5):**
+CH5 (`voz_da_ferocidade_do_leme`) applies its ferocity shape equally to both wings. The transmitter handles CH4 yaw mixing differentially.
 - **CH5**: Master gain for how much the rudder affects the asymmetry
 
 In **glide mode**, the wings are set to a fixed angle (`ANGULO_DO_PLANAR_SERENO` = -4°) plus roll and pitch inputs, allowing the bird to soar like a real bird.
