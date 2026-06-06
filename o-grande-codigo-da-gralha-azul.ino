@@ -107,6 +107,7 @@ int voz_do_leme_estelar = VIBRACAO_NEUTRA_DO_LEME_ESTELAR;
 int voz_do_compasso_da_alma = VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA;
 int voz_da_ferocidade_do_bater = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_retorno = VIBRACAO_MINIMA_DA_FEROCIDADE;
+int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
 
 /*
   A Geometria Sagrada do Voo: A Essência do Movimento Alado
@@ -235,6 +236,7 @@ void InterpretarAsVozesDoFirmamento() {
   voz_do_compasso_da_alma = guardiao_dos_ventos_siderais.getChannel(6);
   voz_da_ferocidade_do_bater = guardiao_dos_ventos_siderais.getChannel(7);
   voz_da_ferocidade_do_retorno = guardiao_dos_ventos_siderais.getChannel(8);
+  voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(5);
 }
 
 
@@ -311,25 +313,25 @@ void ManifestarOVooNosVentos() {
 
   int angulo_portal_esquerdo, angulo_portal_direito;
 
-  // Hysterese: Einmal im Flügelmodus, bleibt er bis unter (LIMIAR - HYSTERESE)
-  static bool schwellwert_hoch = true;
+  // Histerese: uma vez no modo de batida, permanece até abaixo do limiar - histerese
+  static bool limiar_elevado = true;
   if (modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
-    schwellwert_hoch = true;
+    limiar_elevado = true;
   }
-  int schwellwert_aktiv = schwellwert_hoch
+  int limiar_atual = limiar_elevado
     ? LIMIAR_DO_VOO_ATIVO
     : (LIMIAR_DO_VOO_ATIVO - LIMIAR_DO_VOO_ATIVO_HISTERESE);
 
   if(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
-    modo_presente_do_espirito = (voz_do_sopro_vital > schwellwert_aktiv)
+    modo_presente_do_espirito = (voz_do_sopro_vital > limiar_atual)
         ? EM_RITMO_DE_BATIDA_DAS_ASAS
         : EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
     if (modo_presente_do_espirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
-      schwellwert_hoch = false;
+      limiar_elevado = false;
     }
   } else {
     modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
-    schwellwert_hoch = false;
+    limiar_elevado = false;
   }
 
   if(modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
@@ -339,17 +341,32 @@ void ManifestarOVooNosVentos() {
     float canto_original_da_asa = sin(angulo_da_danca_alada);
     // A 'direcao_do_bater' revela se a asa desce ou retorna.
     float direcao_do_bater = cos(angulo_da_danca_alada);
-    // A 'ferocidade_do_bater' afia o canto da descida.
+    // Ferocidade para as asas (CH7 = down, CH8 = up)
     float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, 1.0f, 8.0f);
-    // A 'ferocidade_do_retorno' molda a canção da subida.
     float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, 1.0f, 8.0f);
-    // O canto da asa ganha ferocidade.
-    pulso_do_sopro_vital = forma_do_bater_das_asas(canto_original_da_asa, direcao_do_bater, ferocidade_do_bater, ferocidade_do_retorno);
+    // Ferocidade para o leme (CH5 — gilt für beide Richtungen)
+    float ferocidade_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, 1.0f, 8.0f);
 
-    float graus_do_movimento_alado = magnitude_da_batida * pulso_do_sopro_vital;
+    // Cada servo recebe sua própria fórmula de ferocidade
+    // Leme (CH4) modula a ferocidade diferencialmente: CH5 = força da modulação
+    float modulacao_leme_esquerda = constrain((1500.0f - (float)voz_do_leme_estelar) * 0.0005f * ferocidade_do_leme, -1.0f, 1.0f);
+    float modulacao_leme_direita  = constrain(((float)voz_do_leme_estelar - 1500.0f) * 0.0005f * ferocidade_do_leme, -1.0f, 1.0f);
 
-    angulo_portal_esquerdo = (int)((comando_aletao - (graus_do_movimento_alado * fator_leme_sutil) + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
-    angulo_portal_direito  = (int)((comando_aletao + (graus_do_movimento_alado / fator_leme_sutil) + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
+    float pulso_asa_esquerda = forma_do_bater_das_asas(
+        canto_original_da_asa, direcao_do_bater,
+        ferocidade_do_bater + modulacao_leme_esquerda,
+        ferocidade_do_retorno + modulacao_leme_esquerda);
+    float pulso_asa_direita  = forma_do_bater_das_asas(
+        canto_original_da_asa, direcao_do_bater,
+        ferocidade_do_bater + modulacao_leme_direita,
+        ferocidade_do_retorno + modulacao_leme_direita);
+
+    // Yaw-Mixing: differentielle Amplitude pro Servo
+    float graus_asa_esquerda = magnitude_da_batida * pulso_asa_esquerda;
+    float graus_asa_direita  = magnitude_da_batida * pulso_asa_direita;
+
+    angulo_portal_esquerdo = (int)((comando_aletao - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
+    angulo_portal_direito  = (int)((comando_aletao + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
   } else { // EM_DESLIZE_ETERNO_E_CONTEMPLATIVO
     angulo_portal_esquerdo = (int)((comando_aletao - ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
     angulo_portal_direito  = (int)((comando_aletao + ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
@@ -390,12 +407,13 @@ void loop() {
     Serial.print(" | Compasso: "); Serial.print(voz_do_compasso_da_alma);
     Serial.print(" | FerBater: "); Serial.print(voz_da_ferocidade_do_bater);
     Serial.print(" | FerRetorno: "); Serial.print(voz_da_ferocidade_do_retorno);
+    Serial.print(" | FerLeme: "); Serial.print(voz_da_ferocidade_do_leme);
     Serial.print(" | Fase: "); Serial.print(angulo_da_danca_alada, 2);
     Serial.print(" | Cadencia: "); Serial.print(cadencia_do_destino_alado, 2);
     Serial.println();
   }
 #endif
-  // Initialisierung beim ersten Durchlauf: verhindert Riesen-dt beim Start
+  // Inicialização na primeira execução: evita dt gigantesco na partida
   if (relogio_das_eras.ultima_pulsacao_do_sopro_alado == 0) {
     relogio_das_eras.ultima_pulsacao_do_sopro_alado = relogio_das_eras.instante_do_agora_cosmico;
   }

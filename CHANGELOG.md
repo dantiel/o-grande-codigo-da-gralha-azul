@@ -1,5 +1,17 @@
 # Changelog — O Grande Código da Gralha Azul
 
+## [1.2.0] — 2026-06-04
+
+### Changed
+- **Per-servo ferocity with rudder modulation** — CH5 (`voz_da_ferocidade_do_leme`) now modulates the ferocity **differentially** between left and right wings via CH4 (rudder) input. Left wing gets CH5 scaled by `(1500 - CH4)`, right wing gets CH5 scaled by `(CH4 - 1500)`. This means CH5 controls how strongly the rudder affects the asymmetry of the wingbeat waveform. The old `fator_leme_sutil` formula (multiplicative amplitude modulation) has been replaced by **ferocity modulation** — the rudder now changes the shape (sharpness) of the wingbeat rather than just the amplitude.
+- **Removed `fator_leme_sutil`** — the old `((1500/leme_seguro) - 1) * 2 + 1` formula is gone. Yaw is now achieved purely through differential ferocity modulation per servo.
+- **Removed `graus_leme`** — unused variable, the rudder channel (CH4) directly modulates per-servo ferocity instead.
+
+### Fixed
+- **Identical servo outputs** — left and right wings no longer receive identical `pulso_do_sopro_vital`. Each servo now has its own ferocity calculation, with CH5/CH4 determining the differential.
+
+---
+
 All notable changes to this project will be documented in this file.
 
 ---
@@ -18,6 +30,9 @@ All notable changes to this project will be documented in this file.
 - **Flight mode hysteresis** — Added `LIMIAR_DO_VOO_ATIVO_HISTERESE` (±20 CRSF units) to prevent rapid oscillation between flapping and gliding modes when throttle is near the threshold. Once in flapping mode, the bird stays flapping until throttle drops below `(LIMIAR_DO_VOO_ATIVO - LIMIAR_DO_VOO_ATIVO_HISTERESE)`.
 - **`volatile` qualifier removed** — CRSF callbacks run from `guardiao.loop()`, not from an interrupt context. The `volatile` keyword was misleading and has been removed from all channel variables.
 - **Asymmetric flapping ferocity logic** — `forma_do_bater_das_asas()` now selects downstroke vs upstroke ferocity based on stroke direction (`cos(angulo_da_danca_alada)`) rather than wing position (`sin(angulo_da_danca_alada)`). This ensures the correct ferocity is applied to the actual downstroke and upstroke phases.
+
+### Added
+- **Per-servo ferocity** — Each servo (left wing, right wing, rudder) now gets its own `forma_do_bater_das_asas()` calculation. CH5 (`voz_da_ferocidade_do_leme`) provides independent rudder ferocity, while CH7/CH8 control wing downstroke/upstroke ferocity. Yaw mixing (differential amplitude) remains unchanged.
 
 ### Documentation
 - Created full English README with wiring diagrams, ELRS/CRSF setup guide, channel mapping table, flashing instructions for Waveshare RP2040 Zero, configuration reference, flight mechanics explanation, LED animation description, and Portuguese–English name translation table.

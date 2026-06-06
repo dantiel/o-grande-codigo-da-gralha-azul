@@ -146,7 +146,7 @@ In your transmitter, configure the following channel mapping (typically in the *
 | CH2 | Elevator (Right stick vertical) | Pitch |
 | CH3 | Throttle (Left stick vertical) | Wingbeat intensity |
 | CH4 | Rudder (Left stick horizontal) | Yaw / Differential steering |
-| CH5 | — | Unused (reserved) |
+| CH5 | Potentiometer / Slider | Rudder ferocity (yaw authority) |
 | CH6 | Potentiometer / Slider | Rhythm modulation |
 | CH7 | Potentiometer / Slider | Downstroke sharpness |
 | CH8 | Potentiometer / Slider | Upstroke sharpness |
@@ -165,11 +165,11 @@ The receiver communicates via CRSF protocol over UART at 420000 baud. The follow
 | CH2 | `voz_do_profundor` | Voice of the Elevator | Pitch / Dive & Climb | 1000–2000 (center 1500) |
 | CH3 | `voz_do_sopro_vital` | Voice of the Vital Breath | Throttle / Wingbeat intensity | 1000–2000 |
 | CH4 | `voz_do_leme_estelar` | Voice of the Starry Rudder | Yaw / Differential steering | 1000–2000 (center 1500) |
+| CH5 | `voz_da_ferocidade_do_leme` | Voice of the Rudder Ferocity | Rudder ferocity (yaw authority) | 1000–2000 |
 | CH6 | `voz_do_compasso_da_alma` | Voice of the Soul's Compass | Rhythm modulation | 1000–2000 (center 1500) |
 | CH7 | `voz_da_ferocidade_do_bater` | Voice of the Downstroke Ferocity | Downstroke sharpness | 1000–2000 |
 | CH8 | `voz_da_ferocidade_do_retorno` | Voice of the Upstroke Ferocity | Upstroke sharpness | 1000–2000 |
 
-**Channel 5 is unused** (reserved for future use, e.g., flight mode switch).
 
 ---
 
@@ -269,27 +269,37 @@ The **wingbeat waveform** is shaped by the `forma_do_bater_das_asas()` function,
 
 - **Downstroke** uses `voz_da_ferocidade_do_bater` (CH7) — higher values = sharper, more aggressive downstroke
 - **Upstroke** uses `voz_da_ferocidade_do_retorno` (CH8) — higher values = quicker recovery
+- **Rudder** (CH4) modulates ferocity **differentially** between left and right wings using CH5 (`voz_da_ferocidade_do_leme`) as gain
+- **Each servo** gets its own `forma_do_bater_das_asas()` calculation — left wing ferocity = CH7/CH8 + CH5 × (1500 - CH4), right wing = CH7/CH8 + CH5 × (CH4 - 1500)
 
-This creates an asymmetric wingbeat: a powerful downstroke (thrust) and a gentler upstroke (recovery), mimicking natural bird flight.
+This creates an asymmetric wingbeat: a powerful downstroke (thrust) and a gentler upstroke (recovery), mimicking natural bird flight. Yaw is achieved by making one wing's waveform sharper than the other, controlled by CH4 (rudder) and CH5 (rudder ferocity gain).
 
 ### Servo Mixing
 
 The two wing servos are mixed with roll (CH1), pitch (CH2), and yaw (CH4) for full 3-axis control:
 
 ```
-Left Wing  = Roll - (WingBeat × YawFactor) - Pitch
-Right Wing = Roll + (WingBeat / YawFactor) + Pitch
+Left Wing  = Roll - WingBeat - Pitch
+Right Wing = Roll + WingBeat + Pitch
 ```
 
 - **Roll** (CH1): Both wings move together — bank left/right
 - **Pitch** (CH2): Differential — dive (both wings forward) or climb (both wings back)
-- **Yaw** (CH4): Differential wingbeat amplitude — turn by making one wing's stroke stronger
+- **Yaw** (CH4): Modulates the **ferocity** (waveform sharpness) of each wing differentially
 
-The **yaw factor** (`fator_leme_sutil`) is calculated as:
+**Yaw (CH4) and rudder ferocity (CH5):**
+The rudder input (CH4) modulates the ferocity values differentially between left and right wings. CH5 (`voz_da_ferocidade_do_leme`) controls how strongly the rudder affects the waveform shape:
+
 ```
-fator_leme_sutil = ((1500 / CH4) - 1) × 2 + 1
+Left Wing Ferocity  = CH7 + (1500 - CH4) × 0.0005 × CH5
+Right Wing Ferocity = CH7 + (CH4 - 1500) × 0.0005 × CH5
 ```
-At CH4 = 1500 (center), the factor is 1.0 (equal wingbeat). At CH4 = 1000, the factor is 2.0 (left wing beats stronger → turn right). At CH4 = 2000, the factor is 0.5 (right wing beats stronger → turn left).
+
+Same for upstroke ferocity (CH8). This means:
+- **CH4 = 1500** (center): Both wings have equal ferocity — no yaw
+- **CH4 < 1500**: Left wing gets sharper waveform → turn right
+- **CH4 > 1500**: Right wing gets sharper waveform → turn left
+- **CH5**: Master gain for how much the rudder affects the asymmetry
 
 In **glide mode**, the wings are set to a fixed angle (`ANGULO_DO_PLANAR_SERENO` = -4°) plus roll and pitch inputs, allowing the bird to soar like a real bird.
 
@@ -361,7 +371,7 @@ The code uses poetic Portuguese names for all identifiers. This table maps them 
 | `VIBRACAO_MINIMA_DO_SOPRO_VITAL` | CH3 Minimum (Minimum Vital Breath Vibration) |
 | `VIBRACAO_NEUTRA_DO_LEME_ESTELAR` | CH4 Neutral (Neutral Starry Rudder Vibration) |
 | `VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA` | CH6 Neutral (Neutral Soul's Compass Vibration) |
-| `VIBRACAO_MINIMA_DA_FEROCIDADE` | CH7/CH8 Minimum (Minimum Ferocity Vibration) |
+| `VIBRACAO_MINIMA_DA_FEROCIDADE` | CH5/CH7/CH8 Minimum (Minimum Ferocity Vibration) |
 | `EstadoDaAlmaAlada` | Link State (Winged Soul State) |
 | `EM_DANCA_COM_OS_VENTOS` | Link Up (Dancing with the Winds) |
 | `EM_SONHO_NA_QUIETUDE_DA_FLORESTA` | Link Down (Dreaming in the Forest's Quiet) |
@@ -376,6 +386,7 @@ The code uses poetic Portuguese names for all identifiers. This table maps them 
 | `voz_do_compasso_da_alma` | CH6 Value (Voice of the Soul's Compass) |
 | `voz_da_ferocidade_do_bater` | CH7 Value (Voice of the Downstroke Ferocity) |
 | `voz_da_ferocidade_do_retorno` | CH8 Value (Voice of the Upstroke Ferocity) |
+| `voz_da_ferocidade_do_leme` | CH5 Value (Voice of the Rudder Ferocity) |
 | `angulo_da_danca_alada` | Wingbeat Phase Angle (Winged Dance Angle) |
 | `cadencia_do_destino_alado` | Wingbeat Cadence (Winged Destiny Cadence) |
 | `pulso_do_sopro_vital` | Wingbeat Waveform (Vital Breath Pulse) |
