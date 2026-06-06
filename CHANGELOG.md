@@ -1,5 +1,17 @@
 # Changelog — O Grande Código da Gralha Azul
 
+## [1.4.0] — 2026-06-06
+
+### Changed
+- **CH5 → Arm/Disarm** — `voz_do_despertar`. >1500 = armado, <1500 = disarmado. Ao armar, a Gralha entra em `EM_DESLIZE_ETERNO_E_CONTEMPLATIVO`.
+- **CH6 → Compasso da Alma** — `voz_do_compasso_da_alma`. Reconstruído da v1.1.0: modula `intencao_de_cadencia` (ritmo) e `magnitude_da_batida` (amplitude). A chama also reflete o compasso nas cores.
+- **CH7 → Ruder Ferocity** — `voz_da_ferocidade_do_leme`. Slider -1..1, diferencial ±2 na ferocidade das asas.
+- **CH8 → Ferocidade Geral** — usado para downstroke e upstroke (mixing no transmissor).
+- **LED pulsation** — se armado e despertado, pulsa entre o vermelho da vigília e a cor do estado. Se link-down, pulsa entre o amarelo do silêncio e o azul noturno.
+- **`voz_do_compasso_da_alma` removido e reconstruído** — canal 6 agora é o compasso, não mais a ferocidade do leme.
+
+---
+
 ## [1.3.0] — 2026-06-04
 
 ### Changed

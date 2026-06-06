@@ -106,6 +106,7 @@ int voz_do_profundor = VIBRACAO_NEUTRA_DO_PROFUNDOR;
 int voz_do_sopro_vital = VIBRACAO_MINIMA_DO_SOPRO_VITAL;
 int voz_do_leme_estelar = VIBRACAO_NEUTRA_DO_LEME_ESTELAR;
 int voz_do_despertar = 0;
+int voz_do_compasso_da_alma = VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA;
 int voz_da_ferocidade_do_bater = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_retorno = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
@@ -184,6 +185,7 @@ public:
     float eixo_do_profundor_celeste = mapear_entre_escalas_harmonicas(voz_do_profundor, 1000.0f, 2000.0f, -1.0f, 1.0f);
     float eixo_do_sopro_de_vida = mapear_entre_escalas_harmonicas(voz_do_sopro_vital, 1000.0f, 2000.0f, 0.0f, 1.0f);
     float eixo_do_despertar_da_alma = mapear_entre_escalas_harmonicas(voz_do_despertar, 1000.0f, 2000.0f, 0.0f, 1.0f);
+    float eixo_do_compasso_animico = mapear_entre_escalas_harmonicas(voz_do_compasso_da_alma, 1000.0f, 2000.0f, -1.0f, 1.0f);
     bool despertou = (voz_do_despertar > 1500);
     byte r=0, g=0, b=0;
     byte r_alerta=0, g_alerta=0, b_alerta=0;
@@ -191,10 +193,11 @@ public:
     // --- Cor base do estado presente ---
     if (estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
       if (modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
+        // A intensidade e matiz variam com o sopro vital e o compasso da alma.
         // Azul da Gralha, com verde da esperança e ouro solar.
-        b = (150 + 105 * eixo_do_despertar_da_alma) * eixo_do_sopro_de_vida;
+        b = (150 + 105 * (1.0f - eixo_do_compasso_animico * 0.5f)) * eixo_do_sopro_de_vida;
         g = (80 + 70 * (1.0f + eixo_do_profundor_celeste * 0.5f)) * eixo_do_sopro_de_vida;
-        r = (30 + 20 * eixo_do_despertar_da_alma * 0.5f) * eixo_do_sopro_de_vida;
+        r = (30 + 20 * (1.0f + eixo_do_compasso_animico * 0.3f)) * eixo_do_sopro_de_vida;
 
         float modulador_de_brilho = posicao_das_asas_no_ciclo * 0.8f + 0.2f;
         r *= modulador_de_brilho;
@@ -289,8 +292,8 @@ void InterpretarAsVozesDoFirmamento() {
   voz_do_sopro_vital = guardiao_dos_ventos_siderais.getChannel(3);
   voz_do_leme_estelar = guardiao_dos_ventos_siderais.getChannel(4);
   voz_do_despertar = guardiao_dos_ventos_siderais.getChannel(5);
-  voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(6);
-  voz_da_ferocidade_do_bater = guardiao_dos_ventos_siderais.getChannel(7);
+  voz_do_compasso_da_alma = guardiao_dos_ventos_siderais.getChannel(6);
+  voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(7);
   voz_da_ferocidade_do_retorno = guardiao_dos_ventos_siderais.getChannel(8);
 }
 
@@ -339,7 +342,8 @@ void AnimarPulsarDoCoracaoAlado() {
 
   if(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
     // A 'intencao_de_cadencia' é a força e o ritmo desejados para o bater das asas.
-    float intencao_de_cadencia = (voz_do_sopro_vital - 480.0f) * (1.0f / (120.0f * CICLO_DO_CORACAO_ALADO));
+    float intencao_de_cadencia = (voz_do_sopro_vital - 480.0f) * ((1.0f / (120.0f * CICLO_DO_CORACAO_ALADO)) +
+        ((voz_do_compasso_da_alma - 1500.0f) * 0.0000725f)); // Fator de modulação de ritmo.
     // 'variacao_do_destino_alado' é a "aceleração" angular para a batida.
     // O termo '- 10.0f * cadencia_do_destino_alado' é um amortecimento, como a resistência do ar ou a inércia da alma.
     float variacao_do_destino_alado = 1.0f * intencao_de_cadencia - 10.0f * cadencia_do_destino_alado;
@@ -388,7 +392,7 @@ void ManifestarOVooNosVentos() {
 
   if(modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     // A 'magnitude_da_batida' é a força com que a Gralha impulsiona o ar.
-    float magnitude_da_batida = ((voz_do_sopro_vital - LIMIAR_DO_VOO_ATIVO) * 0.06f);
+    float magnitude_da_batida = ((voz_do_sopro_vital - LIMIAR_DO_VOO_ATIVO) * 0.06f) * (1.0f - (voz_do_compasso_da_alma - 1500.0f) * 0.0003f);
     // O 'canto_original_da_asa' é o coração senoidal do movimento.
     float canto_original_da_asa = sin(angulo_da_danca_alada);
     // A 'direcao_do_bater' revela se a asa desce ou retorna.
