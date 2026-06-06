@@ -1,5 +1,14 @@
 # Changelog — O Grande Código da Gralha Azul
 
+## [1.5.0] — 2026-06-06
+
+### Added
+- **BMP180 barometer support** — `DespertarOraculoDaPressao()` initialises the BMP180 on I2C (SDA=GP4, SCL=GP5). If not found, continues without blocking.
+- **`EscutarPressaoDoCeu()`** — reads barometer every 100ms, calculates relative altitude (`altura_barometrica_m`), vertical speed (`subida_da_gralha_ms`), low-pass filtered vario (`subida_filtrada_da_gralha_ms`), temperature (`temperatura_do_ar_c`), and temperature trend (`tendencia_da_temperatura_c`).
+- **Thermal confidence** — `confianca_termal = subida_filtrada_da_gralha_ms + tendencia_da_temperatura_c * 0.3f`. Not yet affecting servos.
+- **Debug fields** — `BaroAlt`, `Vario`, `Temp`, `Termal` printed when `ECOS_PRESCINDIVEIS_DA_ALMA_ALADA` is defined.
+- **New variables** — `pressao_do_ceu_hpa`, `temperatura_do_ar_c`, `altura_barometrica_m`, `altura_inicial_m`, `subida_da_gralha_ms`, `subida_filtrada_da_gralha_ms`, `ultima_altura_barometrica_m`, `ultimo_sopro_do_barometro`, `tendencia_da_temperatura_c`, `ultima_temperatura_do_ar_c`, `modo_de_escuta_termal`, `confianca_termal`, `barometro_presente`.
+
 ## [1.4.0] — 2026-06-06
 
 ### Changed

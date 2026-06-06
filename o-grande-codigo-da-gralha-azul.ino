@@ -25,6 +25,9 @@
 
 #include <Arduino.h>
 #include <CrsfSerial.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085_U.h>
 
 // O Guardião dos Ventos Siderais, intérprete dos desígnios para a Gralha.
 CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
@@ -72,6 +75,7 @@ CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
     mas o voo só se inicia quando o espírito alado a comanda.
   */
   bool limiar_elevado = true;
+bool barometro_presente = false; // O oráculo da pressão escuta a altura invisível.
 
   enum EstadoDaAlmaAlada {
     EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
@@ -112,6 +116,23 @@ int voz_do_compasso_da_alma = VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA;
 int voz_da_ferocidade_do_bater = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_retorno = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
+
+// O oráculo da pressão escuta a altura invisível.
+Adafruit_BMP085_U oraculo_da_pressao = Adafruit_BMP085_U(10085);
+float pressao_do_ceu_hpa = 0.0f;
+float temperatura_do_ar_c = 0.0f;
+float altura_barometrica_m = 0.0f;
+float altura_inicial_m = 0.0f;
+float subida_da_gralha_ms = 0.0f;
+float subida_filtrada_da_gralha_ms = 0.0f;
+float ultima_altura_barometrica_m = 0.0f;
+unsigned long ultimo_sopro_do_barometro = 0;
+float tendencia_da_temperatura_c = 0.0f;
+float ultima_temperatura_do_ar_c = 0.0f;
+
+// A subida da Gralha revela o sopro quente do céu.
+bool modo_de_escuta_termal = false;
+float confianca_termal = 0.0f;
 
 unsigned long ultimo_instante_de_respiracao_luminescente = 0;
 float pulsacao_da_chama_primordial = 0.0f;
@@ -260,6 +281,83 @@ Servo motor_asa_matutina, motor_asa_vespertina;
 
 
 // --- Rituais de Sintonia e Percepção da Alma Alada ---
+// O oráculo da pressão desperta: inicia o barômetro BMP180.
+void DespertarOraculoDaPressao() {
+  Wire.setSDA(4);
+  Wire.setSCL(5);
+  Wire.begin();
+  if (!oraculo_da_pressao.begin()) {
+    barometro_presente = false;
+#ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
+    Serial.println("O oráculo da pressão silencia — o barômetro não responde.");
+#endif
+    return;
+  }
+  barometro_presente = true;
+#ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
+  Serial.println("O oráculo da pressão desperta — o barômetro escuta o céu.");
+#endif
+  // Estabelece a altura inicial: média de várias leituras
+  float soma_altura = 0.0f;
+  int leituras_validas = 0;
+  for (int i = 0; i < 10; i++) {
+    sensors_event_t evento;
+    oraculo_da_pressao.getEvent(&evento);
+    if (evento.pressure > 0) {
+      float temperatura;
+      oraculo_da_pressao.getTemperature(&temperatura);
+      float altitude = oraculo_da_pressao.pressureToAltitude(SEALEVELPRESSURE_HPA, evento.pressure, temperatura);
+      soma_altura += altitude;
+      leituras_validas++;
+    }
+    delay(50);
+  }
+  if (leituras_validas > 0) {
+    altura_inicial_m = soma_altura / leituras_validas;
+  }
+  ultima_altura_barometrica_m = 0.0f;
+  ultimo_sopro_do_barometro = millis();
+  ultima_temperatura_do_ar_c = 0.0f;
+}
+
+// Escuta a pressão do céu: lê o barômetro e calcula altura e subida.
+void EscutarPressaoDoCeu() {
+  if (!barometro_presente) return;
+  unsigned long agora = millis();
+  if (agora - ultimo_sopro_do_barometro < 100) return; // A cada 100 ms
+  float dt = (agora - ultimo_sopro_do_barometro) * 0.001f;
+  if (dt < 0.001f) dt = 0.001f;
+  ultimo_sopro_do_barometro = agora;
+
+  sensors_event_t evento;
+  oraculo_da_pressao.getEvent(&evento);
+  if (evento.pressure <= 0) return;
+  pressao_do_ceu_hpa = evento.pressure;
+
+  // A temperatura apenas sussurra; a subida confirma.
+  oraculo_da_pressao.getTemperature(&temperatura_do_ar_c);
+
+  // Altitude relativa
+  float altitude_absoluta = oraculo_da_pressao.pressureToAltitude(SEALEVELPRESSURE_HPA, evento.pressure, temperatura_do_ar_c);
+  altura_barometrica_m = altitude_absoluta - altura_inicial_m;
+
+  // Subida (vertical speed)
+  subida_da_gralha_ms = (altura_barometrica_m - ultima_altura_barometrica_m) / dt;
+  ultima_altura_barometrica_m = altura_barometrica_m;
+
+  // Filtro passa-baixa
+  subida_filtrada_da_gralha_ms = subida_filtrada_da_gralha_ms * 0.85f + subida_da_gralha_ms * 0.15f;
+
+  // Tendência da temperatura
+  tendencia_da_temperatura_c = tendencia_da_temperatura_c * 0.9f + (temperatura_do_ar_c - ultima_temperatura_do_ar_c) * 0.1f;
+  ultima_temperatura_do_ar_c = temperatura_do_ar_c;
+
+  // Confiança termal: subida + tendência de temperatura
+  confianca_termal = subida_filtrada_da_gralha_ms + tendencia_da_temperatura_c * 0.3f;
+  if (confianca_termal > 0.5f) modo_de_escuta_termal = true;
+  else if (confianca_termal < -0.5f) modo_de_escuta_termal = false;
+}
+
 void AoDespertarParaOCantoDoEter() {
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   Serial.println("A Gralha sente o chamado do éter!");
@@ -304,6 +402,7 @@ void InterpretarAsVozesDoFirmamento() {
 */
 void setup() {
   manto_celestial_da_gralha.AcenderLuzPrimordial();
+  DespertarOraculoDaPressao();
   AoDespertarParaOCantoDoEter();
 
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
@@ -400,13 +499,13 @@ void ManifestarOVooNosVentos() {
     float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, 1.0f, 8.0f);
     float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, 1.0f, 8.0f);
     // Fator do leme (CH5): centro=0, extremos=±1 (±2 escala de ferocidade)
-    float fator_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, -1.0f, 1.0f);
+    float fator_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, -4.0f, 4.0f);
 
     // Ferocidade do leme aplicada diferencialmente: +num esquerdo, -num direito
-    float ferocidade_bater_esquerda = ferocidade_do_bater + fator_do_leme * 2.0f;
-    float ferocidade_bater_direita  = ferocidade_do_bater - fator_do_leme * 2.0f;
-    float ferocidade_retorno_esquerda = ferocidade_do_retorno + fator_do_leme * 2.0f;
-    float ferocidade_retorno_direita  = ferocidade_do_retorno - fator_do_leme * 2.0f;
+    float ferocidade_bater_esquerda = ferocidade_do_bater + fator_do_leme;
+    float ferocidade_bater_direita  = ferocidade_do_bater - fator_do_leme;
+    float ferocidade_retorno_esquerda = ferocidade_do_retorno + fator_do_leme;
+    float ferocidade_retorno_direita  = ferocidade_do_retorno - fator_do_leme;
 
     // Cada servo recebe sua própria forma de batida
     float pulso_asa_esquerda = forma_do_bater_das_asas(
@@ -442,6 +541,7 @@ void loop() {
   guardiao_dos_ventos_siderais.loop();
 
   AnimarPulsarDoCoracaoAlado();
+  EscutarPressaoDoCeu();
   ManifestarOVooNosVentos();
 
   if(relogio_das_eras.instante_do_agora_cosmico - relogio_das_eras.ultimo_fulgor_da_chama_azul >= 33) { // ~30fps
@@ -464,6 +564,12 @@ void loop() {
     Serial.print(" | FerBater: "); Serial.print(voz_da_ferocidade_do_bater);
     Serial.print(" | FerRetorno: "); Serial.print(voz_da_ferocidade_do_retorno);
     Serial.print(" | FerLeme: "); Serial.print(voz_da_ferocidade_do_leme);
+    if (barometro_presente) {
+      Serial.print(" | BaroAlt: "); Serial.print(altura_barometrica_m, 1);
+      Serial.print(" | Vario: "); Serial.print(subida_filtrada_da_gralha_ms, 2);
+      Serial.print(" | Temp: "); Serial.print(temperatura_do_ar_c, 1);
+      Serial.print(" | Termal: "); Serial.print(confianca_termal, 2);
+    }
     Serial.print(" | Fase: "); Serial.print(angulo_da_danca_alada, 2);
     Serial.print(" | Cadencia: "); Serial.print(cadencia_do_destino_alado, 2);
     Serial.println();
