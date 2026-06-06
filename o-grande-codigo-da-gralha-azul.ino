@@ -340,14 +340,14 @@ void ManifestarOVooNosVentos() {
     // Ferocidade para as asas (CH7 = down, CH8 = up)
     float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, 1.0f, 8.0f);
     float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, 1.0f, 8.0f);
-    // Ferocidade para o leme (CH5 — vale para ambas as direções)
-    float ferocidade_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, 1.0f, 8.0f);
+    // Fator do leme (CH5): centro=0, extremos=±1 (±2 escala de ferocidade)
+    float fator_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, -1.0f, 1.0f);
 
-    // Ferocidade do leme (CH5) aplicada diferencialmente: +num esquerdo, -num direito
-    float ferocidade_bater_esquerda = ferocidade_do_bater + ferocidade_do_leme;
-    float ferocidade_bater_direita  = ferocidade_do_bater - ferocidade_do_leme;
-    float ferocidade_retorno_esquerda = ferocidade_do_retorno + ferocidade_do_leme;
-    float ferocidade_retorno_direita  = ferocidade_do_retorno - ferocidade_do_leme;
+    // Ferocidade do leme aplicada diferencialmente: +num esquerdo, -num direito
+    float ferocidade_bater_esquerda = ferocidade_do_bater + fator_do_leme * 2.0f;
+    float ferocidade_bater_direita  = ferocidade_do_bater - fator_do_leme * 2.0f;
+    float ferocidade_retorno_esquerda = ferocidade_do_retorno + fator_do_leme * 2.0f;
+    float ferocidade_retorno_direita  = ferocidade_do_retorno - fator_do_leme * 2.0f;
 
     // Cada servo recebe sua própria forma de batida
     float pulso_asa_esquerda = forma_do_bater_das_asas(
