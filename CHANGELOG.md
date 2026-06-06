@@ -3,8 +3,9 @@
 ## [1.3.0] — 2026-06-04
 
 ### Changed
-- **CH5 ferocity independent of CH4** — Rudder ferocity (`voz_da_ferocidade_do_leme`) is now applied equally to both wing servos, independent of the CH4 (rudder stick) input. Yaw mixing is handled entirely in the transmitter.
-- **Removed CH4-based differential modulation** — the old `mod_leme = (CH4 - 1500) * 0.0005` calculation is gone. CH5 simply adds its ferocity shape to both wings symmetrically.
+- **CH5 rudder ferocity now differential** — CH5 (`voz_da_ferocidade_do_leme`) is added to the left wing's ferocity and subtracted from the right wing's ferocity. This creates asymmetric wingbeats: the bird turns towards the side with sharper (more ferocious) downstrokes. Yaw mixing is handled in the transmitter.
+- **Removed separate rudder pulse** — `pulso_leme` no longer exists. Each servo gets its own `forma_do_bater_das_asas()` with independent ferocity values.
+- **Removed CH4-based differential modulation** — the old `mod_leme = (CH4 - 1500) * 0.0005` calculation is gone.
 - **Removed `fator_leme_sutil`** — the old yaw amplitude modulation formula is gone.
 
 ---

@@ -343,21 +343,24 @@ void ManifestarOVooNosVentos() {
     // Ferocidade para o leme (CH5 — vale para ambas as direções)
     float ferocidade_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, 1.0f, 8.0f);
 
-    // Ferocidade base das asas: CH7 (bater) e CH8 (retorno)
-    float pulso_asa_base = forma_do_bater_das_asas(
-        canto_original_da_asa, direcao_do_bater,
-        ferocidade_do_bater,
-        ferocidade_do_retorno);
+    // Ferocidade do leme (CH5) aplicada diferencialmente: +num esquerdo, -num direito
+    float ferocidade_bater_esquerda = ferocidade_do_bater + ferocidade_do_leme;
+    float ferocidade_bater_direita  = ferocidade_do_bater - ferocidade_do_leme;
+    float ferocidade_retorno_esquerda = ferocidade_do_retorno + ferocidade_do_leme;
+    float ferocidade_retorno_direita  = ferocidade_do_retorno - ferocidade_do_leme;
 
-    // Ferocidade do leme: CH5 — aplicada igualmente em ambos os servos
-    float pulso_leme = forma_do_bater_das_asas(
+    // Cada servo recebe sua própria forma de batida
+    float pulso_asa_esquerda = forma_do_bater_das_asas(
         canto_original_da_asa, direcao_do_bater,
-        ferocidade_do_leme,
-        ferocidade_do_leme);
+        ferocidade_bater_esquerda,
+        ferocidade_retorno_esquerda);
+    float pulso_asa_direita = forma_do_bater_das_asas(
+        canto_original_da_asa, direcao_do_bater,
+        ferocidade_bater_direita,
+        ferocidade_retorno_direita);
 
-    // Mistura: ferocidade do leme é adicionada igualmente em ambos os lados
-    float graus_asa_esquerda = magnitude_da_batida * (pulso_asa_base + pulso_leme);
-    float graus_asa_direita  = magnitude_da_batida * (pulso_asa_base + pulso_leme);
+    float graus_asa_esquerda = magnitude_da_batida * pulso_asa_esquerda;
+    float graus_asa_direita  = magnitude_da_batida * pulso_asa_direita;
 
     angulo_portal_esquerdo = (int)((comando_aletao - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
     angulo_portal_direito  = (int)((comando_aletao + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
