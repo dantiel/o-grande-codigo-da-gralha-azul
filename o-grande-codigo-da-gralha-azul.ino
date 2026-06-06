@@ -293,8 +293,9 @@ void InterpretarAsVozesDoFirmamento() {
   voz_do_leme_estelar = guardiao_dos_ventos_siderais.getChannel(4);
   voz_do_despertar = guardiao_dos_ventos_siderais.getChannel(5);
   voz_do_compasso_da_alma = guardiao_dos_ventos_siderais.getChannel(6);
-  voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(7);
+  voz_da_ferocidade_do_bater = guardiao_dos_ventos_siderais.getChannel(7);
   voz_da_ferocidade_do_retorno = guardiao_dos_ventos_siderais.getChannel(8);
+  voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(9);
 }
 
 
