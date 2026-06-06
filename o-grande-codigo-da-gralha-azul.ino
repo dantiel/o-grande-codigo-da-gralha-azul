@@ -110,6 +110,9 @@ int voz_da_ferocidade_do_bater = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_retorno = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
 
+unsigned long ultimo_instante_de_respiracao_luminescente = 0;
+float pulsacao_da_chama_primordial = 0.0f;
+
 /*
   A Geometria Sagrada do Voo: A Essência do Movimento Alado
   'angulo_da_danca_alada' (theta) é a fase atual no ciclo da batida da asa.
@@ -166,38 +169,81 @@ public:
 
 
   // A Chama Azul reflete o estado da alma da Gralha.
+  // Quando os estados se entrelaçam, a chama pulsa — a Gralha respira entre dois mundos.
   void IrradiarLuzDaAlma() {
-    float posicao_das_asas_no_ciclo = (sin(angulo_da_danca_alada) + 1.0f) * 0.5f; // [0-1]
+    // A respiração luminescente: pulso suave entre 0.0 e 1.0
+    unsigned long agora = millis();
+    if (agora - ultimo_instante_de_respiracao_luminescente >= 25) {
+      ultimo_instante_de_respiracao_luminescente = agora;
+      pulsacao_da_chama_primordial += 0.04f;
+      if (pulsacao_da_chama_primordial > 1.0f) pulsacao_da_chama_primordial = 0.0f;
+    }
+    float respiro = sin(pulsacao_da_chama_primordial * 2.0f * PI) * 0.5f + 0.5f; // [0-1]
+
+    float posicao_das_asas_no_ciclo = (sin(angulo_da_danca_alada) + 1.0f) * 0.5f;
     float eixo_do_profundor_celeste = mapear_entre_escalas_harmonicas(voz_do_profundor, 1000.0f, 2000.0f, -1.0f, 1.0f);
     float eixo_do_sopro_de_vida = mapear_entre_escalas_harmonicas(voz_do_sopro_vital, 1000.0f, 2000.0f, 0.0f, 1.0f);
     float eixo_do_despertar_da_alma = mapear_entre_escalas_harmonicas(voz_do_despertar, 1000.0f, 2000.0f, 0.0f, 1.0f);
+    bool despertou = (voz_do_despertar > 1500);
     byte r=0, g=0, b=0;
+    byte r_alerta=0, g_alerta=0, b_alerta=0;
 
+    // --- Cor base do estado presente ---
     if (estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
       if (modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
-        // Azul da Gralha, com toques de verde (esperança/floresta) e um brilho solar (força).
-        // A intensidade e matiz variam com o sopro vital e o despertar da alma.
+        // Azul da Gralha, com verde da esperança e ouro solar.
         b = (150 + 105 * eixo_do_despertar_da_alma) * eixo_do_sopro_de_vida;
         g = (80 + 70 * (1.0f + eixo_do_profundor_celeste * 0.5f)) * eixo_do_sopro_de_vida;
         r = (30 + 20 * eixo_do_despertar_da_alma * 0.5f) * eixo_do_sopro_de_vida;
 
-        // O pulsar das asas modula o brilho.
-        float modulador_de_brilho = posicao_das_asas_no_ciclo * 0.8f + 0.2f; // Evita apagar totalmente.
+        float modulador_de_brilho = posicao_das_asas_no_ciclo * 0.8f + 0.2f;
         r *= modulador_de_brilho;
         g *= modulador_de_brilho;
         b *= modulador_de_brilho;
       } else { // EM_DESLIZE_ETERNO_E_CONTEMPLATIVO
-        // Azul mais suave e sereno, com toques de verde, como o céu refletido na mata.
         b = 180 * (1.0f - eixo_do_profundor_celeste * 0.2f);
         g = 90 * (1.0f + eixo_do_profundor_celeste * 0.3f);
-        r = 10; // Um leve toque quente.
+        r = 10;
+      }
+
+      // Se não despertou: pulsa entre o estado e o vermelho da vigília
+      if (!despertou) {
+        r_alerta = 200; g_alerta = 20; b_alerta = 20; // Vermelho
+        float peso = respiro * 0.6f;
+        r = r * (1.0f - peso) + r_alerta * peso;
+        g = g * (1.0f - peso) + g_alerta * peso;
+        b = b * (1.0f - peso) + b_alerta * peso;
       }
     } else { // EM_SONHO_NA_QUIETUDE_DA_FLORESTA
-      // Um ciclo suave de cores da floresta adormecida, verdes e azuis noturnos.
-      tonalidade_do_sonho_florestal = (tonalidade_do_sonho_florestal + 250) % 65536; // Ciclo suave.
-      uint16_t matiz_base = (sin(tonalidade_do_sonho_florestal * 0.0001f) > 0) ? 20000 : 42000; // Alterna verdes e azuis.
-      chama_azul_pixel.setPixelColor(0, chama_azul_pixel.gamma32(chama_azul_pixel.ColorHSV(matiz_base + (int)(sin(millis()*0.0003f)*1800.0f) , 210, 90)));
-      chama_azul_pixel.show(); // Mostra cor HSV e retorna.
+      // Cores da floresta adormecida
+      tonalidade_do_sonho_florestal = (tonalidade_do_sonho_florestal + 250) % 65536;
+      uint16_t matiz_base = (sin(tonalidade_do_sonho_florestal * 0.0001f) > 0) ? 20000 : 42000;
+      uint32_t cor_sonho = chama_azul_pixel.gamma32(chama_azul_pixel.ColorHSV(
+          matiz_base + (int)(sin(millis()*0.0003f)*1800.0f), 210, 90));
+
+      if (!despertou) {
+        // Link ativo mas não despertou: pulsa entre sonho e o vermelho da vigília
+        r_alerta = 200; g_alerta = 20; b_alerta = 20;
+        byte r_sonho = (cor_sonho >> 16) & 0xFF;
+        byte g_sonho = (cor_sonho >> 8) & 0xFF;
+        byte b_sonho = cor_sonho & 0xFF;
+        float peso = respiro * 0.5f;
+        r = r_sonho * (1.0f - peso) + r_alerta * peso;
+        g = g_sonho * (1.0f - peso) + g_alerta * peso;
+        b = b_sonho * (1.0f - peso) + b_alerta * peso;
+        chama_azul_pixel.setPixelColor(0, constrain(r,0,255), constrain(g,0,255), constrain(b,0,255));
+        chama_azul_pixel.show();
+        return;
+      }
+
+      // Link caído: pulsa entre amarelo do silêncio e azul noturno
+      uint16_t matiz_amarelo = 10000;
+      uint32_t cor_alerta = chama_azul_pixel.ColorHSV(matiz_amarelo, 200, 180);
+      float peso = respiro * 0.6f;
+      uint32_t cor_mesclada = chama_azul_pixel.gamma32(chama_azul_pixel.ColorHSV(
+          matiz_base + (int)(sin(millis()*0.0003f)*1800.0f), 210, 90 * (1.0f - peso) + 180 * peso));
+      chama_azul_pixel.setPixelColor(0, cor_mesclada);
+      chama_azul_pixel.show();
       return;
     }
 
@@ -223,6 +269,7 @@ void AoRecolherSeAoSilencioDaMata() {
   // A ligação com o éter se perdeu — a Gralha adormece forçadamente.
   estado_presente_da_alma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
   modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
+  limiar_elevado = false;
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   Serial.println("O éter silencia. A Gralha retorna ao seu sonho na floresta.");
 #endif
@@ -317,7 +364,8 @@ void ManifestarOVooNosVentos() {
   int angulo_portal_esquerdo, angulo_portal_direito;
 
   // Histerese: uma vez no modo de batida, permanece até abaixo do limiar - histerese
-  // O despertar é necessário para o voo, mas não o inicia — o sopro vital decide.
+  // O despertar é necessário para o voo: ao acordar, a Gralha plana em silêncio
+  // até que o sopro vital a chame ao bater das asas.
   static bool limiar_elevado = true;
   if (modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     limiar_elevado = true;
