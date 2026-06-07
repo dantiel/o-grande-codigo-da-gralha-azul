@@ -1,5 +1,13 @@
 # Changelog — O Grande Código da Gralha Azul
 
+## [1.6.0] — 2026-06-06
+
+### Added
+- **CRSF Telemetry** — `EnviarSoproTelemetricoAoEter()` sends barometer data via CRSF telemetry frames:
+  - **GPS frame (0x02)** — altitude every 200ms (`altura_barometrica_m + 1000`), groundspeed from vario
+  - **Battery sensor frame (0x08)** — temperature every 500ms (`temperatura_do_ar_c * 100` as voltage in mV)
+- **Telemetry timing variables** — `ultimo_sopro_do_gps_telemetrico`, `ultimo_sopro_da_bateria_telemetrica`
+
 ## [1.5.0] — 2026-06-06
 
 ### Added
