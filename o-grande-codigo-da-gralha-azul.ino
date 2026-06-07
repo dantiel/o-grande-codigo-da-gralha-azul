@@ -122,7 +122,7 @@ int voz_da_ferocidade_do_retorno = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
 
 // O oráculo da pressão escuta a altura invisível.
-Adafruit_BMP085_U oraculo_da_pressao = Adafruit_BMP085_U(10085);
+Adafruit_BMP085_Unified oraculo_da_pressao = Adafruit_BMP085_Unified(10085);
 float pressao_do_ceu_hpa = 0.0f;
 float temperatura_do_ar_c = 0.0f;
 float altura_barometrica_m = 0.0f;
