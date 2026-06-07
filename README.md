@@ -38,6 +38,7 @@ A CRSF-controlled servo ornithopter (wing-flapping bird flight simulator) with N
 | **NeoPixel LED** | WS2812B (or compatible), single pixel — may be coupled to an optic glass fibre strand for in-flight light effects |
 | **Battery** | 1S LiPo (3.7V) or 2S LiPo (7.4V) with BEC for servos |
 | **BEC / External 5V** | Required for servo power — **do not power servos from the RP2040's internal 3.3V regulator** |
+| **Barometer** | BMP180 / BMP085 I2C barometer (Elecrow) — for thermal detection | |
 
 ### Pin Allocation (Waveshare RP2040 Zero)
 
@@ -48,6 +49,8 @@ A CRSF-controlled servo ornithopter (wing-flapping bird flight simulator) with N
 | GPIO 0 | CRSF TX (yellow wire) | `VIA_DOS_ECOS_SOLARES` | Path of Solar Echoes |
 | GPIO 1 | CRSF RX (white/blue wire) | `VIA_DOS_SONHOS_LUNARES` | Path of Lunar Dreams |
 | GPIO 16 | NeoPixel — internal LED of RP2040 Zero | `NUCLEO_DA_CHAMA_AZUL` | Core of the Blue Flame |
+| GPIO 4 | BMP180 SDA | `SILENCIO_DA_ALTURA` | Silence of the Height |
+| GPIO 5 | BMP180 SCL | `RITMO_DA_PRESSAO` | Rhythm of the Pressure |
 
 ---
 
@@ -101,6 +104,19 @@ If you wish to use an **external optic glass fibre** for in-flight light effects
 
 > **Note:** The internal LED is sufficient for bench testing and low-light flight. For bright daylight visibility, consider adding an external high-brightness NeoPixel on the same GPIO line.
 
+### BMP180 Barometer — O Oráculo da Pressão
+
+The BMP180 I2C barometer listens for invisible shifts in pressure — the oracle that senses the sky's whispers.
+
+| BMP180 Pin | RP2040 Zero Pin | Portuguese Name | Meaning |
+|------------|-----------------|-----------------|---------|
+| VCC | 3V3 | `ALIMENTO_DO_ORACULO` | Oracle's Nourishment |
+| GND | GND | `TERRA_DO_ORACULO` | Oracle's Ground |
+| SDA | GPIO 4 | `SILENCIO_DA_ALTURA` | Silence of the Height |
+| SCL | GPIO 5 | `RITMO_DA_PRESSAO` | Rhythm of the Pressure |
+
+> **Note:** GPIO 5 is shared with the left wing servo (`ARTICULACAO_ASA_DA_MANHA`). The BMP180's SCL line is on the same pin — this is intentional: the barometer listens on the same path as the morning wing's joint. Ensure the servo signal wire does not interfere with I2C communication. If issues arise, use a different I2C bus or add pull-up resistors (4.7 kΩ) on SDA/SCL.
+
 ---
 
 ## ExpressLRS / CRSF Setup
@@ -146,10 +162,11 @@ In your transmitter, configure the following channel mapping (typically in the *
 | CH2 | Elevator (Right stick vertical) | Pitch |
 | CH3 | Throttle (Left stick vertical) | Wingbeat intensity |
 | CH4 | Rudder (Left stick horizontal) | Yaw / Differential steering |
-| CH5 | Potentiometer / Slider | Rudder ferocity (yaw authority) |
+| CH5 | Switch | Arm / Disarm (arm > 1500) |
 | CH6 | Potentiometer / Slider | Rhythm modulation |
 | CH7 | Potentiometer / Slider | Downstroke sharpness |
 | CH8 | Potentiometer / Slider | Upstroke sharpness |
+| CH9 | Potentiometer / Slider | Rudder ferocity (differential) |
 
 Ensure that **no channel reversing or subtrim** is applied — the code expects raw 1000–2000 µs CRSF values with center at 1500.
 
@@ -165,10 +182,11 @@ The receiver communicates via CRSF protocol over UART at 420000 baud. The follow
 | CH2 | `voz_do_profundor` | Voice of the Elevator | Pitch / Dive & Climb | 1000–2000 (center 1500) |
 | CH3 | `voz_do_sopro_vital` | Voice of the Vital Breath | Throttle / Wingbeat intensity | 1000–2000 |
 | CH4 | `voz_do_leme_estelar` | Voice of the Starry Rudder | Yaw / Differential steering | 1000–2000 (center 1500) |
-| CH5 | `voz_da_ferocidade_do_leme` | Voice of the Rudder Ferocity | Rudder ferocity (yaw authority) | 1000–2000 |
+| CH5 | `voz_do_despertar` | Voice of the Awakening | Arm / Disarm | 1000–2000 (arm > 1500) |
 | CH6 | `voz_do_compasso_da_alma` | Voice of the Soul's Compass | Rhythm modulation | 1000–2000 (center 1500) |
 | CH7 | `voz_da_ferocidade_do_bater` | Voice of the Downstroke Ferocity | Downstroke sharpness | 1000–2000 |
 | CH8 | `voz_da_ferocidade_do_retorno` | Voice of the Upstroke Ferocity | Upstroke sharpness | 1000–2000 |
+| CH9 | `voz_da_ferocidade_do_leme` | Voice of the Rudder Ferocity | Rudder ferocity (differential) | 1000–2000 |
 
 
 ---
@@ -269,8 +287,8 @@ The **wingbeat waveform** is shaped by the `forma_do_bater_das_asas()` function,
 
 - **Downstroke** uses `voz_da_ferocidade_do_bater` (CH7) — higher values = sharper, more aggressive downstroke
 - **Upstroke** uses `voz_da_ferocidade_do_retorno` (CH8) — higher values = quicker recovery
-- **Rudder ferocity** (CH5) is applied equally to both wings — CH4 (rudder) is mixed in the transmitter, not in code
-- **Each servo** gets its own `forma_do_bater_das_asas()` calculation — both receive `pulso_asa_base + pulso_leme` from CH5
+- **Rudder ferocity** (CH9) is applied differentially — left wing gets +CH9, right wing gets −CH9
+- **Each servo** gets its own `forma_do_bater_das_asas()` calculation with individual ferocity
 
 This creates an asymmetric wingbeat: a powerful downstroke (thrust) and a gentler upstroke (recovery), mimicking natural bird flight. Yaw is achieved by mixing CH4 differentially onto the two wing outputs in the transmitter.
 
@@ -287,9 +305,8 @@ Right Wing = Roll + WingBeat + Pitch
 - **Pitch** (CH2): Differential — dive (both wings forward) or climb (both wings back)
 - **Yaw** (CH4): Mixing is done in the transmitter, not in code
 
-**Rudder ferocity (CH5):**
-CH5 (`voz_da_ferocidade_do_leme`) applies its ferocity shape equally to both wings. The transmitter handles CH4 yaw mixing differentially.
-- **CH5**: Master gain for how much the rudder affects the asymmetry
+**Rudder ferocity (CH9):**
+CH9 (`voz_da_ferocidade_do_leme`) is applied differentially: left wing ferocity is increased by CH9, right wing ferocity is decreased by CH9 (or vice versa). This creates asymmetric wingbeats for yaw control.
 
 In **glide mode**, the wings are set to a fixed angle (`ANGULO_DO_PLANAR_SERENO` = -4°) plus roll and pitch inputs, allowing the bird to soar like a real bird.
 
@@ -326,6 +343,12 @@ VOANDO | Modo: RITMADO | SoproV: 1500 | Alet: 1500 | Prof: 1500 | Leme: 1500 | C
 | `Compasso` | Raw CH6 value (rhythm) |
 | `FerBater` | Raw CH7 value (downstroke ferocity) |
 | `FerRetorno` | Raw CH8 value (upstroke ferocity) |
+| `FerLeme` | Raw CH9 value (rudder ferocity) |
+| `Despertar` | Raw CH5 value (arm/disarm) |
+| `BaroAlt` | Barometric altitude (m) |
+| `Vario` | Vertical speed (m/s) |
+| `Temp` | Barometer temperature (°C) |
+| `Termal` | Thermal confidence |
 | `Fase` | Current wingbeat phase angle (radians) |
 | `Cadencia` | Current wingbeat cadence (rad/s) |
 
@@ -372,11 +395,19 @@ The code uses poetic Portuguese names for all identifiers. This table maps them 
 | `voz_do_aletao` | CH1 Value (Voice of the Aileron) |
 | `voz_do_profundor` | CH2 Value (Voice of the Elevator) |
 | `voz_do_sopro_vital` | CH3 Value (Voice of the Vital Breath) |
-| `voz_do_leme_estelar` | CH4 Value (Voice of the Starry Rudder) |
-| `voz_do_compasso_da_alma` | CH6 Value (Voice of the Soul's Compass) |
-| `voz_da_ferocidade_do_bater` | CH7 Value (Voice of the Downstroke Ferocity) |
-| `voz_da_ferocidade_do_retorno` | CH8 Value (Voice of the Upstroke Ferocity) |
-| `voz_da_ferocidade_do_leme` | CH5 Value (Voice of the Rudder Ferocity) |
+| `voz_do_despertar` | CH5 Value (Voice of the Awakening) | Arm/Disarm |
+| `voz_do_compasso_da_alma` | CH6 Value (Voice of the Soul's Compass) | Rhythm modulation |
+| `voz_da_ferocidade_do_bater` | CH7 Value (Voice of the Downstroke Ferocity) | Downstroke sharpness |
+| `voz_da_ferocidade_do_retorno` | CH8 Value (Voice of the Upstroke Ferocity) | Upstroke sharpness |
+| `voz_da_ferocidade_do_leme` | CH9 Value (Voice of the Rudder Ferocity) | Rudder ferocity (differential) |
+| `pressao_do_ceu_hpa` | Barometric pressure (hPa) | Atmospheric pressure |
+| `temperatura_do_ar_c` | Air temperature (°C) | Barometer temperature |
+| `altura_barometrica_m` | Barometric altitude (m) | Relative altitude |
+| `subida_filtrada_da_gralha_ms` | Filtered vertical speed (m/s) | Vario with low-pass |
+| `confianca_termal` | Thermal confidence | Thermal detection readiness |
+| `modo_de_escuta_termal` | Thermal listening mode | Thermal assist flag |
+| `DespertarOraculoDaPressao()` | Barometer init | BMP180 initialization |
+| `EscutarPressaoDoCeu()` | Barometer update | Read pressure/altitude/temp |
 | `angulo_da_danca_alada` | Wingbeat Phase Angle (Winged Dance Angle) |
 | `cadencia_do_destino_alado` | Wingbeat Cadence (Winged Destiny Cadence) |
 | `pulso_do_sopro_vital` | Wingbeat Waveform (Vital Breath Pulse) |
