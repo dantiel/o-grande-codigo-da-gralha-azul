@@ -310,7 +310,7 @@ void DespertarOraculoDaPressao() {
     if (evento.pressure > 0) {
       float temperatura;
       oraculo_da_pressao.getTemperature(&temperatura);
-      float altitude = oraculo_da_pressao.pressureToAltitude(SEALEVELPRESSURE_HPA, evento.pressure, temperatura);
+      float altitude = oraculo_da_pressao.pressureToAltitude(1013.25f, evento.pressure, temperatura);
       soma_altura += altitude;
       leituras_validas++;
     }
@@ -342,7 +342,7 @@ void EscutarPressaoDoCeu() {
   oraculo_da_pressao.getTemperature(&temperatura_do_ar_c);
 
   // Altitude relativa
-  float altitude_absoluta = oraculo_da_pressao.pressureToAltitude(SEALEVELPRESSURE_HPA, evento.pressure, temperatura_do_ar_c);
+  float altitude_absoluta = oraculo_da_pressao.pressureToAltitude(1013.25f, evento.pressure, temperatura_do_ar_c);
   altura_barometrica_m = altitude_absoluta - altura_inicial_m;
 
   // Subida (vertical speed)
