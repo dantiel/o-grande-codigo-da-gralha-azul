@@ -1,5 +1,10 @@
 # Changelog — O Grande Código da Gralha Azul
 
+## [1.7.0] — 2026-06-06
+
+### Changed
+- **Barometer made optional** — `ORACULO_DA_PRESSAO_DO_CEU` define (off by default). Entire BMP180 code (includes, object, variables, init, loop, telemetry, debug) wrapped in `#ifdef`/`#endif`. When disabled, stubs are used and no libraries are required.
+
 ## [1.6.0] — 2026-06-06
 
 ### Added

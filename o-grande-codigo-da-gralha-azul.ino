@@ -25,9 +25,13 @@
 
 #include <Arduino.h>
 #include <CrsfSerial.h>
+
+//#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para ativar o barômetro BMP180 (requer Adafruit_BMP085_Unified e Adafruit_Sensor).
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP085_U.h>
+#endif
 
 // O Guardião dos Ventos Siderais, intérprete dos desígnios para a Gralha.
 CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
@@ -122,7 +126,10 @@ int voz_da_ferocidade_do_retorno = VIBRACAO_MINIMA_DA_FEROCIDADE;
 int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
 
 // O oráculo da pressão escuta a altura invisível.
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
 Adafruit_BMP085_Unified oraculo_da_pressao = Adafruit_BMP085_Unified(10085);
+#endif
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
 float pressao_do_ceu_hpa = 0.0f;
 float temperatura_do_ar_c = 0.0f;
 float altura_barometrica_m = 0.0f;
@@ -134,11 +141,12 @@ unsigned long ultimo_sopro_do_barometro = 0;
 float tendencia_da_temperatura_c = 0.0f;
 float ultima_temperatura_do_ar_c = 0.0f;
 
+// O oráculo da pressão escuta a altura invisível.
 // A subida da Gralha revela o sopro quente do céu.
+// A temperatura apenas sussurra; a subida confirma.
 bool modo_de_escuta_termal = false;
 float confianca_termal = 0.0f;
-
-unsigned long ultimo_instante_de_respiracao_luminescente = 0;
+#endif
 float pulsacao_da_chama_primordial = 0.0f;
 
 /*
@@ -550,13 +558,21 @@ void EnviarSoproTelemetricoAoEter() {
     pacote_gps.latitude = htobe32(0);
     pacote_gps.longitude = htobe32(0);
     // Groundspeed: módulo da subida filtrada em km/h (m/s * 3.6 -> /10)
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
     int16_t velocidade_chao = (int16_t)(fabs(subida_filtrada_da_gralha_ms) * 3.6f * 10.0f);
+#else
+    int16_t velocidade_chao = 0;
+#endif
     if (velocidade_chao < 0) velocidade_chao = 0;
     if (velocidade_chao > 65535) velocidade_chao = 65535;
     pacote_gps.groundspeed = htobe16((uint16_t)velocidade_chao);
     pacote_gps.heading = htobe16(0);
     // Altitude: metros relativos + 1000 (offset CRSF), clamp a 0..65535
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
     int16_t alt_telemetria = (int16_t)(altura_barometrica_m + 1000.0f);
+#else
+    int16_t alt_telemetria = 0;
+#endif
     if (alt_telemetria < 0) alt_telemetria = 0;
     if (alt_telemetria > 65535) alt_telemetria = 65535;
     pacote_gps.altitude = htobe16((uint16_t)alt_telemetria);
@@ -572,7 +588,11 @@ void EnviarSoproTelemetricoAoEter() {
   if (agora - ultimo_sopro_da_bateria_telemetrica >= 500) {
     ultimo_sopro_da_bateria_telemetrica = agora;
     crsf_sensor_battery_t pacote_bateria;
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
     uint16_t tensao_termica = (uint16_t)(temperatura_do_ar_c * 100.0f);
+#else
+    uint16_t tensao_termica = 0;
+#endif
     if (tensao_termica > 65535) tensao_termica = 65535;
     pacote_bateria.voltage = htobe16(tensao_termica);
     pacote_bateria.current = htobe16(0);
@@ -621,10 +641,12 @@ void loop() {
     Serial.print(" | FerRetorno: "); Serial.print(voz_da_ferocidade_do_retorno);
     Serial.print(" | FerLeme: "); Serial.print(voz_da_ferocidade_do_leme);
     if (barometro_presente) {
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
       Serial.print(" | BaroAlt: "); Serial.print(altura_barometrica_m, 1);
       Serial.print(" | Vario: "); Serial.print(subida_filtrada_da_gralha_ms, 2);
       Serial.print(" | Temp: "); Serial.print(temperatura_do_ar_c, 1);
       Serial.print(" | Termal: "); Serial.print(confianca_termal, 2);
+#endif
     }
     Serial.print(" | Fase: "); Serial.print(angulo_da_danca_alada, 2);
     Serial.print(" | Cadencia: "); Serial.print(cadencia_do_destino_alado, 2);
