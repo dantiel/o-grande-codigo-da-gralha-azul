@@ -543,20 +543,20 @@ void ManifestarOVooNosVentos() {
   motor_asa_vespertina.write(constrain(angulo_portal_direito + 100, 0, 180));
 }
 /*
-  O Sopro Telemétrico: A Gralha Partilha seus Segredos com o Céu
-  Envia a altura invisível e a temperatura do ar ao éter,
-  para que o mundo testemunhe a jornada alada.
+  O Sopro Telemétrico: A Gralha Sussurra seu Voo ao Éter
+  Envia a altura invisível e o sopro quente do ar ao éter,
+  para que o céu testemunhe a jornada alada.
 */
-void EnviarSoproTelemetricoAoEter() {
+void SussurrarVooAoEter() {
   if (!barometro_presente) return;
   unsigned long agora = millis();
 
-  // GPS Frame (0x02): envia altitude barométrica como altitude GPS
-  if (agora - ultimo_sopro_do_gps_telemetrico >= 200) {
-    ultimo_sopro_do_gps_telemetrico = agora;
-    crsf_sensor_gps_t pacote_gps;
-    pacote_gps.latitude = htobe32(0);
-    pacote_gps.longitude = htobe32(0);
+  // Pergaminho do Voo Sideral (0x02): envia altitude barométrica como altura do voo
+  if (agora - ultimo_sopro_sideral >= 200) {
+    ultimo_sopro_sideral = agora;
+    crsf_sensor_gps_t pergaminho_do_voo;
+    pergaminho_do_voo.latitude = htobe32(0);
+    pergaminho_do_voo.longitude = htobe32(0);
     // Groundspeed: módulo da subida filtrada em km/h (m/s * 3.6 -> /10)
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
     int16_t velocidade_chao = (int16_t)(fabs(subida_filtrada_da_gralha_ms) * 3.6f * 10.0f);
@@ -565,8 +565,8 @@ void EnviarSoproTelemetricoAoEter() {
 #endif
     if (velocidade_chao < 0) velocidade_chao = 0;
     if (velocidade_chao > 65535) velocidade_chao = 65535;
-    pacote_gps.groundspeed = htobe16((uint16_t)velocidade_chao);
-    pacote_gps.heading = htobe16(0);
+    pergaminho_do_voo.groundspeed = htobe16((uint16_t)velocidade_chao);
+    pergaminho_do_voo.heading = htobe16(0);
     // Altitude: metros relativos + 1000 (offset CRSF), clamp a 0..65535
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
     int16_t alt_telemetria = (int16_t)(altura_barometrica_m + 1000.0f);
@@ -575,33 +575,33 @@ void EnviarSoproTelemetricoAoEter() {
 #endif
     if (alt_telemetria < 0) alt_telemetria = 0;
     if (alt_telemetria > 65535) alt_telemetria = 65535;
-    pacote_gps.altitude = htobe16((uint16_t)alt_telemetria);
-    pacote_gps.satellites = 0;
+    pergaminho_do_voo.altitude = htobe16((uint16_t)alt_telemetria);
+    pergaminho_do_voo.satellites = 0;
     guardiao_dos_ventos_siderais.queuePacket(
       CRSF_ADDRESS_FLIGHT_CONTROLLER,
       CRSF_FRAMETYPE_GPS,
-      &pacote_gps,
+      &pergaminho_do_voo,
       sizeof(crsf_sensor_gps_t));
   }
 
-  // Battery Frame (0x08): envia temperatura como voltage (temp * 100 mV)
-  if (agora - ultimo_sopro_da_bateria_telemetrica >= 500) {
-    ultimo_sopro_da_bateria_telemetrica = agora;
-    crsf_sensor_battery_t pacote_bateria;
+  // Bilhete do Sopro Quente (0x08): envia temperatura como voltage (temp * 100 mV)
+  if (agora - ultimo_sopro_termico >= 500) {
+    ultimo_sopro_termico = agora;
+    crsf_sensor_battery_t bilhete_do_sopro_quente;
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
     uint16_t tensao_termica = (uint16_t)(temperatura_do_ar_c * 100.0f);
 #else
     uint16_t tensao_termica = 0;
 #endif
     if (tensao_termica > 65535) tensao_termica = 65535;
-    pacote_bateria.voltage = htobe16(tensao_termica);
-    pacote_bateria.current = htobe16(0);
-    pacote_bateria.capacity = 0;
-    pacote_bateria.remaining = 0;
+    bilhete_do_sopro_quente.voltage = htobe16(tensao_termica);
+    bilhete_do_sopro_quente.current = htobe16(0);
+    bilhete_do_sopro_quente.capacity = 0;
+    bilhete_do_sopro_quente.remaining = 0;
     guardiao_dos_ventos_siderais.queuePacket(
       CRSF_ADDRESS_FLIGHT_CONTROLLER,
       CRSF_FRAMETYPE_BATTERY_SENSOR,
-      &pacote_bateria,
+      &bilhete_do_sopro_quente,
       sizeof(crsf_sensor_battery_t));
   }
 }
@@ -617,7 +617,7 @@ void loop() {
 
   AnimarPulsarDoCoracaoAlado();
   EscutarPressaoDoCeu();
-  EnviarSoproTelemetricoAoEter();
+  SussurrarVooAoEter();
   ManifestarOVooNosVentos();
 
   if(relogio_das_eras.instante_do_agora_cosmico - relogio_das_eras.ultimo_fulgor_da_chama_azul >= 33) { // ~30fps
