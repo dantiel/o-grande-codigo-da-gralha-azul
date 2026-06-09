@@ -124,14 +124,17 @@ If you wish to use an **external optic glass fibre** for in-flight light effects
 The BMP180 I2C barometer listens for invisible shifts in pressure — the oracle that senses the sky's whispers.
 **Enabled by:** `#define ORACULO_DA_PRESSAO_DO_CEU` at the top of the sketch. Without this define, no barometer libraries are required.
 
-| BMP180 Pin | RP2040 Zero Pin | Portuguese Name | Meaning |
-|------------|-----------------|-----------------|---------|
-| VCC | 3V3 | `ALIMENTO_DO_ORACULO` | Oracle's Nourishment |
-| GND | GND | `TERRA_DO_ORACULO` | Oracle's Ground |
-| SDA | GPIO 26 (Wire1 SDA) | `PINO_SILENCIO_DA_ALTURA` | Silence of the Height |
-| SCL | GPIO 27 (Wire1 SCL) | `PINO_RITMO_DA_PRESSAO` | Rhythm of the Pressure |
+```
+BMP180 Module            RP2040 Zero
+┌──────────────┐        ┌───────────────┐
+│ VCC          ─────────► 3V3           │  (ALIMENTO_DO_ORACULO)
+│ GND          ─────────► GND           │  (TERRA_DO_ORACULO)
+│ SDA (GP26)   ─────────► GPIO 26       │  (PINO_SILENCIO_DA_ALTURA — Wire1 SDA)
+│ SCL (GP27)   ─────────► GPIO 27       │  (PINO_RITMO_DA_PRESSAO — Wire1 SCL)
+└──────────────┘        └───────────────┘
+```
 
-The barometer uses the **Wire1** I2C bus to avoid conflict with servo pins.
+The barometer uses the **Wire1** I2C bus (GPIO 26/27) to avoid conflict with servo pins on GPIO 5/7.
 
 ---
 
