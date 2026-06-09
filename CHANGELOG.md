@@ -1,5 +1,16 @@
 # Changelog — O Grande Código da Gralha Azul
 
+## [1.8.0] — 2026-06-09
+
+### Added
+- **Barometer on Wire1 (GPIO26/GPIO27)** — moved BMP180 from Wire (conflict with servo GPIO5) to Wire1 (I2C1). All pins now configurable via `#define` (`PINO_SDA_BAROMETRO`, `PINO_SCL_BAROMETRO`).
+- **Altitude-Hold (CH10)** — `voz_do_pairar_no_ceu` activates P-controller when >1500 in glide mode. Hysteresis ±1m, gain via `GANHO_DO_PAIRAR_SAGRADO` (default 5.0). Additive to pitch in `ManifestarOVooNosVentos()`. Function: `PairarNoCeu()`.
+- **CH10 reading** — `voz_do_pairar_no_ceu = guardiao_dos_ventos_siderais.getChannel(10)`
+- **Debug output** — `Pairar`, `CorrAlt` (correction value)
+
+### Changed
+- **I2C pins** — from hardcoded Wire.setSDA(4)/Wire.setSCL(5) to configurable via `#define PINO_SDA_BAROMETRO 26`, `PINO_SCL_BAROMETRO 27` using Wire1.
+
 ## [1.7.0] — 2026-06-06
 
 ### Changed

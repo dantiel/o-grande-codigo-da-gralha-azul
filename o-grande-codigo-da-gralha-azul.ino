@@ -46,6 +46,7 @@ unsigned long ultimo_sopro_termico = 0;
 /* As Relíquias da Gralha: Vínculos de Poder e Essência
   Os pontos de contato com o mundo, ecos da sua jornada.
 */
+// === PINOS DA ALMA: Onde a Gralha toca o mundo ===
 #define ARTICULACAO_ASA_DA_MANHA 5    // Asa que se ergue com a aurora.
 #define ARTICULACAO_ASA_DO_ENTARDECER 7 // Asa que se recolhe com o crepúsculo.
 #define VIA_DOS_SONHOS_LUNARES 1    // Canal dos sussurros da noite (CRSF RX).
@@ -53,6 +54,12 @@ unsigned long ultimo_sopro_termico = 0;
 
 #define NUCLEO_DA_CHAMA_AZUL 16    // Onde a alma da Gralha brilha, sua essência anil.
 #define QUANTIDADE_DE_CENTELHAS_NA_CHAMA 1 // Uma única, mas intensa, luz interior.
+
+// === PINOS DO ORÁCULO DA PRESSÃO (BMP180) – I2C1 do RP2040 ===
+// Wire1 usa GPIO26 (SDA) e GPIO27 (SCL) por padrão no RP2040 Zero.
+// Estes pinos são livres (sem conflito com servos, CRSF ou NeoPixel).
+#define PINO_SDA_BAROMETRO 26
+#define PINO_SCL_BAROMETRO 27
 
 /*
   Os Mistérios do Voo Sagrado: Leis Imutáveis da Natureza Alada
@@ -96,10 +103,14 @@ enum ModoDoEspiritoAlado {
 };
 
 /*
-  O Coração do Mistério Alado: Variáveis que Guardam o Ser da Gralha
-*/
-EstadoDaAlmaAlada estado_presente_da_alma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA; // A Gralha desperta com o chamado.
-ModoDoEspiritoAlado modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO; // Inicia em serenidade.
+  // O oráculo da pressão escuta a altura invisível.
+  /* O Coração do Mistério Alado: Variáveis que Guardam o Ser da Gralha
+  */
+  EstadoDaAlmaAlada estado_presente_da_alma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA; // A Gralha desperta com o chamado.
+  ModoDoEspiritoAlado modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO; // Inicia em serenidade.
+  
+  // Voz do parar no céu (CH10): Altitude-Hold
+  int voz_do_pairar_no_ceu = 0;
 
 /*
   O Relógio das Eras: Marcadores Temporais da Jornada da Gralha
@@ -146,6 +157,12 @@ float ultima_temperatura_do_ar_c = 0.0f;
 // A temperatura apenas sussurra; a subida confirma.
 bool modo_de_escuta_termal = false;
 float fe_no_sopro_quente = 0.0f;
+
+// Voo Pairante: Altitude-Hold
+#define GANHO_DO_PAIRAR_SAGRADO 5.0f  // Ganho do P-regulador para altitude hold
+float altura_desejada_do_voo = 0.0f;
+float correcao_altitude = 0.0f;
+bool modo_pairar_ativo = false;
 #endif
 float pulsacao_da_chama_primordial = 0.0f;
 
@@ -295,9 +312,9 @@ Servo motor_asa_matutina, motor_asa_vespertina;
 // --- Rituais de Sintonia e Percepção da Alma Alada ---
 // O oráculo da pressão desperta: inicia o oráculo que escuta a altura invisível.
 void DespertarOraculoDaPressao() {
-  Wire.setSDA(4);
-  Wire.setSCL(5);
-  Wire.begin();
+  Wire1.setSDA(PINO_SDA_BAROMETRO);
+  Wire1.setSCL(PINO_SCL_BAROMETRO);
+  Wire1.begin();
   if (!oraculo_da_pressao.begin()) {
     oraculo_respira = false;
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
@@ -405,6 +422,7 @@ void InterpretarAsVozesDoFirmamento() {
   voz_da_ferocidade_do_bater = guardiao_dos_ventos_siderais.getChannel(7);
   voz_da_ferocidade_do_retorno = guardiao_dos_ventos_siderais.getChannel(8);
   voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(9);
+  voz_do_pairar_no_ceu = guardiao_dos_ventos_siderais.getChannel(10);
 }
 
 
@@ -469,14 +487,48 @@ void AnimarPulsarDoCoracaoAlado() {
 }
 
 /*
-  O Movimento dos Portais Alados: Manifestando o Voo da Gralha
-  Traduz a dinâmica interna e as inspirações celestes em movimento físico.
-  Este é o 'MoverPortais' da essência da Gralha.
-*/
-void ManifestarOVooNosVentos() {
-  float comando_aletao = (voz_do_aletao - 1500.0f) * 0.06f;
-  float comando_profundor = (voz_do_profundor - 1500.0f) * 0.06f;
-  int angulo_portal_esquerdo, angulo_portal_direito;
+  /*  O Parar no Céu: Altitude-Hold da Gralha
+    Quando o oráculo respira e CH10 > 1500, a Gralha trava a altura atual
+    no modo planar, corrigindo o profundor para manter-se na altitude desejada.
+    Só ativo no planar (EM_DESLIZE_ETERNO_E_CONTEMPLATIVO).
+  */
+  void PairarNoCeu() {
+  #ifdef ORACULO_DA_PRESSAO_DO_CEU
+    if (oraculo_respira && voz_do_pairar_no_ceu > 1500 &&
+        modo_presente_do_espirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
+      // Ao ativar, fixa a altura desejada no momento do engate
+      if (!modo_pairar_ativo) {
+        modo_pairar_ativo = true;
+        altura_desejada_do_voo = altura_do_voo_sideral;
+      }
+      // P-Regler com histerese de ±1m
+      float erro = altura_desejada_do_voo - altura_do_voo_sideral;
+      if (fabs(erro) < 1.0f) {
+        correcao_altitude = 0.0f;
+      } else {
+        correcao_altitude = erro * GANHO_DO_PAIRAR_SAGRADO;
+        correcao_altitude = constrain(correcao_altitude, -30.0f, 30.0f);
+      }
+    } else {
+      correcao_altitude = 0.0f;
+      modo_pairar_ativo = false;
+    }
+  #else
+    correcao_altitude = 0.0f;
+    modo_pairar_ativo = false;
+  #endif
+  }
+  
+  /*  O Movimento dos Portais Alados: Manifestando o Voo da Gralha
+    Traduz a dinâmica interna e as inspirações celestes em movimento físico.
+    Este é o 'MoverPortais' da essência da Gralha.
+  */
+  void ManifestarOVooNosVentos() {
+    float comando_aletao = (voz_do_aletao - 1500.0f) * 0.06f;
+    float comando_profundor = (voz_do_profundor - 1500.0f) * 0.06f;
+    // A correção do altitude-hold é adicionada ao comando do profundor
+    comando_profundor += correcao_altitude;
+    int angulo_portal_esquerdo, angulo_portal_direito;
 
   // Histerese: uma vez no modo de batida, permanece até abaixo do limiar - histerese
   // O despertar é necessário para o voo: ao acordar, a Gralha plana em silêncio
@@ -617,6 +669,7 @@ void loop() {
 
   AnimarPulsarDoCoracaoAlado();
   EscutarPressaoDoCeu();
+  PairarNoCeu();
   SussurrarVooAoEter();
   ManifestarOVooNosVentos();
 
@@ -640,12 +693,14 @@ void loop() {
     Serial.print(" | FerBater: "); Serial.print(voz_da_ferocidade_do_bater);
     Serial.print(" | FerRetorno: "); Serial.print(voz_da_ferocidade_do_retorno);
     Serial.print(" | FerLeme: "); Serial.print(voz_da_ferocidade_do_leme);
+    Serial.print(" | Pairar: "); Serial.print(voz_do_pairar_no_ceu);
     if (oraculo_respira) {
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
       Serial.print(" | AltVoo: "); Serial.print(altura_do_voo_sideral, 1);
       Serial.print(" | Subida: "); Serial.print(sopro_da_subida_alada, 2);
       Serial.print(" | SoproDoCeu: "); Serial.print(temperatura_do_ar_c, 1);
       Serial.print(" | FeNoSopro: "); Serial.print(fe_no_sopro_quente, 2);
+      Serial.print(" | CorrAlt: "); Serial.print(correcao_altitude, 1);
 #endif
     }
     Serial.print(" | Fase: "); Serial.print(angulo_da_danca_alada, 2);
