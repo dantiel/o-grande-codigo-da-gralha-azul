@@ -168,26 +168,6 @@ Configure these ELRS receiver parameters via the **ExpressLRS Lua script** on yo
 
 **Important:** The baud rate in the ELRS WiFi/web configuration tool must be set to **420000** — the same value as `FREQUENCIA_DO_SOPRO_COSMICO` in the code. If you change this constant, update the ELRS receiver's baud rate accordingly.
 
-### Channel Configuration
-
-In your transmitter, configure the following channel mapping (typically in the **MIXER** or **OUTPUTS** page):
-
-| Channel | Source | Function |
-|---------|--------|----------|
-| CH1 | Aileron (Right stick horizontal) | Roll |
-| CH2 | Elevator (Right stick vertical) | Pitch |
-| CH3 | Throttle (Left stick vertical) | Wingbeat intensity |
-| CH4 | Rudder (Left stick horizontal) | Yaw / Differential steering |
-| CH5 | Switch | Arm / Disarm (arm > 1500) |
-| CH6 | Potentiometer / Slider | Rhythm modulation |
-| CH7 | Potentiometer / Slider | Downstroke sharpness |
-| CH8 | Potentiometer / Slider | Upstroke sharpness |
-| CH9 | Potentiometer / Slider | Rudder ferocity (differential) |
-
-Ensure that **no channel reversing or subtrim** is applied — the code expects raw 1000–2000 µs CRSF values with center at 1500.
-
----
-
 ## CRSF Channel Mapping
 
 The receiver communicates via CRSF protocol over UART at 420000 baud. The following channels are used:
