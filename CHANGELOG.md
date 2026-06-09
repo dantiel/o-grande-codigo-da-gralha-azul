@@ -1,12 +1,13 @@
 # Changelog — O Grande Código da Gralha Azul
 
-## [1.8.0] — 2026-06-09
+## [1.9.0] — 2026-06-09
 
-### Added
-- **Barometer on Wire1 (GPIO26/GPIO27)** — moved BMP180 from Wire (conflict with servo GPIO5) to Wire1 (I2C1). All pins now configurable via `#define` (`PINO_SDA_BAROMETRO`, `PINO_SCL_BAROMETRO`).
-- **Altitude-Hold (CH10)** — `voz_do_pairar_no_ceu` activates P-controller when >1500 in glide mode. Hysteresis ±1m, gain via `GANHO_DO_PAIRAR_SAGRADO` (default 5.0). Additive to pitch in `ManifestarOVooNosVentos()`. Function: `PairarNoCeu()`.
-- **CH10 reading** — `voz_do_pairar_no_ceu = guardiao_dos_ventos_siderais.getChannel(10)`
-- **Debug output** — `Pairar`, `CorrAlt` (correction value)
+### Changed
+- **Altitude-Hold rewritten** — `PairarNoCeu()` now controls THROTTLE (flapping intensity) instead of pitch. CH3 becomes altitude setpoint (1000=0m, 2000=20m) when activated via CH10.
+- **New configurable parameters** — `ALTURA_MAX_DO_PAR_ALADO_M`, `SOPRO_MIN_DO_PAR_ALADO`, `SOPRO_MAX_DO_PAR_ALADO`, `FORCA_DO_PAR_ALADO`, `SILENCIO_DO_PAR_ALADO_M`, `LIMITE_DA_DESCIDA_ALADA_MS`, `LIMITE_DA_SUBIDA_ALADA_MS`.
+- **Variable `sopro_vital_do_pairar`** — replaces `correcao_altitude`. When `modo_pairar_ativo`, the effective throttle (`sopro_efetivo`) in `ManifestarOVooNosVentos()` is `sopro_vital_do_pairar` instead of `voz_do_sopro_vital`.
+- **Removed** `correcao_altitude` — no longer needed (old pitch-based control).
+- **Debug** — `SoproPairar` and `AltDesej` shown in hold mode.
 
 ### Changed
 - **I2C pins** — from hardcoded Wire.setSDA(4)/Wire.setSCL(5) to configurable via `#define PINO_SDA_BAROMETRO 26`, `PINO_SCL_BAROMETRO 27` using Wire1.

@@ -158,10 +158,16 @@ float ultima_temperatura_do_ar_c = 0.0f;
 bool modo_de_escuta_termal = false;
 float fe_no_sopro_quente = 0.0f;
 
-// Voo Pairante: Altitude-Hold
-#define GANHO_DO_PAIRAR_SAGRADO 5.0f  // Ganho do P-regulador para altitude hold
+// Voo Pairante: Altitude-Hold — A Gralha segura a altura com o bater das asas
+#define ALTURA_MAX_DO_PAR_ALADO_M    20.0f   // Altura máxima quando CH3=2000
+#define SOPRO_MIN_DO_PAR_ALADO       1100    // Sopro mínimo no pairar (µs)
+#define SOPRO_MAX_DO_PAR_ALADO       1800    // Sopro máximo no pairar (µs)
+#define FORCA_DO_PAR_ALADO           180     // Ganho do erro de altura → sopro
+#define SILENCIO_DO_PAR_ALADO_M      0.5f    // Zona morta em metros
+#define LIMITE_DA_DESCIDA_ALADA_MS   2.0f    // Limite de descida (m/s)
+#define LIMITE_DA_SUBIDA_ALADA_MS    3.0f    // Limite de subida (m/s)
 float altura_desejada_do_voo = 0.0f;
-float correcao_altitude = 0.0f;
+float sopro_vital_do_pairar = 1500.0f;  // Sopro efetivo no modo pairar
 bool modo_pairar_ativo = false;
 #endif
 float pulsacao_da_chama_primordial = 0.0f;
@@ -487,48 +493,63 @@ void AnimarPulsarDoCoracaoAlado() {
 }
 
 /*
-  /*  O Parar no Céu: Altitude-Hold da Gralha
-    Quando o oráculo respira e CH10 > 1500, a Gralha trava a altura atual
-    no modo planar, corrigindo o profundor para manter-se na altitude desejada.
-    Só ativo no planar (EM_DESLIZE_ETERNO_E_CONTEMPLATIVO).
+  /*  O Parar no Céu: O Coração que Segura a Altura
+    Quando o oráculo respira e CH10 clama >1500, a Gralha usa o sopro vital
+    como desejo de altitude: CH3=1000 → 0m, CH3=2000 → ALTURA_MAX.
+    O erro alimenta um P-regulador que modula a intensidade do bater das asas,
+    para que a Gralha pare no céu como folha na brisa.
   */
   void PairarNoCeu() {
   #ifdef ORACULO_DA_PRESSAO_DO_CEU
-    if (oraculo_respira && voz_do_pairar_no_ceu > 1500 &&
-        modo_presente_do_espirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
-      // Ao ativar, fixa a altura desejada no momento do engate
+    if (oraculo_respira && voz_do_pairar_no_ceu > 1500) {
       if (!modo_pairar_ativo) {
         modo_pairar_ativo = true;
-        altura_desejada_do_voo = altura_do_voo_sideral;
       }
-      // P-Regler com histerese de ±1m
+      // CH3 vira desejo de altitude: 1000=0m, 2000=ALTURA_MAX
+      altura_desejada_do_voo = mapear_entre_escalas_harmonicas(
+        (float)voz_do_sopro_vital, 1000.0f, 2000.0f,
+        0.0f, ALTURA_MAX_DO_PAR_ALADO_M);
+      // Erro de altitude
       float erro = altura_desejada_do_voo - altura_do_voo_sideral;
-      if (fabs(erro) < 1.0f) {
-        correcao_altitude = 0.0f;
+      // Zona morta
+      if (fabs(erro) < SILENCIO_DO_PAR_ALADO_M) {
+        // Dentro da zona morta: mantém o sopro atual
       } else {
-        correcao_altitude = erro * GANHO_DO_PAIRAR_SAGRADO;
-        correcao_altitude = constrain(correcao_altitude, -30.0f, 30.0f);
+        // P-regulador: erro → intensidade do bater
+        sopro_vital_do_pairar = 1500.0f + erro * FORCA_DO_PAR_ALADO;
+        sopro_vital_do_pairar = constrain(sopro_vital_do_pairar,
+          SOPRO_MIN_DO_PAR_ALADO, SOPRO_MAX_DO_PAR_ALADO);
       }
+      // Limitação de taxa: se a subida for muito rápida, reduz o sopro
+      if (sopro_da_subida_alada > LIMITE_DA_SUBIDA_ALADA_MS) {
+        sopro_vital_do_pairar -= 10.0f;
+      } else if (sopro_da_subida_alada < -LIMITE_DA_DESCIDA_ALADA_MS) {
+        sopro_vital_do_pairar += 10.0f;
+      }
+      sopro_vital_do_pairar = constrain(sopro_vital_do_pairar,
+        SOPRO_MIN_DO_PAR_ALADO, SOPRO_MAX_DO_PAR_ALADO);
     } else {
-      correcao_altitude = 0.0f;
       modo_pairar_ativo = false;
+      sopro_vital_do_pairar = (float)voz_do_sopro_vital;
     }
   #else
-    correcao_altitude = 0.0f;
     modo_pairar_ativo = false;
+    sopro_vital_do_pairar = (float)voz_do_sopro_vital;
   #endif
   }
   
   /*  O Movimento dos Portais Alados: Manifestando o Voo da Gralha
     Traduz a dinâmica interna e as inspirações celestes em movimento físico.
     Este é o 'MoverPortais' da essência da Gralha.
+    No pairar, o sopro vital é substituído pelo sopro do parar no céu.
   */
   void ManifestarOVooNosVentos() {
     float comando_aletao = (voz_do_aletao - 1500.0f) * 0.06f;
     float comando_profundor = (voz_do_profundor - 1500.0f) * 0.06f;
-    // A correção do altitude-hold é adicionada ao comando do profundor
-    comando_profundor += correcao_altitude;
     int angulo_portal_esquerdo, angulo_portal_direito;
+
+  // No modo pairar, o sopro vital é substituído pelo sopro do parar no céu
+  float sopro_efetivo = modo_pairar_ativo ? sopro_vital_do_pairar : (float)voz_do_sopro_vital;
 
   // Histerese: uma vez no modo de batida, permanece até abaixo do limiar - histerese
   // O despertar é necessário para o voo: ao acordar, a Gralha plana em silêncio
@@ -541,7 +562,7 @@ void AnimarPulsarDoCoracaoAlado() {
     : (LIMIAR_DO_VOO_ATIVO - LIMIAR_DO_VOO_ATIVO_HISTERESE);
 
   if(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
-    modo_presente_do_espirito = (voz_do_sopro_vital > limiar_atual)
+    modo_presente_do_espirito = (sopro_efetivo > limiar_atual)
         ? EM_RITMO_DE_BATIDA_DAS_ASAS
         : EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
     if (modo_presente_do_espirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
@@ -554,7 +575,7 @@ void AnimarPulsarDoCoracaoAlado() {
 
   if(modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     // A 'magnitude_da_batida' é a força com que a Gralha impulsiona o ar.
-    float magnitude_da_batida = ((voz_do_sopro_vital - LIMIAR_DO_VOO_ATIVO) * 0.06f) * (1.0f - (voz_do_compasso_da_alma - 1500.0f) * 0.0003f);
+    float magnitude_da_batida = ((sopro_efetivo - LIMIAR_DO_VOO_ATIVO) * 0.06f) * (1.0f - (voz_do_compasso_da_alma - 1500.0f) * 0.0003f);
     // O 'canto_original_da_asa' é o coração senoidal do movimento.
     float canto_original_da_asa = sin(angulo_da_danca_alada);
     // A 'direcao_do_bater' revela se a asa desce ou retorna.
@@ -700,7 +721,10 @@ void loop() {
       Serial.print(" | Subida: "); Serial.print(sopro_da_subida_alada, 2);
       Serial.print(" | SoproDoCeu: "); Serial.print(temperatura_do_ar_c, 1);
       Serial.print(" | FeNoSopro: "); Serial.print(fe_no_sopro_quente, 2);
-      Serial.print(" | CorrAlt: "); Serial.print(correcao_altitude, 1);
+      if (modo_pairar_ativo) {
+        Serial.print(" | AltDesej: "); Serial.print(altura_desejada_do_voo, 1);
+        Serial.print(" | SoproPairar: "); Serial.print(sopro_vital_do_pairar, 0);
+      }
 #endif
     }
     Serial.print(" | Fase: "); Serial.print(angulo_da_danca_alada, 2);
