@@ -22,6 +22,8 @@ A CRSF-controlled servo ornithopter (wing-flapping bird flight simulator) with N
   - [Wing Beat Generation](#wing-beat-generation)
   - [Servo Mixing](#servo-mixing)
   - [LED Animation](#led-animation)
+- [Altitude-Hold — O Par Alado](#altitude-hold--o-par-alado)
+- [LED Animation](#led-animation)
 - [Debug Output & Flight Performance](#debug-output--flight-performance)
 - [Portuguese Name Reference](#portuguese-name-reference)
 - [License](#license)
@@ -49,10 +51,23 @@ A CRSF-controlled servo ornithopter (wing-flapping bird flight simulator) with N
 | GPIO 0 | CRSF TX (yellow wire) | `VIA_DOS_ECOS_SOLARES` | Path of Solar Echoes |
 | GPIO 1 | CRSF RX (white/blue wire) | `VIA_DOS_SONHOS_LUNARES` | Path of Lunar Dreams |
 | GPIO 16 | NeoPixel — internal LED of RP2040 Zero | `NUCLEO_DA_CHAMA_AZUL` | Core of the Blue Flame |
-| GPIO 4 | BMP180 SDA | `SILENCIO_DA_ALTURA` | Silence of the Height |
-| GPIO 5 | BMP180 SCL | `RITMO_DA_PRESSAO` | Rhythm of the Pressure |
+| GPIO 26 | BMP180 SDA (Wire1) | `PINO_SDA_BAROMETRO` | Silence of the Height |
+| GPIO 27 | BMP180 SCL (Wire1) | `PINO_SCL_BAROMETRO` | Rhythm of the Pressure |
+
+All pins are configurable via `#define` at the top of the sketch:
+
+```cpp
+#define PINO_ASA_DA_MANHA      5   // ARTICULACAO_ASA_DA_MANHA — Left wing servo
+#define PINO_ASA_DO_ENTARDECER 7   // ARTICULACAO_ASA_DO_ENTARDECER — Right wing servo
+#define PINO_ECOS_SOLARES      0   // VIA_DOS_ECOS_SOLARES — CRSF TX
+#define PINO_SONHOS_LUNARES    1   // VIA_DOS_SONHOS_LUNARES — CRSF RX
+#define PINO_CHAMA_AZUL       16   // NUCLEO_DA_CHAMA_AZUL — NeoPixel
+#define PINO_SDA_BAROMETRO    26   // SILENCIO_DA_ALTURA — BMP180 SDA (Wire1)
+#define PINO_SCL_BAROMETRO    27   // RITMO_DA_PRESSAO — BMP180 SCL (Wire1)
+```
 
 ---
+=======
 
 ## Wiring
 
@@ -104,18 +119,19 @@ If you wish to use an **external optic glass fibre** for in-flight light effects
 
 > **Note:** The internal LED is sufficient for bench testing and low-light flight. For bright daylight visibility, consider adding an external high-brightness NeoPixel on the same GPIO line.
 
-### BMP180 Barometer — O Oráculo da Pressão
+### BMP180 Barometer — O Oráculo da Pressão *(optional)*
 
 The BMP180 I2C barometer listens for invisible shifts in pressure — the oracle that senses the sky's whispers.
+**Enabled by:** `#define ORACULO_DA_PRESSAO_DO_CEU` at the top of the sketch. Without this define, no barometer libraries are required.
 
 | BMP180 Pin | RP2040 Zero Pin | Portuguese Name | Meaning |
 |------------|-----------------|-----------------|---------|
 | VCC | 3V3 | `ALIMENTO_DO_ORACULO` | Oracle's Nourishment |
 | GND | GND | `TERRA_DO_ORACULO` | Oracle's Ground |
-| SDA | GPIO 4 | `SILENCIO_DA_ALTURA` | Silence of the Height |
-| SCL | GPIO 5 | `RITMO_DA_PRESSAO` | Rhythm of the Pressure |
+| SDA | GPIO 26 (Wire1 SDA) | `PINO_SDA_BAROMETRO` | Silence of the Height |
+| SCL | GPIO 27 (Wire1 SCL) | `PINO_SCL_BAROMETRO` | Rhythm of the Pressure |
 
-> **Note:** GPIO 5 is shared with the left wing servo (`ARTICULACAO_ASA_DA_MANHA`). The BMP180's SCL line is on the same pin — this is intentional: the barometer listens on the same path as the morning wing's joint. Ensure the servo signal wire does not interfere with I2C communication. If issues arise, use a different I2C bus or add pull-up resistors (4.7 kΩ) on SDA/SCL.
+The barometer uses the **Wire1** I2C bus to avoid conflict with servo pins.
 
 ---
 
@@ -187,7 +203,7 @@ The receiver communicates via CRSF protocol over UART at 420000 baud. The follow
 | CH7 | `voz_da_ferocidade_do_bater` | Voice of the Downstroke Ferocity | Downstroke sharpness | 1000–2000 |
 | CH8 | `voz_da_ferocidade_do_retorno` | Voice of the Upstroke Ferocity | Upstroke sharpness | 1000–2000 |
 | CH9 | `voz_da_ferocidade_do_leme` | Voice of the Rudder Ferocity | Rudder ferocity (differential) | 1000–2000 |
-
+| CH10 | `voz_do_pairar_no_ceu` | Voice of the Hovering in the Sky | Altitude-Hold (activate > 1500) | 1000–2000 (active > 1500) |
 
 ---
 
@@ -245,6 +261,35 @@ All configurable parameters are `#define` constants at the top of the sketch:
 | `ANGULO_DO_PLANAR_SERENO` | -4 | Glide angle offset (degrees) when soaring |
 | `ORIGEM_ASA_MATUTINA` | 0 | Left wing neutral position offset (degrees) |
 | `ORIGEM_ASA_VESPERTINA` | 0 | Right wing neutral position offset (degrees) |
+| `ALTURA_MAX_DO_PAR_ALADO_M` | 20.0 | Max altitude for Altitude-Hold (CH3 = 2000 → 20 m) |
+| `SOPRO_MIN_DO_PAR_ALADO` | 1100 | Minimum wingbeat intensity in Hold mode (µs) |
+| `SOPRO_MAX_DO_PAR_ALADO` | 1800 | Maximum wingbeat intensity in Hold mode (µs) |
+| `FORCA_DO_PAR_ALADO` | 200 | P-gain for Altitude-Hold (height error → throttle) |
+| `SILENCIO_DO_PAR_ALADO_M` | 0.5 | Deadband in meters (hysteresis) |
+| `SOPRO_DO_TOMBAMENTO_MS` | 2.0 | Max sink rate limit (m/s) |
+| `SOPRO_DA_ASCENSAO_MS` | 3.0 | Max climb rate limit (m/s) |
+
+### Barometer — O Oráculo da Pressão (optional)
+
+Uncomment this line to enable the BMP180 barometer:
+
+```cpp
+#define ORACULO_DA_PRESSAO_DO_CEU
+```
+
+Barometer variables (only available when enabled):
+
+| Variable | Unit | Description |
+|----------|------|-------------|
+| `pressao_do_ceu_hpa` | hPa | Atmospheric pressure |
+| `temperatura_do_ar_c` | °C | Air temperature |
+| `altura_do_voo_sideral` | m | Relative altitude (start average subtracted) |
+| `subida_da_gralha_ms` | m/s | Instantaneous vertical speed |
+| `sopro_da_subida_alada` | m/s | Low-pass filtered vertical speed (0.85/0.15) |
+| `tendencia_da_temperatura_c` | °C | Temperature trend |
+| `fe_no_sopro_quente` | — | Thermal confidence (`sopro_da_subida_alada + tendencia * 0.3`) |
+
+Telemetry: `SussurrarVooAoEter()` sends altitude (as GPS alt + 1000) and temperature (as battery voltage × 100) via CRSF every 200/500 ms.
 
 ### Debug Mode
 
@@ -310,6 +355,19 @@ CH9 (`voz_da_ferocidade_do_leme`) is applied differentially: left wing ferocity 
 
 In **glide mode**, the wings are set to a fixed angle (`ANGULO_DO_PLANAR_SERENO` = -4°) plus roll and pitch inputs, allowing the bird to soar like a real bird.
 
+### Altitude-Hold — O Par Alado
+
+When CH10 (`voz_do_pairar_no_ceu`) > 1500, the bird enters Altitude-Hold mode:
+
+- **CH3 (Throttle)** becomes the **target altitude setpoint** — 1000 µs = 0 m, 2000 µs = `ALTURA_MAX_DO_PAR_ALADO_M` (default 20 m)
+- The barometer (`ORACULO_DA_PRESSAO_DO_CEU` must be enabled) provides altitude feedback
+- A P-controller with hysteresis adjusts the wingbeat intensity (`sopro_vital_do_pairar`), replacing the pilot's direct throttle
+- The altitude error drives the servo pulse between `SOPRO_MIN_DO_PAR_ALADO` (1100 µs) and `SOPRO_MAX_DO_PAR_ALADO` (1800 µs)
+- Sink and climb rates are limited (`SOPRO_DO_TOMBAMENTO_MS` / `SOPRO_DA_ASCENSAO_MS`) to prevent abrupt throttle changes
+- In gliding mode (throttle stick below threshold), the Hold still applies — no need to keep the throttle stick up
+
+When CH10 < 1500, the pilot regains full manual throttle control.
+
 ### LED Animation
 
 The NeoPixel (`NUCLEO_DA_CHAMA_AZUL` / Core of the Blue Flame) reflects the bird's state:
@@ -345,10 +403,12 @@ VOANDO | Modo: RITMADO | SoproV: 1500 | Alet: 1500 | Prof: 1500 | Leme: 1500 | C
 | `FerRetorno` | Raw CH8 value (upstroke ferocity) |
 | `FerLeme` | Raw CH9 value (rudder ferocity) |
 | `Despertar` | Raw CH5 value (arm/disarm) |
-| `BaroAlt` | Barometric altitude (m) |
-| `Vario` | Vertical speed (m/s) |
-| `Temp` | Barometer temperature (°C) |
-| `Termal` | Thermal confidence |
+| `BaroAlt` | Barometric altitude (m) — `altura_do_voo_sideral` |
+| `Vario` | Vertical speed (m/s) — `subida_da_gralha_ms` |
+| `Temp` | Barometer temperature (°C) — `temperatura_do_ar_c` |
+| `Termal` | Thermal confidence — `fe_no_sopro_quente` |
+| `Pairar` | Altitude-Hold active flag (0/1) — `modo_pairar_ativo` |
+| `SoproPairar` | Altitude-Hold throttle output (µs) — `sopro_vital_do_pairar` |
 | `Fase` | Current wingbeat phase angle (radians) |
 | `Cadencia` | Current wingbeat cadence (rad/s) |
 
@@ -402,12 +462,24 @@ The code uses poetic Portuguese names for all identifiers. This table maps them 
 | `voz_da_ferocidade_do_leme` | CH9 Value (Voice of the Rudder Ferocity) | Rudder ferocity (differential) |
 | `pressao_do_ceu_hpa` | Barometric pressure (hPa) | Atmospheric pressure |
 | `temperatura_do_ar_c` | Air temperature (°C) | Barometer temperature |
-| `altura_barometrica_m` | Barometric altitude (m) | Relative altitude |
-| `subida_filtrada_da_gralha_ms` | Filtered vertical speed (m/s) | Vario with low-pass |
-| `confianca_termal` | Thermal confidence | Thermal detection readiness |
+| `altura_do_voo_sideral` | Barometric altitude (m) | Sidereal flight altitude (relative) |
+| `subida_da_gralha_ms` | Vertical speed (m/s) | Instantaneous vario |
+| `sopro_da_subida_alada` | Filtered vertical speed (m/s) | Low-pass vario (0.85/0.15) |
+| `fe_no_sopro_quente` | Thermal confidence | `sopro_da_subida_alada + tendencia * 0.3` |
+| `tendencia_da_temperatura_c` | Temperature trend (°C) | Thermal trend signal |
 | `modo_de_escuta_termal` | Thermal listening mode | Thermal assist flag |
-| `DespertarOraculoDaPressao()` | Barometer init | BMP180 initialization |
-| `EscutarPressaoDoCeu()` | Barometer update | Read pressure/altitude/temp |
+| `DespertarOraculoDaPressao()` | Barometer init | BMP180 initialization (non-blocking) |
+| `EscutarPressaoDoCeu()` | Barometer update | Read pressure/altitude/temp every 100ms |
+| `PairarNoCeu()` | Altitude-Hold | P-controller for baro-based altitude hold |
+| `SussurrarVooAoEter()` | CRSF telemetry | Send altitude & temp via CRSF |
+| `voz_do_pairar_no_ceu` | CH10 Value (Voice of Hovering in the Sky) | Altitude-Hold activation (> 1500) |
+| `modo_pairar_ativo` | Altitude-Hold active | Flag when CH10 > 1500 |
+| `sopro_vital_do_pairar` | Hold throttle output (µs) | Calculated wingbeat intensity in Hold mode |
+| `altura_desejada_do_voo` | Target altitude (m) | Derived from CH3 in Hold mode |
+| `pergaminho_do_voo` | CRSF GPS telemetry frame | Pergament of flight (altitude data) |
+| `bilhete_do_sopro_quente` | CRSF battery telemetry frame | Billete of warm breath (temperature data) |
+| `ultimo_sopro_sideral` | Last CRSF GPS send time | Last sidereal breath timestamp |
+| `ultimo_sopro_termico` | Last CRSF battery send time | Last thermal breath timestamp |
 | `angulo_da_danca_alada` | Wingbeat Phase Angle (Winged Dance Angle) |
 | `cadencia_do_destino_alado` | Wingbeat Cadence (Winged Destiny Cadence) |
 | `pulso_do_sopro_vital` | Wingbeat Waveform (Vital Breath Pulse) |
