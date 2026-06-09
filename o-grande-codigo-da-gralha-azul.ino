@@ -20,13 +20,13 @@
 
 // --- Oráculos e Conexões com o Cosmos: Os Sentidos da Gralha ---
 //#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA // Se definido, a Gralha partilha seus estados (Debug).
-#define FREQUENCIA_DO_SOPRO_COSMICO 420000 // O ritmo da comunicação com o éter (CRSF: 420000 baud).
+#define FREQUENCIA_DO_SOPRO_COSMICO 420000 // O ritmo da comunicação com o éter (420000 baud).
 #define PORTAL_DOS_VENTOS_CELESTES Serial1  // O limiar por onde as influências astrais tocam a Gralha.
 
 #include <Arduino.h>
 #include <CrsfSerial.h>
 
-//#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para ativar o barômetro BMP180 (requer Adafruit_BMP085_Unified e Adafruit_Sensor).
+//#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para ativar o oráculo da pressão (requer Adafruit_BMP085_Unified e Adafruit_Sensor).
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -36,9 +36,9 @@
 // O Guardião dos Ventos Siderais, intérprete dos desígnios para a Gralha.
 CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
 
-// O éter que leva as novas da Gralha ao mundo: instantes do último sopro telmétrico.
-unsigned long ultimo_sopro_do_gps_telemetrico = 0;
-unsigned long ultimo_sopro_da_bateria_telemetrica = 0;
+// O éter que leva as novas da Gralha ao mundo: instantes do último sopro ao firmamento.
+unsigned long ultimo_sopro_sideral = 0;
+unsigned long ultimo_sopro_termico = 0;
 
 #include <Servo.h> // A arte ancestral de animar os tendões de luz.
 #include <Adafruit_NeoPixel.h> // O encanto para acender a chama da alma.
@@ -83,7 +83,7 @@ unsigned long ultimo_sopro_da_bateria_telemetrica = 0;
     mas o voo só se inicia quando o espírito alado a comanda.
   */
   bool limiar_elevado = true;
-bool barometro_presente = false; // O oráculo da pressão escuta a altura invisível.
+bool oraculo_respira = false; // O oráculo da pressão escuta a altura invisível.
 
   enum EstadoDaAlmaAlada {
     EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
@@ -132,12 +132,12 @@ Adafruit_BMP085_Unified oraculo_da_pressao = Adafruit_BMP085_Unified(10085);
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
 float pressao_do_ceu_hpa = 0.0f;
 float temperatura_do_ar_c = 0.0f;
-float altura_barometrica_m = 0.0f;
+float altura_do_voo_sideral = 0.0f;
 float altura_inicial_m = 0.0f;
 float subida_da_gralha_ms = 0.0f;
-float subida_filtrada_da_gralha_ms = 0.0f;
-float ultima_altura_barometrica_m = 0.0f;
-unsigned long ultimo_sopro_do_barometro = 0;
+float sopro_da_subida_alada = 0.0f;
+float ultima_altura_do_voo_sideral = 0.0f;
+unsigned long ultimo_sopro_do_oraculo = 0;
 float tendencia_da_temperatura_c = 0.0f;
 float ultima_temperatura_do_ar_c = 0.0f;
 
@@ -145,7 +145,7 @@ float ultima_temperatura_do_ar_c = 0.0f;
 // A subida da Gralha revela o sopro quente do céu.
 // A temperatura apenas sussurra; a subida confirma.
 bool modo_de_escuta_termal = false;
-float confianca_termal = 0.0f;
+float fe_no_sopro_quente = 0.0f;
 #endif
 float pulsacao_da_chama_primordial = 0.0f;
 
@@ -293,21 +293,21 @@ Servo motor_asa_matutina, motor_asa_vespertina;
 
 
 // --- Rituais de Sintonia e Percepção da Alma Alada ---
-// O oráculo da pressão desperta: inicia o barômetro BMP180.
+// O oráculo da pressão desperta: inicia o oráculo que escuta a altura invisível.
 void DespertarOraculoDaPressao() {
   Wire.setSDA(4);
   Wire.setSCL(5);
   Wire.begin();
   if (!oraculo_da_pressao.begin()) {
-    barometro_presente = false;
+    oraculo_respira = false;
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
-    Serial.println("O oráculo da pressão silencia — o barômetro não responde.");
+    Serial.println("O oráculo da pressão silencia — não ouve o céu.");
 #endif
     return;
   }
-  barometro_presente = true;
+  oraculo_respira = true;
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
-  Serial.println("O oráculo da pressão desperta — o barômetro escuta o céu.");
+  Serial.println("O oráculo da pressão desperta — escuta a altura invisível.");
 #endif
   // Estabelece a altura inicial: média de várias leituras
   float soma_altura = 0.0f;
@@ -327,19 +327,19 @@ void DespertarOraculoDaPressao() {
   if (leituras_validas > 0) {
     altura_inicial_m = soma_altura / leituras_validas;
   }
-  ultima_altura_barometrica_m = 0.0f;
-  ultimo_sopro_do_barometro = millis();
+  ultima_altura_do_voo_sideral = 0.0f;
+  ultimo_sopro_do_oraculo = millis();
   ultima_temperatura_do_ar_c = 0.0f;
 }
 
 // Escuta a pressão do céu: lê o barômetro e calcula altura e subida.
 void EscutarPressaoDoCeu() {
-  if (!barometro_presente) return;
+  if (!oraculo_respira) return;
   unsigned long agora = millis();
-  if (agora - ultimo_sopro_do_barometro < 100) return; // A cada 100 ms
-  float dt = (agora - ultimo_sopro_do_barometro) * 0.001f;
+  if (agora - ultimo_sopro_do_oraculo < 100) return; // A cada 100 ms
+  float dt = (agora - ultimo_sopro_do_oraculo) * 0.001f;
   if (dt < 0.001f) dt = 0.001f;
-  ultimo_sopro_do_barometro = agora;
+  ultimo_sopro_do_oraculo = agora;
 
   sensors_event_t evento;
   oraculo_da_pressao.getEvent(&evento);
@@ -351,23 +351,23 @@ void EscutarPressaoDoCeu() {
 
   // Altitude relativa
   float altitude_absoluta = oraculo_da_pressao.pressureToAltitude(1013.25f, evento.pressure, temperatura_do_ar_c);
-  altura_barometrica_m = altitude_absoluta - altura_inicial_m;
+  altura_do_voo_sideral = altitude_absoluta - altura_inicial_m;
 
   // Subida (vertical speed)
-  subida_da_gralha_ms = (altura_barometrica_m - ultima_altura_barometrica_m) / dt;
-  ultima_altura_barometrica_m = altura_barometrica_m;
+  subida_da_gralha_ms = (altura_do_voo_sideral - ultima_altura_do_voo_sideral) / dt;
+  ultima_altura_do_voo_sideral = altura_do_voo_sideral;
 
   // Filtro passa-baixa
-  subida_filtrada_da_gralha_ms = subida_filtrada_da_gralha_ms * 0.85f + subida_da_gralha_ms * 0.15f;
+  sopro_da_subida_alada = sopro_da_subida_alada * 0.85f + subida_da_gralha_ms * 0.15f;
 
   // Tendência da temperatura
   tendencia_da_temperatura_c = tendencia_da_temperatura_c * 0.9f + (temperatura_do_ar_c - ultima_temperatura_do_ar_c) * 0.1f;
   ultima_temperatura_do_ar_c = temperatura_do_ar_c;
 
   // Confiança termal: subida + tendência de temperatura
-  confianca_termal = subida_filtrada_da_gralha_ms + tendencia_da_temperatura_c * 0.3f;
-  if (confianca_termal > 0.5f) modo_de_escuta_termal = true;
-  else if (confianca_termal < -0.5f) modo_de_escuta_termal = false;
+  fe_no_sopro_quente = sopro_da_subida_alada + tendencia_da_temperatura_c * 0.3f;
+  if (fe_no_sopro_quente > 0.5f) modo_de_escuta_termal = true;
+  else if (fe_no_sopro_quente < -0.5f) modo_de_escuta_termal = false;
 }
 
 void AoDespertarParaOCantoDoEter() {
@@ -543,68 +543,68 @@ void ManifestarOVooNosVentos() {
   motor_asa_vespertina.write(constrain(angulo_portal_direito + 100, 0, 180));
 }
 /*
-  O Sopro Telemétrico: A Gralha Sussurra seu Voo ao Éter
-  Envia a altura invisível e o sopro quente do ar ao éter,
-  para que o céu testemunhe a jornada alada.
-*/
-void SussurrarVooAoEter() {
-  if (!barometro_presente) return;
-  unsigned long agora = millis();
-
-  // Pergaminho do Voo Sideral (0x02): envia altitude barométrica como altura do voo
-  if (agora - ultimo_sopro_sideral >= 200) {
-    ultimo_sopro_sideral = agora;
-    crsf_sensor_gps_t pergaminho_do_voo;
-    pergaminho_do_voo.latitude = htobe32(0);
-    pergaminho_do_voo.longitude = htobe32(0);
-    // Groundspeed: módulo da subida filtrada em km/h (m/s * 3.6 -> /10)
-#ifdef ORACULO_DA_PRESSAO_DO_CEU
-    int16_t velocidade_chao = (int16_t)(fabs(subida_filtrada_da_gralha_ms) * 3.6f * 10.0f);
-#else
-    int16_t velocidade_chao = 0;
-#endif
-    if (velocidade_chao < 0) velocidade_chao = 0;
-    if (velocidade_chao > 65535) velocidade_chao = 65535;
-    pergaminho_do_voo.groundspeed = htobe16((uint16_t)velocidade_chao);
-    pergaminho_do_voo.heading = htobe16(0);
-    // Altitude: metros relativos + 1000 (offset CRSF), clamp a 0..65535
-#ifdef ORACULO_DA_PRESSAO_DO_CEU
-    int16_t alt_telemetria = (int16_t)(altura_barometrica_m + 1000.0f);
-#else
-    int16_t alt_telemetria = 0;
-#endif
-    if (alt_telemetria < 0) alt_telemetria = 0;
-    if (alt_telemetria > 65535) alt_telemetria = 65535;
-    pergaminho_do_voo.altitude = htobe16((uint16_t)alt_telemetria);
-    pergaminho_do_voo.satellites = 0;
-    guardiao_dos_ventos_siderais.queuePacket(
-      CRSF_ADDRESS_FLIGHT_CONTROLLER,
-      CRSF_FRAMETYPE_GPS,
-      &pergaminho_do_voo,
-      sizeof(crsf_sensor_gps_t));
+  /*  O Sopro ao Éter: A Gralha Sussurra seu Voo ao Cosmos
+    O coração da Gralha envia ao éter a altura do voo sideral
+    e o sopro quente do céu, para que o firmamento testemunhe.
+  */
+  void SussurrarVooAoEter() {
+    if (!oraculo_respira) return;
+    unsigned long agora = millis();
+  
+    // Pergaminho do Voo Sideral: envia altura do voo ao firmamento
+    if (agora - ultimo_sopro_sideral >= 200) {
+      ultimo_sopro_sideral = agora;
+      crsf_sensor_gps_t pergaminho_do_voo;
+      pergaminho_do_voo.latitude = htobe32(0);
+      pergaminho_do_voo.longitude = htobe32(0);
+      // Velocidade aparente: módulo da subida alada em km/h
+  #ifdef ORACULO_DA_PRESSAO_DO_CEU
+      int16_t velocidade_chao = (int16_t)(fabs(sopro_da_subida_alada) * 3.6f * 10.0f);
+  #else
+      int16_t velocidade_chao = 0;
+  #endif
+      if (velocidade_chao < 0) velocidade_chao = 0;
+      if (velocidade_chao > 65535) velocidade_chao = 65535;
+      pergaminho_do_voo.groundspeed = htobe16((uint16_t)velocidade_chao);
+      pergaminho_do_voo.heading = htobe16(0);
+      // Altitude: metros relativos + 1000 (offset CRSF), clamp a 0..65535
+  #ifdef ORACULO_DA_PRESSAO_DO_CEU
+      int16_t alt_do_voo = (int16_t)(altura_do_voo_sideral + 1000.0f);
+  #else
+      int16_t alt_do_voo = 0;
+  #endif
+      if (alt_do_voo < 0) alt_do_voo = 0;
+      if (alt_do_voo > 65535) alt_do_voo = 65535;
+      pergaminho_do_voo.altitude = htobe16((uint16_t)alt_do_voo);
+      pergaminho_do_voo.satellites = 0;
+      guardiao_dos_ventos_siderais.queuePacket(
+        CRSF_ADDRESS_FLIGHT_CONTROLLER, // O coração da Gralha, endereço no éter
+        CRSF_FRAMETYPE_GPS,             // Pergaminho do voo, tipo sideral
+        &pergaminho_do_voo,
+        sizeof(crsf_sensor_gps_t));
+    }
+  
+    // Bilhete do Sopro Quente: envia temperatura como canto térmico
+    if (agora - ultimo_sopro_termico >= 500) {
+      ultimo_sopro_termico = agora;
+      crsf_sensor_battery_t bilhete_do_sopro_quente;
+  #ifdef ORACULO_DA_PRESSAO_DO_CEU
+      uint16_t canto_termico = (uint16_t)(temperatura_do_ar_c * 100.0f);
+  #else
+      uint16_t canto_termico = 0;
+  #endif
+      if (canto_termico > 65535) canto_termico = 65535;
+      bilhete_do_sopro_quente.voltage = htobe16(canto_termico);
+      bilhete_do_sopro_quente.current = htobe16(0);
+      bilhete_do_sopro_quente.capacity = 0;
+      bilhete_do_sopro_quente.remaining = 0;
+      guardiao_dos_ventos_siderais.queuePacket(
+        CRSF_ADDRESS_FLIGHT_CONTROLLER, // O coração da Gralha, endereço no éter
+        CRSF_FRAMETYPE_BATTERY_SENSOR,  // Bilhete do sopro quente, tipo térmico
+        &bilhete_do_sopro_quente,
+        sizeof(crsf_sensor_battery_t));
+    }
   }
-
-  // Bilhete do Sopro Quente (0x08): envia temperatura como voltage (temp * 100 mV)
-  if (agora - ultimo_sopro_termico >= 500) {
-    ultimo_sopro_termico = agora;
-    crsf_sensor_battery_t bilhete_do_sopro_quente;
-#ifdef ORACULO_DA_PRESSAO_DO_CEU
-    uint16_t tensao_termica = (uint16_t)(temperatura_do_ar_c * 100.0f);
-#else
-    uint16_t tensao_termica = 0;
-#endif
-    if (tensao_termica > 65535) tensao_termica = 65535;
-    bilhete_do_sopro_quente.voltage = htobe16(tensao_termica);
-    bilhete_do_sopro_quente.current = htobe16(0);
-    bilhete_do_sopro_quente.capacity = 0;
-    bilhete_do_sopro_quente.remaining = 0;
-    guardiao_dos_ventos_siderais.queuePacket(
-      CRSF_ADDRESS_FLIGHT_CONTROLLER,
-      CRSF_FRAMETYPE_BATTERY_SENSOR,
-      &bilhete_do_sopro_quente,
-      sizeof(crsf_sensor_battery_t));
-  }
-}
 
 /*
   O Ciclo Infinito da Lenda Viva: A Gralha Dança com o Cosmos
@@ -640,12 +640,12 @@ void loop() {
     Serial.print(" | FerBater: "); Serial.print(voz_da_ferocidade_do_bater);
     Serial.print(" | FerRetorno: "); Serial.print(voz_da_ferocidade_do_retorno);
     Serial.print(" | FerLeme: "); Serial.print(voz_da_ferocidade_do_leme);
-    if (barometro_presente) {
+    if (oraculo_respira) {
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
-      Serial.print(" | BaroAlt: "); Serial.print(altura_barometrica_m, 1);
-      Serial.print(" | Vario: "); Serial.print(subida_filtrada_da_gralha_ms, 2);
-      Serial.print(" | Temp: "); Serial.print(temperatura_do_ar_c, 1);
-      Serial.print(" | Termal: "); Serial.print(confianca_termal, 2);
+      Serial.print(" | AltVoo: "); Serial.print(altura_do_voo_sideral, 1);
+      Serial.print(" | Subida: "); Serial.print(sopro_da_subida_alada, 2);
+      Serial.print(" | SoproDoCeu: "); Serial.print(temperatura_do_ar_c, 1);
+      Serial.print(" | FeNoSopro: "); Serial.print(fe_no_sopro_quente, 2);
 #endif
     }
     Serial.print(" | Fase: "); Serial.print(angulo_da_danca_alada, 2);

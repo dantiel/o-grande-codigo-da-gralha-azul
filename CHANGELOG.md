@@ -5,6 +5,7 @@
 ### Changed
 - **Barometer made optional** — `ORACULO_DA_PRESSAO_DO_CEU` define (off by default). Entire BMP180 code (includes, object, variables, init, loop, telemetry, debug) wrapped in `#ifdef`/`#endif`. When disabled, stubs are used and no libraries are required.
 - **Hermetic telemetry naming** — `EnviarSoproTelemetricoAoEter` → `SussurrarVooAoEter`, `pacote_gps` → `pergaminho_do_voo`, `pacote_bateria` → `bilhete_do_sopro_quente`, `ultimo_sopro_do_gps_telemetrico` → `ultimo_sopro_sideral`, `ultimo_sopro_da_bateria_telemetrica` → `ultimo_sopro_termico`.
+- **Fully purged profane names** — `barometro_presente` → `oraculo_respira`, `altura_barometrica_m` → `altura_do_voo_sideral`, `subida_filtrada_da_gralha_ms` → `sopro_da_subida_alada`, `confianca_termal` → `fe_no_sopro_quente`, `ultimo_sopro_do_barometro` → `ultimo_sopro_do_oraculo`. Debug labels: `BaroAlt` → `AltVoo`, `Vario` → `Subida`, `Temp` → `SoproDoCeu`, `Termal` → `FeNoSopro`.
 
 ## [1.6.0] — 2026-06-06
 
