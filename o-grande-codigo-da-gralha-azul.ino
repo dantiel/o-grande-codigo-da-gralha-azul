@@ -56,7 +56,7 @@ unsigned long ultimo_sopro_termico = 0;
 #define QUANTIDADE_DE_CENTELHAS_NA_CHAMA 1 // Uma única, mas intensa, luz interior.
 
 // === PINOS DO ORÁCULO DA PRESSÃO (BMP180) – I2C0 (Wire) do RP2040 ===
-// GPIO4 (SDA) e GPIO5 (SCL) — o servo da Asa Matutina foi movido para GPIO8.
+// GPIO4 (SDA) e GPIO5 (SCL) — fios do silêncio que ouvem o céu.
 #define PINO_SILENCIO_DA_ALTURA 4
 #define PINO_RITMO_DA_PRESSAO 5
 

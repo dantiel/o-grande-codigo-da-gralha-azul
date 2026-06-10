@@ -134,7 +134,7 @@ BMP180 Module            RP2040 Zero
 └──────────────┘        └───────────────┘
 ```
 
-The barometer uses the **I2C0 (Wire)** bus (GPIO 4/5). The left wing servo was moved to GPIO 8 to free GPIO 5 for I2C SCL.
+The barometer uses the **I2C0 (Wire)** bus (GPIO 4/5).
 
 ---
 

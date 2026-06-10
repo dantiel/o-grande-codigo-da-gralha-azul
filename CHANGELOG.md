@@ -1,11 +1,13 @@
 # Changelog — O Grande Código da Gralha Azul
 
-## [1.10.0] — 2026-06-09
+## [1.11.0] — 2026-06-10
 
 ### Changed
-- **Renamed altitude-hold** — `pairar` (hover) → `sustentar` (sustain). All functions, variables and defines renamed: `PairarNoCeu()` → `SustentarAltura()`, `modo_pairar_ativo` → `modo_sustentar_ativo`, `sopro_vital_do_pairar` → `sopro_vital_do_sustentar`, `voz_do_pairar_no_ceu` → `voz_do_sustentar_altura`.
-- **Renamed barometer pin defines** — `PINO_SDA_BAROMETRO` → `PINO_SILENCIO_DA_ALTURA`, `PINO_SCL_BAROMETRO` → `PINO_RITMO_DA_PRESSAO`.
-- **README** — Consolidated to single channel table, fixed wiring inconsistencies, removed `pairar` references.
+- **Pin configuration** — Servo left wing moved from GPIO 5 → GPIO 8, BMP180 from GPIO 26/27 (Wire1) → GPIO 4/5 (Wire/I2C0). This resolves the GPIO 5 conflict between servo and I2C SCL.
+- **Wire fix** — `Wire1` → `Wire` with `setSDA()/setSCL()`. The BMP180 library hardcodes `Wire`, so Wire1 was non-functional.
+- **README** — Pin allocation table, wiring diagrams, and changelog updated to reflect GPIO 8/4/5 configuration. No more `Wire1` references.
+
+## [1.10.0] — 2026-06-09
 
 ## [1.7.0] — 2026-06-06
 
