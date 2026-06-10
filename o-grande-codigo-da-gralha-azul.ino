@@ -140,7 +140,6 @@ int voz_da_ferocidade_do_leme = VIBRACAO_MINIMA_DA_FEROCIDADE;
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
 Adafruit_BMP085_Unified oraculo_da_pressao = Adafruit_BMP085_Unified(10085);
 #endif
-#ifdef ORACULO_DA_PRESSAO_DO_CEU
 float pressao_do_ceu_hpa = 0.0f;
 float temperatura_do_ar_c = 0.0f;
 float altura_do_voo_sideral = 0.0f;
