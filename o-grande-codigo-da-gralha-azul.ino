@@ -20,13 +20,13 @@
 
 // --- Oráculos e Conexões com o Cosmos: Os Sentidos da Gralha ---
 //#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA // Se definido, a Gralha partilha seus estados (Debug).
-#define FREQUENCIA_DO_SOPRO_COSMICO 420000 // O ritmo da comunicação com o éter (420000 baud).
+#define FREQUENCIA_DO_SOPRO_COSMICO 420000 // O ritmo da comunicação com o éter.
 #define PORTAL_DOS_VENTOS_CELESTES Serial1  // O limiar por onde as influências astrais tocam a Gralha.
 
 #include <Arduino.h>
 #include <CrsfSerial.h>
 
-//#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para ativar o oráculo da pressão (requer Adafruit_BMP085_Unified e Adafruit_Sensor).
+//#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para que a Gralha sinta o peso do céu (requer a Biblioteca do Oráculo).
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -46,19 +46,18 @@ unsigned long ultimo_sopro_termico = 0;
 /* As Relíquias da Gralha: Vínculos de Poder e Essência
   Os pontos de contato com o mundo, ecos da sua jornada.
 */
-// === PINOS DA ALMA: Onde a Gralha toca o mundo ===
+// === AS JUNTURAS DA ALMA: Onde a Gralha toca o mundo ===
 #define ARTICULACAO_ASA_DA_MANHA 8    // Asa que se ergue com a aurora.
 #define ARTICULACAO_ASA_DO_ENTARDECER 7 // Asa que se recolhe com o crepúsculo.
-#define VIA_DOS_SONHOS_LUNARES 1    // Canal dos sussurros da noite (CRSF RX).
-#define VIA_DOS_ECOS_SOLARES 0  // Canal da canção ao dia (CRSF TX).
+#define VIA_DOS_SONHOS_LUNARES 1    // Canal dos sussurros da noite.
+#define VIA_DOS_ECOS_SOLARES 0  // Canal da canção ao dia.
 
 #define NUCLEO_DA_CHAMA_AZUL 16    // Onde a alma da Gralha brilha, sua essência anil.
 #define QUANTIDADE_DE_CENTELHAS_NA_CHAMA 1 // Uma única, mas intensa, luz interior.
 
-// === PINOS DO ORÁCULO DA PRESSÃO (BMP180) – I2C0 (Wire) do RP2040 ===
-// GPIO4 (SDA) e GPIO5 (SCL) — fios do silêncio que ouvem o céu.
-#define PINO_SILENCIO_DA_ALTURA 4
-#define PINO_RITMO_DA_PRESSAO 5
+// === FIOS DO ORÁCULO DA PRESSÃO: por onde o céu sussurra à Gralha ===
+#define PINO_SILENCIO_DA_ALTURA 4  // Onde o silêncio guarda a altura.
+#define PINO_RITMO_DA_PRESSAO 5    // Onde o ritmo da pressão ecoa.
 
 /*
   Os Mistérios do Voo Sagrado: Leis Imutáveis da Natureza Alada
@@ -314,12 +313,12 @@ public:
 
 
 MantoDeLuzCelestial manto_celestial_da_gralha;
-Servo motor_asa_matutina, motor_asa_vespertina;
+Servo tendao_da_asa_matutina, tendao_da_asa_vespertina;
 
 
 // --- Rituais de Sintonia e Percepção da Alma Alada ---
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
-// O oráculo da pressão desperta: inicia o oráculo que escuta a altura invisível.
+// O oráculo da pressão desperta: abre o portal que escuta a altura invisível.
 void DespertarOraculoDaPressao() {
   Wire.setSDA(PINO_SILENCIO_DA_ALTURA);
   Wire.setSCL(PINO_RITMO_DA_PRESSAO);
@@ -335,7 +334,7 @@ void DespertarOraculoDaPressao() {
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   Serial.println("O oráculo da pressão desperta — escuta a altura invisível.");
 #endif
-  // Estabelece a altura inicial: média de várias leituras
+  // A Gralha aprende a sentir o chão: escuta a altura do ninho várias vezes
   float soma_altura = 0.0f;
   int leituras_validas = 0;
   for (int i = 0; i < 10; i++) {
@@ -466,8 +465,8 @@ void setup() {
 
   guardiao_dos_ventos_siderais.setPassthroughMode(false);
 
-  motor_asa_matutina.attach(ARTICULACAO_ASA_DA_MANHA, 500, 2500);
-  motor_asa_vespertina.attach(ARTICULACAO_ASA_DO_ENTARDECER, 500, 2500);
+  tendao_da_asa_matutina.attach(ARTICULACAO_ASA_DA_MANHA, 500, 2500);
+  tendao_da_asa_vespertina.attach(ARTICULACAO_ASA_DO_ENTARDECER, 500, 2500);
 
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   Serial.println("Asas de anil prontas para a dança dos céus e a canção da vida.");
@@ -599,7 +598,7 @@ void AnimarPulsarDoCoracaoAlado() {
     float ferocidade_retorno_esquerda = ferocidade_do_retorno + fator_do_leme;
     float ferocidade_retorno_direita  = ferocidade_do_retorno - fator_do_leme;
 
-    // Cada servo recebe sua própria forma de batida
+    // Cada tendão recebe sua própria forma de batida
     float pulso_asa_esquerda = forma_do_bater_das_asas(
         canto_original_da_asa, direcao_do_bater,
         ferocidade_bater_esquerda,
@@ -619,8 +618,8 @@ void AnimarPulsarDoCoracaoAlado() {
     angulo_portal_direito  = (int)((comando_aletao + ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
   }
 
-  motor_asa_matutina.write(constrain(angulo_portal_esquerdo + 100, 0, 180));
-  motor_asa_vespertina.write(constrain(angulo_portal_direito + 100, 0, 180));
+  tendao_da_asa_matutina.write(constrain(angulo_portal_esquerdo + 100, 0, 180));
+  tendao_da_asa_vespertina.write(constrain(angulo_portal_direito + 100, 0, 180));
 }
 /*
   /*  O Sopro ao Éter: A Gralha Sussurra seu Voo ao Cosmos
@@ -695,11 +694,11 @@ void loop() {
     relogio_das_eras.instante_do_agora_cosmico = millis();
   guardiao_dos_ventos_siderais.loop();
 
-  AnimarPulsarDoCoracaoAlado();
+  ManifestarOVooNosVentos();
   EscutarPressaoDoCeu();
   SustentarAltura();
   SussurrarVooAoEter();
-  ManifestarOVooNosVentos();
+  AnimarPulsarDoCoracaoAlado();
 
   if(relogio_das_eras.instante_do_agora_cosmico - relogio_das_eras.ultimo_fulgor_da_chama_azul >= 33) { // ~30fps
     relogio_das_eras.ultimo_fulgor_da_chama_azul = relogio_das_eras.instante_do_agora_cosmico;
@@ -744,7 +743,6 @@ void loop() {
     relogio_das_eras.ultima_pulsacao_do_sopro_alado = relogio_das_eras.instante_do_agora_cosmico;
   }
   relogio_das_eras.ultima_pulsacao_do_sopro_alado = relogio_das_eras.instante_do_agora_cosmico;
-  delay(1);
 }
 // E assim, o Grande Código da Gralha Azul se manifesta, em cada ciclo,
 // um testemunho alado da resiliência da vida, da magia da transformação,
