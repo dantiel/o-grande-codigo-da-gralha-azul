@@ -120,6 +120,7 @@ struct {
   unsigned long ultimo_fulgor_da_chama_azul;
   unsigned long ultimo_eco_prescindivei;
   unsigned long ultima_pulsacao_do_sopro_alado;
+  unsigned long ultimo_instante_de_respiracao_luminescente;
   float intervalo_entre_pulsacoes_do_coracao_alado;
 } relogio_das_eras;
 
