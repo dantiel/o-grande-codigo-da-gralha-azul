@@ -98,9 +98,9 @@ External 5V BEC / Battery
 │                     │   AND ──► RP2040 GND (common ground!)
 └──────────────────────┘
 
-RP2040 Zero              Servo Left Wing (GPIO 5)
+RP2040 Zero              Servo Left Wing (GPIO 8)
 ┌─────────────┐          ┌──────────────────┐
-│ GPIO 5      ──────────► Signal (white/yellow)
+│ GPIO 8      ──────────► Signal (white/yellow)
 └─────────────┘          └──────────────────┘
 
 RP2040 Zero              Servo Right Wing (GPIO 7)
