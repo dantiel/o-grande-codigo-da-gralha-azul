@@ -46,24 +46,24 @@ A CRSF-controlled servo ornithopter (wing-flapping bird flight simulator) with N
 
 | Pin | Function | Portuguese Name | Meaning |
 |-----|----------|----------------|---------|
-| GPIO 5 | Servo — Left Wing | `ARTICULACAO_ASA_DA_MANHA` | Morning Wing Joint |
+| GPIO 8 | Servo — Left Wing | `ARTICULACAO_ASA_DA_MANHA` | Morning Wing Joint |
 | GPIO 7 | Servo — Right Wing | `ARTICULACAO_ASA_DO_ENTARDECER` | Evening Wing Joint |
 | GPIO 0 | CRSF TX (yellow wire) | `VIA_DOS_ECOS_SOLARES` | Path of Solar Echoes |
 | GPIO 1 | CRSF RX (white/blue wire) | `VIA_DOS_SONHOS_LUNARES` | Path of Lunar Dreams |
 | GPIO 16 | NeoPixel — internal LED of RP2040 Zero | `NUCLEO_DA_CHAMA_AZUL` | Core of the Blue Flame |
-| GPIO 26 | BMP180 SDA (Wire1) | `PINO_SILENCIO_DA_ALTURA` | Silence of the Height |
-| GPIO 27 | BMP180 SCL (Wire1) | `PINO_RITMO_DA_PRESSAO` | Rhythm of the Pressure |
+| GPIO 4 | BMP180 SDA (I2C0/Wire) | `PINO_SILENCIO_DA_ALTURA` | Silence of the Height |
+| GPIO 5 | BMP180 SCL (I2C0/Wire) | `PINO_RITMO_DA_PRESSAO` | Rhythm of the Pressure |
 
 All pins are configurable via `#define` at the top of the sketch:
 
 ```cpp
-#define PINO_ASA_DA_MANHA      5   // ARTICULACAO_ASA_DA_MANHA — Left wing servo
+#define PINO_ASA_DA_MANHA      8   // ARTICULACAO_ASA_DA_MANHA — Left wing servo
 #define PINO_ASA_DO_ENTARDECER 7   // ARTICULACAO_ASA_DO_ENTARDECER — Right wing servo
 #define PINO_ECOS_SOLARES      0   // VIA_DOS_ECOS_SOLARES — CRSF TX
 #define PINO_SONHOS_LUNARES    1   // VIA_DOS_SONHOS_LUNARES — CRSF RX
 #define PINO_CHAMA_AZUL       16   // NUCLEO_DA_CHAMA_AZUL — NeoPixel
-#define PINO_SILENCIO_DA_ALTURA    26   // SILENCIO_DA_ALTURA — BMP180 SDA (Wire1)
-#define PINO_RITMO_DA_PRESSAO    27   // RITMO_DA_PRESSAO — BMP180 SCL (Wire1)
+#define PINO_SILENCIO_DA_ALTURA    4   // SILENCIO_DA_ALTURA — BMP180 SDA (I2C0/Wire)
+#define PINO_RITMO_DA_PRESSAO    5   // RITMO_DA_PRESSAO — BMP180 SCL (I2C0/Wire)
 ```
 
 ---
@@ -129,12 +129,12 @@ BMP180 Module            RP2040 Zero
 ┌──────────────┐        ┌───────────────┐
 │ VCC          ─────────► 3V3           │  (ALIMENTO_DO_ORACULO)
 │ GND          ─────────► GND           │  (TERRA_DO_ORACULO)
-│ SDA (GP26)   ─────────► GPIO 26       │  (PINO_SILENCIO_DA_ALTURA — Wire1 SDA)
-│ SCL (GP27)   ─────────► GPIO 27       │  (PINO_RITMO_DA_PRESSAO — Wire1 SCL)
+│ SDA (GP4)    ─────────► GPIO 4        │  (PINO_SILENCIO_DA_ALTURA — I2C0 SDA)
+│ SCL (GP5)    ─────────► GPIO 5        │  (PINO_RITMO_DA_PRESSAO — I2C0 SCL)
 └──────────────┘        └───────────────┘
 ```
 
-The barometer uses the **Wire1** I2C bus (GPIO 26/27) to avoid conflict with servo pins on GPIO 5/7.
+The barometer uses the **I2C0 (Wire)** bus (GPIO 4/5). The left wing servo was moved to GPIO 8 to free GPIO 5 for I2C SCL.
 
 ---
 

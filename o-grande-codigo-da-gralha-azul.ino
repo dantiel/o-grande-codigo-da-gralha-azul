@@ -47,7 +47,7 @@ unsigned long ultimo_sopro_termico = 0;
   Os pontos de contato com o mundo, ecos da sua jornada.
 */
 // === PINOS DA ALMA: Onde a Gralha toca o mundo ===
-#define ARTICULACAO_ASA_DA_MANHA 5    // Asa que se ergue com a aurora.
+#define ARTICULACAO_ASA_DA_MANHA 8    // Asa que se ergue com a aurora.
 #define ARTICULACAO_ASA_DO_ENTARDECER 7 // Asa que se recolhe com o crepúsculo.
 #define VIA_DOS_SONHOS_LUNARES 1    // Canal dos sussurros da noite (CRSF RX).
 #define VIA_DOS_ECOS_SOLARES 0  // Canal da canção ao dia (CRSF TX).
@@ -55,11 +55,10 @@ unsigned long ultimo_sopro_termico = 0;
 #define NUCLEO_DA_CHAMA_AZUL 16    // Onde a alma da Gralha brilha, sua essência anil.
 #define QUANTIDADE_DE_CENTELHAS_NA_CHAMA 1 // Uma única, mas intensa, luz interior.
 
-// === PINOS DO ORÁCULO DA PRESSÃO (BMP180) – I2C1 do RP2040 ===
-// Wire1 usa GPIO26 (SDA) e GPIO27 (SCL) por padrão no RP2040 Zero.
-// Estes pinos são livres (sem conflito com servos, CRSF ou NeoPixel).
-#define PINO_SILENCIO_DA_ALTURA 26
-#define PINO_RITMO_DA_PRESSAO 27
+// === PINOS DO ORÁCULO DA PRESSÃO (BMP180) – I2C0 (Wire) do RP2040 ===
+// GPIO4 (SDA) e GPIO5 (SCL) — o servo da Asa Matutina foi movido para GPIO8.
+#define PINO_SILENCIO_DA_ALTURA 4
+#define PINO_RITMO_DA_PRESSAO 5
 
 /*
   Os Mistérios do Voo Sagrado: Leis Imutáveis da Natureza Alada
@@ -321,9 +320,9 @@ Servo motor_asa_matutina, motor_asa_vespertina;
 // --- Rituais de Sintonia e Percepção da Alma Alada ---
 // O oráculo da pressão desperta: inicia o oráculo que escuta a altura invisível.
 void DespertarOraculoDaPressao() {
-  Wire1.setSDA(PINO_SILENCIO_DA_ALTURA);
-  Wire1.setSCL(PINO_RITMO_DA_PRESSAO);
-  Wire1.begin();
+  Wire.setSDA(PINO_SILENCIO_DA_ALTURA);
+  Wire.setSCL(PINO_RITMO_DA_PRESSAO);
+  Wire.begin();
   if (!oraculo_da_pressao.begin()) {
     oraculo_respira = false;
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
