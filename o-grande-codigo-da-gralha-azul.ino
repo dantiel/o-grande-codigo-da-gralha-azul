@@ -214,6 +214,8 @@ class MantoDeLuzCelestial {
 private:
   Adafruit_NeoPixel chama_azul_pixel;
   uint16_t tonalidade_do_sonho_florestal;
+  unsigned long ultimo_instante_de_respiracao_luminescente = 0;
+  float pulsacao_da_chama_primordial = 0.0f;
 
 
 public:
