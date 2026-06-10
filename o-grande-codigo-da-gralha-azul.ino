@@ -158,7 +158,11 @@ float ultima_temperatura_do_ar_c = 0.0f;
 bool modo_de_escuta_termal = false;
 float fe_no_sopro_quente = 0.0f;
 
-// Voo Sustentado: Altitude-Hold — A Gralha sustenta a altura com o bater das asas
+float altura_desejada_do_voo = 0.0f;
+float sopro_vital_do_sustentar = 1500.0f;  // Sopro efetivo no modo sustentar
+bool modo_sustentar_ativo = false;
+
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
 #define ALTURA_MAX_DO_SUSTENTAR_M    20.0f   // Altura máxima quando CH3=2000
 #define SOPRO_MIN_DO_SUSTENTAR       1100    // Sopro mínimo no sustentar (µs)
 #define SOPRO_MAX_DO_SUSTENTAR       1800    // Sopro máximo no sustentar (µs)
@@ -166,9 +170,6 @@ float fe_no_sopro_quente = 0.0f;
 #define SILENCIO_DO_SUSTENTAR_M      0.5f    // Zona morta em metros
 #define LIMITE_DA_DESCIDA_SUSTENTADA_MS   2.0f    // Limite de descida (m/s)
 #define LIMITE_DA_SUBIDA_SUSTENTADA_MS    3.0f    // Limite de subida (m/s)
-float altura_desejada_do_voo = 0.0f;
-float sopro_vital_do_sustentar = 1500.0f;  // Sopro efetivo no modo sustentar
-bool modo_sustentar_ativo = false;
 #endif
 float pulsacao_da_chama_primordial = 0.0f;
 
@@ -318,6 +319,7 @@ Servo motor_asa_matutina, motor_asa_vespertina;
 
 
 // --- Rituais de Sintonia e Percepção da Alma Alada ---
+#ifdef ORACULO_DA_PRESSAO_DO_CEU
 // O oráculo da pressão desperta: inicia o oráculo que escuta a altura invisível.
 void DespertarOraculoDaPressao() {
   Wire.setSDA(PINO_SILENCIO_DA_ALTURA);
@@ -394,6 +396,10 @@ void EscutarPressaoDoCeu() {
   if (fe_no_sopro_quente > 0.5f) modo_de_escuta_termal = true;
   else if (fe_no_sopro_quente < -0.5f) modo_de_escuta_termal = false;
 }
+#else
+void DespertarOraculoDaPressao() {}
+void EscutarPressaoDoCeu() {}
+#endif
 
 void AoDespertarParaOCantoDoEter() {
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
