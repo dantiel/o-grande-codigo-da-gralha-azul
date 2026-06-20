@@ -23,8 +23,17 @@
 #define FREQUENCIA_DO_SOPRO_COSMICO 420000 // O ritmo da comunicação com o éter.
 #define PORTAL_DOS_VENTOS_CELESTES Serial1  // O limiar por onde as influências astrais tocam a Gralha.
 
+// === ESCOLHA DO RECEPTOR: Descomente apenas um ===
+#define RECEPTOR_DOS_VENTOS_CRSF      // CRSF via Serial1 (padrão)
+//#define RECEPTOR_DOS_VENTOS_PPM     // PPM via PPMReaderRP2040 (pino 2)
+
 #include <Arduino.h>
+
+#if defined(RECEPTOR_DOS_VENTOS_CRSF)
 #include <CrsfSerial.h>
+#elif defined(RECEPTOR_DOS_VENTOS_PPM)
+#include <PPMReaderRP2040.h>
+#endif
 
 //#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para que a Gralha sinta o peso do céu (requer a Biblioteca do Oráculo).
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
@@ -33,8 +42,15 @@
 #include <Adafruit_BMP085_U.h>
 #endif
 
+#if defined(RECEPTOR_DOS_VENTOS_CRSF)
 // O Guardião dos Ventos Siderais, intérprete dos desígnios para a Gralha.
 CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
+#elif defined(RECEPTOR_DOS_VENTOS_PPM)
+// O Mensageiro dos Ventos Cósmicos, que lê os pulsos do éter.
+#define PINO_DO_MENSAGEIRO 2
+#define NUM_CANAIS_DO_MENSAGEIRO 10
+PPMReader mensageiro_dos_ventos_cosmicos(PINO_DO_MENSAGEIRO, NUM_CANAIS_DO_MENSAGEIRO);
+#endif
 
 // O éter que leva as novas da Gralha ao mundo: instantes do último sopro ao firmamento.
 unsigned long ultimo_sopro_sideral = 0;
@@ -417,6 +433,7 @@ void AoRecolherSeAoSilencioDaMata() {
 }
 
 
+#if defined(RECEPTOR_DOS_VENTOS_CRSF)
 void InterpretarAsVozesDoFirmamento() {
   // O despertar: se a voz do ritual ultrapassa o limiar, a Gralha se ergue.
   // Apenas o comando do espírito alado inicia o bater das asas — o despertar
@@ -436,6 +453,24 @@ void InterpretarAsVozesDoFirmamento() {
   voz_da_ferocidade_do_leme = guardiao_dos_ventos_siderais.getChannel(9);
   voz_do_sustentar_altura = guardiao_dos_ventos_siderais.getChannel(10);
 }
+#elif defined(RECEPTOR_DOS_VENTOS_PPM)
+void InterpretarAsVozesDoFirmamento() {
+  voz_do_aletao = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(1, 1500);
+  voz_do_profundor = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(2, 1500);
+  voz_do_sopro_vital = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(3, 1000);
+  voz_do_leme_estelar = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(4, 1500);
+  voz_do_despertar = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(5, 1000);
+  voz_do_compasso_da_alma = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(6, 1500);
+  voz_da_ferocidade_do_bater = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(7, 1000);
+  voz_da_ferocidade_do_retorno = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(8, 1000);
+  voz_da_ferocidade_do_leme = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(9, 1500);
+  voz_do_sustentar_altura = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(10, 1000);
+
+  estado_presente_da_alma = (voz_do_despertar > 1500)
+    ? EM_DANCA_COM_OS_VENTOS
+    : EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
+}
+#endif
 
 
 /*
@@ -453,6 +488,8 @@ void setup() {
   while (!Serial && (millis() - tempo_de_espera_usb < 4000)) {  }
   Serial.println("O Grande Código da Gralha Azul: A Lenda Viva se Inicia...");
 #endif
+
+#if defined(RECEPTOR_DOS_VENTOS_CRSF)
   PORTAL_DOS_VENTOS_CELESTES.setTX(VIA_DOS_ECOS_SOLARES);
   PORTAL_DOS_VENTOS_CELESTES.setRX(VIA_DOS_SONHOS_LUNARES);
   PORTAL_DOS_VENTOS_CELESTES.begin(FREQUENCIA_DO_SOPRO_COSMICO);
@@ -464,6 +501,11 @@ void setup() {
   guardiao_dos_ventos_siderais.onPacketChannels = &InterpretarAsVozesDoFirmamento;
 
   guardiao_dos_ventos_siderais.setPassthroughMode(false);
+#elif defined(RECEPTOR_DOS_VENTOS_PPM)
+  mensageiro_dos_ventos_cosmicos.onConnect = &AoDespertarParaOCantoDoEter;
+  mensageiro_dos_ventos_cosmicos.onDisconnect = &AoRecolherSeAoSilencioDaMata;
+  mensageiro_dos_ventos_cosmicos.onNewData = &InterpretarAsVozesDoFirmamento;
+#endif
 
   tendao_da_asa_matutina.attach(ARTICULACAO_ASA_DA_MANHA, 500, 2500);
   tendao_da_asa_vespertina.attach(ARTICULACAO_ASA_DO_ENTARDECER, 500, 2500);
@@ -626,6 +668,7 @@ void AnimarPulsarDoCoracaoAlado() {
     O coração da Gralha envia ao éter a altura do voo sideral
     e o sopro quente do céu, para que o firmamento testemunhe.
   */
+#if defined(RECEPTOR_DOS_VENTOS_CRSF)
   void SussurrarVooAoEter() {
     if (!oraculo_respira) return;
     unsigned long agora = millis();
@@ -684,6 +727,11 @@ void AnimarPulsarDoCoracaoAlado() {
         sizeof(crsf_sensor_battery_t));
     }
   }
+#elif defined(RECEPTOR_DOS_VENTOS_PPM)
+  void SussurrarVooAoEter() {
+    // PPM não suporta telemetria CRSF — silêncio do éter.
+  }
+#endif
 
 /*
   O Ciclo Infinito da Lenda Viva: A Gralha Dança com o Cosmos
@@ -691,8 +739,13 @@ void AnimarPulsarDoCoracaoAlado() {
 */
 
 void loop() {
-    relogio_das_eras.instante_do_agora_cosmico = millis();
+  relogio_das_eras.instante_do_agora_cosmico = millis();
+
+#if defined(RECEPTOR_DOS_VENTOS_CRSF)
   guardiao_dos_ventos_siderais.loop();
+#elif defined(RECEPTOR_DOS_VENTOS_PPM)
+  mensageiro_dos_ventos_cosmicos.loop();
+#endif
 
   ManifestarOVooNosVentos();
   EscutarPressaoDoCeu();

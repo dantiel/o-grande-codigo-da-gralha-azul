@@ -209,10 +209,10 @@ Go to **Tools** → **Manage Libraries** and install:
 
 | Library | Author | Version | Notes |
 |---------|--------|---------|-------|
-| **CRSF** | Simon H | ≥ 1.0 | **Important:** The library is named **"CRSF"** in the Arduino Library Manager, but the header file is `CrsfSerial.h`. There are multiple libraries with a file named `CrsfSerial.h` — ensure only the correct one (by Simon H) is present in your libraries folder. Remove any conflicting copies. |
+| **CRSF** | Sam4uk | ≥ 1.0 | Header: `CrsfSerial.h`. Install from Library Manager search "CRSF" (by Sam4uk) or from [github.com/sam4uk/CRSF](https://github.com/sam4uk/CRSF). |
 | **Adafruit NeoPixel** | Adafruit | ≥ 1.12 | |
 
-**Library conflict warning:** Several RC-related libraries ship their own `CrsfSerial.h`. If you encounter compilation errors (e.g., missing `CrsfSerial` class), check that no other library in your `libraries/` folder contains a `CrsfSerial.h` file. The correct library is **"CRSF" by Simon H** — search for it by name in the Library Manager.
+**Library conflict warning:** Several RC-related libraries ship their own `CrsfSerial.h`. If you encounter compilation errors (e.g., missing `CrsfSerial` class), check that no other library in your `libraries/` folder contains a `CrsfSerial.h` file. The correct library is **"CRSF" by Sam4uk** — search for it by name in the Library Manager.
 
 ### 3. Select Board
 
