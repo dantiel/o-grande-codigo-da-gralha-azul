@@ -95,7 +95,9 @@ unsigned long ultimo_sopro_termico = 0;
 #define VIBRACAO_MINIMA_DO_SOPRO_VITAL 1000
 #define VIBRACAO_NEUTRA_DO_LEME_ESTELAR 1500
 #define VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA 1500
+#define VIBRACAO_DO_DESPERTAR_DESARMADO 1000
 #define VIBRACAO_MINIMA_DA_FEROCIDADE 1000
+#define VIBRACAO_MINIMA_DO_SUSTENTAR_ALTURA 1000
 
 
 /*
@@ -117,9 +119,8 @@ enum ModoDoEspiritoAlado {
 };
 
 /*
-  // O oráculo da pressão escuta a altura invisível.
-  /* O Coração do Mistério Alado: Variáveis que Guardam o Ser da Gralha
-  */
+  O Coração do Mistério Alado: Variáveis que Guardam o Ser da Gralha
+*/
   EstadoDaAlmaAlada estado_presente_da_alma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA; // A Gralha desperta com o chamado.
   ModoDoEspiritoAlado modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO; // Inicia em serenidade.
   
@@ -172,6 +173,7 @@ float ultima_temperatura_do_ar_c = 0.0f;
 bool modo_de_escuta_termal = false;
 float fe_no_sopro_quente = 0.0f;
 
+float ganho_do_sustentar = 0.0f;            // Ganho do sustentar (0..1, aus CH10)
 float altura_desejada_do_voo = 0.0f;
 float sopro_vital_do_sustentar = 1500.0f;  // Sopro efetivo no modo sustentar
 bool modo_sustentar_ativo = false;
@@ -180,7 +182,7 @@ bool modo_sustentar_ativo = false;
 #define ALTURA_MAX_DO_SUSTENTAR_M    20.0f   // Altura máxima quando CH3=2000
 #define SOPRO_MIN_DO_SUSTENTAR       1100    // Sopro mínimo no sustentar (µs)
 #define SOPRO_MAX_DO_SUSTENTAR       1800    // Sopro máximo no sustentar (µs)
-#define FORCA_DO_SUSTENTAR           180     // Ganho do erro de altura → sopro
+#define FORCA_BASE_DO_SUSTENTAR      180     // Ganho base do erro de altura → sopro
 #define SILENCIO_DO_SUSTENTAR_M      0.5f    // Zona morta em metros
 #define LIMITE_DA_DESCIDA_SUSTENTADA_MS   2.0f    // Limite de descida (m/s)
 #define LIMITE_DA_SUBIDA_SUSTENTADA_MS    3.0f    // Limite de subida (m/s)
@@ -454,17 +456,19 @@ void InterpretarAsVozesDoFirmamento() {
   voz_do_sustentar_altura = guardiao_dos_ventos_siderais.getChannel(10);
 }
 #elif defined(RECEPTOR_DOS_VENTOS_PPM)
-void InterpretarAsVozesDoFirmamento() {
-  voz_do_aletao = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(1, 1500);
-  voz_do_profundor = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(2, 1500);
-  voz_do_sopro_vital = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(3, 1000);
-  voz_do_leme_estelar = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(4, 1500);
-  voz_do_despertar = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(5, 1000);
-  voz_do_compasso_da_alma = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(6, 1500);
-  voz_da_ferocidade_do_bater = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(7, 1000);
-  voz_da_ferocidade_do_retorno = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(8, 1000);
-  voz_da_ferocidade_do_leme = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(9, 1500);
-  voz_do_sustentar_altura = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(10, 1000);
+void InterpretarAsVozesDoFirmamento(const unsigned long* channelValues, byte numChannels) {
+  (void)channelValues;
+  (void)numChannels;
+  voz_do_aletao = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(1, VIBRACAO_NEUTRA_DO_ALETAO);
+  voz_do_profundor = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(2, VIBRACAO_NEUTRA_DO_PROFUNDOR);
+  voz_do_sopro_vital = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(3, VIBRACAO_MINIMA_DO_SOPRO_VITAL);
+  voz_do_leme_estelar = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(4, VIBRACAO_NEUTRA_DO_LEME_ESTELAR);
+  voz_do_despertar = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(5, VIBRACAO_DO_DESPERTAR_DESARMADO);
+  voz_do_compasso_da_alma = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(6, VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA);
+  voz_da_ferocidade_do_bater = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(7, VIBRACAO_MINIMA_DA_FEROCIDADE);
+  voz_da_ferocidade_do_retorno = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(8, VIBRACAO_MINIMA_DA_FEROCIDADE);
+  voz_da_ferocidade_do_leme = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(9, VIBRACAO_MINIMA_DA_FEROCIDADE);
+  voz_do_sustentar_altura = mensageiro_dos_ventos_cosmicos.latestValidChannelValue(10, VIBRACAO_MINIMA_DO_SUSTENTAR_ALTURA);
 
   estado_presente_da_alma = (voz_do_despertar > 1500)
     ? EM_DANCA_COM_OS_VENTOS
@@ -502,9 +506,9 @@ void setup() {
 
   guardiao_dos_ventos_siderais.setPassthroughMode(false);
 #elif defined(RECEPTOR_DOS_VENTOS_PPM)
-  mensageiro_dos_ventos_cosmicos.onConnect = &AoDespertarParaOCantoDoEter;
-  mensageiro_dos_ventos_cosmicos.onDisconnect = &AoRecolherSeAoSilencioDaMata;
-  mensageiro_dos_ventos_cosmicos.onNewData = &InterpretarAsVozesDoFirmamento;
+  mensageiro_dos_ventos_cosmicos.onConnect(AoDespertarParaOCantoDoEter);
+  mensageiro_dos_ventos_cosmicos.onDisconnect(AoRecolherSeAoSilencioDaMata);
+  mensageiro_dos_ventos_cosmicos.onNewData(InterpretarAsVozesDoFirmamento);
 #endif
 
   tendao_da_asa_matutina.attach(ARTICULACAO_ASA_DA_MANHA, 500, 2500);
@@ -541,34 +545,41 @@ void AnimarPulsarDoCoracaoAlado() {
 }
 
 /*
-  /*  O Sustentar da Altura: O Coração que Guarda a Altitude
-    Quando o oráculo respira e CH10 clama >1500, a Gralha usa o sopro vital
-    como desejo de altitude: CH3=1000 → 0m, CH3=2000 → ALTURA_MAX.
-    O erro alimenta um P-regulador que modula a intensidade do bater das asas,
-    para que a Gralha sustente a altura no seu voo alado.
+   *  O Sustentar da Altura: O Ganho Que Escuta a Altura
+    CH10 wird zum Regler für die Verstärkung (gain) des Altitude-Holds:
+      1000 (= 0%)  → Altitude-Hold aus, CH3 ist reines Gas
+      >1500        → Altitude-Hold aktiv, CH3 steuert die Zielhöhe
+      2000 (=100%) → maximale Korrekturstärke
+    Bei aktivem Hold ersetzt der P-Regler das Gassignal, um die Höhe zu halten.
+    Gain = 0 bedeutet: keine Höhenregelung, CH3 direkt als Sopro.
   */
   void SustentarAltura() {
   #ifdef ORACULO_DA_PRESSAO_DO_CEU
-    if (oraculo_respira && voz_do_sustentar_altura > 1500) {
+    // CH10 als Gain: 1000=0, 2000=1
+    ganho_do_sustentar = mapear_entre_escalas_harmonicas(
+      (float)voz_do_sustentar_altura, 1000.0f, 2000.0f,
+      0.0f, 1.0f);
+    ganho_do_sustentar = constrain(ganho_do_sustentar, 0.0f, 1.0f);
+
+    if (oraculo_respira && ganho_do_sustentar > 0.01f) {
       if (!modo_sustentar_ativo) {
         modo_sustentar_ativo = true;
       }
-      // CH3 vira desejo de altitude: 1000=0m, 2000=ALTURA_MAX
+      // CH3 steuert die Zielhöhe: 1000=0m, 2000=ALTURA_MAX
       altura_desejada_do_voo = mapear_entre_escalas_harmonicas(
         (float)voz_do_sopro_vital, 1000.0f, 2000.0f,
         0.0f, ALTURA_MAX_DO_SUSTENTAR_M);
-      // Erro de altitude
+      // Error de altitude
       float erro = altura_desejada_do_voo - altura_do_voo_sideral;
-      // Zona morta
+      // P-regulador com gain variável: CH10 skaliert die Korrekturstärke
       if (fabs(erro) < SILENCIO_DO_SUSTENTAR_M) {
-        // Dentro da zona morta: mantém o sopro atual
+        // Zona morta: nulo
       } else {
-        // P-regulador: erro → intensidade do bater
-        sopro_vital_do_sustentar = 1500.0f + erro * FORCA_DO_SUSTENTAR;
+        sopro_vital_do_sustentar = 1500.0f + erro * FORCA_BASE_DO_SUSTENTAR * ganho_do_sustentar;
         sopro_vital_do_sustentar = constrain(sopro_vital_do_sustentar,
           SOPRO_MIN_DO_SUSTENTAR, SOPRO_MAX_DO_SUSTENTAR);
       }
-      // Limitação de taxa: se a subida for muito rápida, reduz o sopro
+      // Ratenbegrenzung
       if (sopro_da_subida_alada > LIMITE_DA_SUBIDA_SUSTENTADA_MS) {
         sopro_vital_do_sustentar -= 10.0f;
       } else if (sopro_da_subida_alada < -LIMITE_DA_DESCIDA_SUSTENTADA_MS) {
@@ -664,7 +675,7 @@ void AnimarPulsarDoCoracaoAlado() {
   tendao_da_asa_vespertina.write(constrain(angulo_portal_direito + 100, 0, 180));
 }
 /*
-  /*  O Sopro ao Éter: A Gralha Sussurra seu Voo ao Cosmos
+   *  O Sopro ao Éter: A Gralha Sussurra seu Voo ao Cosmos
     O coração da Gralha envia ao éter a altura do voo sideral
     e o sopro quente do céu, para que o firmamento testemunhe.
   */
@@ -773,7 +784,8 @@ void loop() {
     Serial.print(" | FerBater: "); Serial.print(voz_da_ferocidade_do_bater);
     Serial.print(" | FerRetorno: "); Serial.print(voz_da_ferocidade_do_retorno);
     Serial.print(" | FerLeme: "); Serial.print(voz_da_ferocidade_do_leme);
-    Serial.print(" | Sustentar: "); Serial.print(voz_do_sustentar_altura);
+    Serial.print(" | SustentarGain: "); Serial.print(ganho_do_sustentar, 2);
+    Serial.print(" | SustentarCH10: "); Serial.print(voz_do_sustentar_altura);
     if (oraculo_respira) {
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
       Serial.print(" | AltVoo: "); Serial.print(altura_do_voo_sideral, 1);
@@ -783,6 +795,7 @@ void loop() {
       if (modo_sustentar_ativo) {
         Serial.print(" | AltDesej: "); Serial.print(altura_desejada_do_voo, 1);
         Serial.print(" | SoproSustentar: "); Serial.print(sopro_vital_do_sustentar, 0);
+        Serial.print(" | GainEfetivo: "); Serial.print(ganho_do_sustentar * FORCA_BASE_DO_SUSTENTAR, 1);
       }
 #endif
     }
