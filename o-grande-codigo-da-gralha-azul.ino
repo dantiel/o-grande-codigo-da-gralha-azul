@@ -24,95 +24,15 @@
 #define PORTAL_DOS_VENTOS_CELESTES Serial1  // O limiar por onde as influências astrais tocam a Gralha.
 
 // === ESCOLHA DO RECEPTOR: Descomente apenas um ===
-//#define RECEPTOR_DOS_VENTOS_CRSF      // CRSF via Serial1 (padrão)
-#define RECEPTOR_DOS_VENTOS_PPM     // PPM via PPMReaderRP2040 (pino 2)
+#define RECEPTOR_DOS_VENTOS_CRSF      // CRSF via Serial1 (padrão)
+//#define RECEPTOR_DOS_VENTOS_PPM     // PPM via PPMReaderRP2040 (pino 2)
 
 #include <Arduino.h>
 
 #if defined(RECEPTOR_DOS_VENTOS_CRSF)
 #include <CrsfSerial.h>
 #elif defined(RECEPTOR_DOS_VENTOS_PPM)
-// --- PPMReaderRP2040: Oráculo dos Pulsos do Éter (inline, sem dependências AVR) ---
-#include <Arduino.h>
-class PPMReader {
-public:
-    unsigned long minChannelValue = 1000;
-    unsigned long maxChannelValue = 2000;
-    unsigned long channelValueMaxError = 10;
-    unsigned long blankTime = 2100;
-    volatile unsigned long microsAtLastPulse = 0;
-
-    PPMReader(byte interruptPin, byte channelAmount) {
-        if (interruptPin > 0 && channelAmount > 0) {
-            this->channelAmount = channelAmount;
-            rawValues = new unsigned long[channelAmount];
-            validValues = new unsigned long[channelAmount];
-            for (int i = 0; i < channelAmount; ++i) { rawValues[i] = 0; validValues[i] = 0; }
-            _instance = this;
-            this->interruptPin = interruptPin;
-            pinMode(interruptPin, INPUT);
-            attachInterrupt(digitalPinToInterrupt(interruptPin), ppm_isr_handler, RISING);
-        }
-    }
-    ~PPMReader() {
-        detachInterrupt(digitalPinToInterrupt(interruptPin));
-        delete[] rawValues; delete[] validValues;
-        _instance = nullptr;
-    }
-    unsigned long rawChannelValue(byte channel) {
-        if (channel < 1 || channel > channelAmount) return 0;
-        noInterrupts(); unsigned long v = rawValues[channel-1]; interrupts(); return v;
-    }
-    unsigned long latestValidChannelValue(byte channel, unsigned long defaultValue) {
-        if (channel < 1 || channel > channelAmount) return defaultValue;
-        noInterrupts(); unsigned long v = validValues[channel-1]; interrupts(); return v;
-    }
-    void onConnect(void (*cb)()) { _onConnectCallback = cb; }
-    void onDisconnect(void (*cb)()) { _onDisconnectCallback = cb; }
-    void onNewData(void (*cb)(const unsigned long*, byte)) { _onNewDataCallback = cb; }
-    void loop() {
-        unsigned long now = micros();
-        if (_isConnected && (now - _lastPPMActivityMicros > _connectionTimeoutMicros)) {
-            _isConnected = false;
-            if (_onDisconnectCallback) _onDisconnectCallback();
-        }
-    }
-    void handleInterrupt() {
-        unsigned long prev = microsAtLastPulse;
-        microsAtLastPulse = micros();
-        unsigned long time = microsAtLastPulse - prev;
-        _lastPPMActivityMicros = microsAtLastPulse;
-        if (!_isConnected) { _isConnected = true; if (_onConnectCallback) _onConnectCallback(); }
-        if (time > blankTime) {
-            if (pulseCounter == channelAmount && _onNewDataCallback) {
-                unsigned long temp[channelAmount];
-                noInterrupts(); for (byte i = 0; i < channelAmount; ++i) temp[i] = validValues[i]; interrupts();
-                _onNewDataCallback(temp, channelAmount);
-            }
-            pulseCounter = 0;
-        } else {
-            if (pulseCounter < channelAmount) {
-                rawValues[pulseCounter] = time;
-                if (time >= minChannelValue - channelValueMaxError && time <= maxChannelValue + channelValueMaxError)
-                    validValues[pulseCounter] = constrain(time, minChannelValue, maxChannelValue);
-            }
-            ++pulseCounter;
-        }
-    }
-private:
-    byte interruptPin = 0, channelAmount = 0;
-    volatile unsigned long *rawValues = nullptr, *validValues = nullptr;
-    volatile byte pulseCounter = 0;
-    void (*_onConnectCallback)() = nullptr;
-    void (*_onDisconnectCallback)() = nullptr;
-    void (*_onNewDataCallback)(const unsigned long*, byte) = nullptr;
-    volatile bool _isConnected = false;
-    unsigned long _lastPPMActivityMicros = 0;
-    unsigned long _connectionTimeoutMicros = 500000;
-    static PPMReader* _instance;
-};
-PPMReader* PPMReader::_instance = nullptr;
-void ppm_isr_handler() { if (PPMReader::_instance) PPMReader::_instance->handleInterrupt(); }
+#include <PPMReaderRP2040.h>
 #endif
 
 //#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para que a Gralha sinta o peso do céu (requer a Biblioteca do Oráculo).
