@@ -376,38 +376,52 @@ void DespertarOraculoDaPressao() {
 }
 
 // Escuta a pressão do céu: lê o barômetro e calcula altura e subida.
+// Otimizado: getEvent() + getTemperature() alle 5 Zyklen (~1s) statt jedes Mal.
+// Intervall 200ms statt 100ms. Temperatur-Trend aus geglätteten Werten.
+#define REFERENCIA_DA_PRESSAO_HPA 1013.25f
 void EscutarPressaoDoCeu() {
   if (!oraculo_respira) return;
   unsigned long agora = millis();
-  if (agora - ultimo_sopro_do_oraculo < 100) return; // A cada 100 ms
+  if (agora - ultimo_sopro_do_oraculo < 200) return; // A cada 200ms
   float dt = (agora - ultimo_sopro_do_oraculo) * 0.001f;
   if (dt < 0.001f) dt = 0.001f;
   ultimo_sopro_do_oraculo = agora;
 
+  // getEvent() liest Druck (+ Temperatur intern) in einem ~9ms-Durchgang
   sensors_event_t evento;
   oraculo_da_pressao.getEvent(&evento);
   if (evento.pressure <= 0) return;
   pressao_do_ceu_hpa = evento.pressure;
 
-  // A temperatura apenas sussurra; a subida confirma.
-  oraculo_da_pressao.getTemperature(&temperatura_do_ar_c);
+  // Temperatur nur jeden 5. Zyklus (~1s) — thermische Trägheit
+  static uint8_t ciclo_termico = 0;
+  if (++ciclo_termico >= 5) {
+    ciclo_termico = 0;
+    float nova_temp;
+    oraculo_da_pressao.getTemperature(&nova_temp);
+    // 50/50 Glättung
+    temperatura_do_ar_c = temperatura_do_ar_c * 0.5f + nova_temp * 0.5f;
+  }
 
-  // Altitude relativa
-  float altitude_absoluta = oraculo_da_pressao.pressureToAltitude(1013.25f, evento.pressure, temperatura_do_ar_c);
+  // Temperatur-Trend (jeden Zyklus)
+  tendencia_da_temperatura_c = tendencia_da_temperatura_c * 0.9f + (temperatura_do_ar_c - ultima_temperatura_do_ar_c) * 0.1f;
+  ultima_temperatura_do_ar_c = temperatura_do_ar_c;
+
+  // Altitude: barometrische Höhenformel (ISO 1976) — kein Library-Call
+  // h = 44307.69 * (1 - (p/1013.25)^0.190284)
+  float razao = pressao_do_ceu_hpa / REFERENCIA_DA_PRESSAO_HPA;
+  float fator = 1.0f - powf(razao, 0.190284f);
+  float altitude_absoluta = fator * 44307.69f;
   altura_do_voo_sideral = altitude_absoluta - altura_inicial_m;
 
   // Subida (vertical speed)
   subida_da_gralha_ms = (altura_do_voo_sideral - ultima_altura_do_voo_sideral) / dt;
   ultima_altura_do_voo_sideral = altura_do_voo_sideral;
 
-  // Filtro passa-baixa
-  sopro_da_subida_alada = sopro_da_subida_alada * 0.85f + subida_da_gralha_ms * 0.15f;
+  // Filtro passa-baixa (agressiver: ~470ms Zeitkonstante)
+  sopro_da_subida_alada = sopro_da_subida_alada * 0.7f + subida_da_gralha_ms * 0.3f;
 
-  // Tendência da temperatura
-  tendencia_da_temperatura_c = tendencia_da_temperatura_c * 0.9f + (temperatura_do_ar_c - ultima_temperatura_do_ar_c) * 0.1f;
-  ultima_temperatura_do_ar_c = temperatura_do_ar_c;
-
-  // Confiança termal: subida + tendência de temperatura
+  // Confiança termal
   fe_no_sopro_quente = sopro_da_subida_alada + tendencia_da_temperatura_c * 0.3f;
   if (fe_no_sopro_quente > 0.5f) modo_de_escuta_termal = true;
   else if (fe_no_sopro_quente < -0.5f) modo_de_escuta_termal = false;
