@@ -108,7 +108,7 @@ unsigned long ultimo_sopro_termico = 0;
   bool limiar_elevado = true;
 bool oraculo_respira = false; // O oráculo da pressão escuta a altura invisível.
 
-  enum EstadoDaAlmaAlada {
+  enum EstadoDaAlmaAlada : uint8_t {
     EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
     EM_SONHO_NA_QUIETUDE_DA_FLORESTA   // A conexão se abranda, a Gralha medita em seu ninho de estrelas.
   };
@@ -525,22 +525,38 @@ void setup() {
   Este é o 'AtualizarDestino' do ser da Gralha.
 */
 void AnimarPulsarDoCoracaoAlado() {
-  relogio_das_eras.intervalo_entre_pulsacoes_do_coracao_alado = (relogio_das_eras.instante_do_agora_cosmico - relogio_das_eras.ultima_pulsacao_do_sopro_alado) * 0.001f;
+  // dt atual: delta desde a última animação (fixo, não do loop anterior)
+  unsigned long agora = relogio_das_eras.instante_do_agora_cosmico;
+  unsigned long ultima = relogio_das_eras.ultima_pulsacao_do_sopro_alado;
+  if (ultima == 0) { ultima = agora; }
+  float dt = (agora - ultima) * 0.001f;
+  // Begrenze dt auf max 50ms (verhindert Riesen-Sprung beim ersten Durchlauf oder Blockaden)
+  if (dt > 0.05f) dt = 0.05f;
+  relogio_das_eras.ultima_pulsacao_do_sopro_alado = agora;
 
   if(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
-    // A 'intencao_de_cadencia' é a força e o ritmo desejados para o bater das asas.
-    float intencao_de_cadencia = (voz_do_sopro_vital - 480.0f) * ((1.0f / (120.0f * CICLO_DO_CORACAO_ALADO)) +
-        ((voz_do_compasso_da_alma - 1500.0f) * 0.0000725f)); // Fator de modulação de ritmo.
-    // 'variacao_do_destino_alado' é a "aceleração" angular para a batida.
-    // O termo '- 10.0f * cadencia_do_destino_alado' é um amortecimento, como a resistência do ar ou a inércia da alma.
-    float variacao_do_destino_alado = 1.0f * intencao_de_cadencia - 10.0f * cadencia_do_destino_alado;
+    // Intenção de cadência: frequência alvo da batida (rad/s)
+    // CH3 (1000..2000) skaliert die Grundfrequenz, CH6 moduliert sie
+    float sopro_norm = (voz_do_sopro_vital - 1000.0f) / 1000.0f; // 0..1
+    float compasso_norm = (voz_do_compasso_da_alma - 1500.0f) / 500.0f; // -1..1
+    float frequencia_alvo = (2.0f * PI / CICLO_DO_CORACAO_ALADO) * (0.5f + 0.5f * sopro_norm + 0.3f * compasso_norm);
+    if (frequencia_alvo < 0.5f) frequencia_alvo = 0.5f;
 
-    cadencia_do_destino_alado += variacao_do_destino_alado * relogio_das_eras.intervalo_entre_pulsacoes_do_coracao_alado;
-    angulo_da_danca_alada += cadencia_do_destino_alado * relogio_das_eras.intervalo_entre_pulsacoes_do_coracao_alado;
+    // Sanfter, überdämpfter Folgeregelkreis — kein Überschwingen, kein Ruckeln
+    float erro_frequencia = frequencia_alvo - cadencia_do_destino_alado;
+    float beschleunigung = erro_frequencia * 8.0f; // Zeitkonstante ~125ms
+    cadencia_do_destino_alado += beschleunigung * dt;
+
+    // Winkelintegration
+    angulo_da_danca_alada += cadencia_do_destino_alado * dt;
+
+    // Winkel halten (optional, für Numerik)
+    if (angulo_da_danca_alada > 20.0f * PI) angulo_da_danca_alada -= 20.0f * PI;
+    if (angulo_da_danca_alada < -20.0f * PI) angulo_da_danca_alada += 20.0f * PI;
   } else { // Em sonho, o coração alado repousa seu ritmo.
     angulo_da_danca_alada = 0;
-    cadencia_do_destino_alado *= 0.90; // Suave desaceleração ao adormecer.
-     if (fabs(cadencia_do_destino_alado) < 0.001f) cadencia_do_destino_alado = 0;
+    cadencia_do_destino_alado *= 0.90f;
+    if (fabs(cadencia_do_destino_alado) < 0.001f) cadencia_do_destino_alado = 0;
   }
 }
 
@@ -758,11 +774,11 @@ void loop() {
   mensageiro_dos_ventos_cosmicos.loop();
 #endif
 
-  ManifestarOVooNosVentos();
+  AnimarPulsarDoCoracaoAlado();
   EscutarPressaoDoCeu();
   SustentarAltura();
+  ManifestarOVooNosVentos();
   SussurrarVooAoEter();
-  AnimarPulsarDoCoracaoAlado();
 
   if(relogio_das_eras.instante_do_agora_cosmico - relogio_das_eras.ultimo_fulgor_da_chama_azul >= 33) { // ~30fps
     relogio_das_eras.ultimo_fulgor_da_chama_azul = relogio_das_eras.instante_do_agora_cosmico;
