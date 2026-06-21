@@ -173,7 +173,7 @@ float ultima_temperatura_do_ar_c = 0.0f;
 bool modo_de_escuta_termal = false;
 float fe_no_sopro_quente = 0.0f;
 
-float ganho_do_sustentar = 0.0f;            // Ganho do sustentar (0..1, aus CH10)
+float ganho_do_sustentar = 0.0f;            // Ganho do sustentar (0..1, do CH10)
 float altura_desejada_do_voo = 0.0f;
 float sopro_vital_do_sustentar = 1500.0f;  // Sopro efetivo no modo sustentar
 bool modo_sustentar_ativo = false;
@@ -414,7 +414,7 @@ void EscutarPressaoDoCeu() {
   float altitude_absoluta = fator * 44307.69f;
   altura_do_voo_sideral = altitude_absoluta - altura_inicial_m;
 
-  // Subida (vertical speed)
+  // Subida (velocidade vertical)
   subida_da_gralha_ms = (altura_do_voo_sideral - ultima_altura_do_voo_sideral) / dt;
   ultima_altura_do_voo_sideral = altura_do_voo_sideral;
 
@@ -558,7 +558,7 @@ void AnimarPulsarDoCoracaoAlado() {
 
     // Malha de seguimento suave e superamortecida — sem overshoot, sem solavancos
     float erro_frequencia = frequencia_alvo - cadencia_do_destino_alado;
-    float beschleunigung = erro_frequencia * 8.0f; // Zeitkonstante ~125ms
+    float beschleunigung = erro_frequencia * 8.0f; // Constante de tempo ~125ms
     cadencia_do_destino_alado += beschleunigung * dt;
 
     // Integração do ângulo
@@ -610,7 +610,7 @@ void AnimarPulsarDoCoracaoAlado() {
         sopro_vital_do_sustentar = constrain(sopro_vital_do_sustentar,
           SOPRO_MIN_DO_SUSTENTAR, SOPRO_MAX_DO_SUSTENTAR);
       }
-      // Limitação de taxa
+      // Limitação da taxa de subida/descida
       if (sopro_da_subida_alada > LIMITE_DA_SUBIDA_SUSTENTADA_MS) {
         sopro_vital_do_sustentar -= 10.0f;
       } else if (sopro_da_subida_alada < -LIMITE_DA_DESCIDA_SUSTENTADA_MS) {
@@ -670,7 +670,7 @@ void AnimarPulsarDoCoracaoAlado() {
     float canto_original_da_asa = sin(angulo_da_danca_alada);
     // A 'direcao_do_bater' revela se a asa desce ou retorna.
     float direcao_do_bater = cos(angulo_da_danca_alada);
-    // Ferocidade para as asas (CH7 = down, CH8 = up)
+    // Ferocidade para as asas (CH7 = descida, CH8 = subida)
     float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, 1.0f, 8.0f);
     float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, 1.0f, 8.0f);
     // Fator do leme (CH5): centro=0, extremos=±1 (±2 escala de ferocidade)
@@ -731,7 +731,7 @@ void AnimarPulsarDoCoracaoAlado() {
       if (velocidade_chao > 65535) velocidade_chao = 65535;
       pergaminho_do_voo.groundspeed = htobe16((uint16_t)velocidade_chao);
       pergaminho_do_voo.heading = htobe16(0);
-      // Altitude: metros relativos + 1000 (offset CRSF), clamp a 0..65535
+      // Altitude: metros relativos + 1000 (offset CRSF), limitado a 0..65535
   #ifdef ORACULO_DA_PRESSAO_DO_CEU
       int16_t alt_do_voo = (int16_t)(altura_do_voo_sideral + 1000.0f);
   #else
