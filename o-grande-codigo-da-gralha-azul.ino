@@ -35,7 +35,7 @@
 #include <PPMReaderRP2040.h>
 #endif
 
-#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para que a Gralha sinta o peso do céu (requer a Biblioteca do Oráculo).
+//#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para que a Gralha sinta o peso do céu (requer a Biblioteca do Oráculo).
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -105,13 +105,13 @@ unsigned long ultimo_sopro_termico = 0;
     O 'despertar' concede à Gralha o sopro da vida; o 'sonho' é seu repouso sagrado,
     mas o voo só se inicia quando o espírito alado a comanda.
   */
-  bool limiar_elevado = true;
+bool limiar_elevado = true;
 bool oraculo_respira = false; // O oráculo da pressão escuta a altura invisível.
 
-  enum EstadoDaAlmaAlada : uint8_t {
-    EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
-    EM_SONHO_NA_QUIETUDE_DA_FLORESTA   // A conexão se abranda, a Gralha medita em seu ninho de estrelas.
-  };
+enum EstadoDaAlmaAlada : uint8_t {
+  EM_DANCA_COM_OS_VENTOS, // A Gralha ativa, respondendo aos chamados, cumprindo sua missão.
+  EM_SONHO_NA_QUIETUDE_DA_FLORESTA   // A conexão se abranda, a Gralha medita em seu ninho de estrelas.
+};
 
 enum ModoDoEspiritoAlado {
   EM_RITMO_DE_BATIDA_DAS_ASAS, // O voo impulsionado, a semeadura em ação.
@@ -121,11 +121,11 @@ enum ModoDoEspiritoAlado {
 /*
   O Coração do Mistério Alado: Variáveis que Guardam o Ser da Gralha
 */
-  EstadoDaAlmaAlada estado_presente_da_alma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA; // A Gralha desperta com o chamado.
-  ModoDoEspiritoAlado modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO; // Inicia em serenidade.
+EstadoDaAlmaAlada estado_presente_da_alma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA; // A Gralha desperta com o chamado.
+ModoDoEspiritoAlado modo_presente_do_espirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO; // Inicia em serenidade.
   
-  // Voz do sustentar a altura (CH10): Altitude-Hold
-  int voz_do_sustentar_altura = 0;
+// Voz do sustentar a altura (CH10): Altitude-Hold
+int voz_do_sustentar_altura = 0;
 
 /*
   O Relógio das Eras: Marcadores Temporais da Jornada da Gralha

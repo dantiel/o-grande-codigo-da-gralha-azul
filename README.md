@@ -146,7 +146,7 @@ At the top of the sketch, uncomment exactly **one** receiver type:
 | Receiver Mode | Library Required | Channels | Telemetry | Pins |
 |---------------|------------------|----------|-----------|------|
 | `RECEPTOR_DOS_VENTOS_CRSF` | **CRSF** by Sam4uk | 1–16 | Full CRSF telemetry (altitude, temp) | GPIO 0 (TX), GPIO 1 (RX), 420000 baud |
-| `RECEPTOR_DOS_VENTOS_PPM` | **PPMReaderRP2040** (included in repo) | 1–8 | None | GPIO 2 (Signal) |
+| `RECEPTOR_DOS_VENTOS_PPM` | **PPMReaderRP2040** ([github.com/dantiel/PPMReaderRP2040](https://github.com/dantiel/PPMReaderRP2040)) | 1–8 | None | GPIO 2 (Signal) |
 
 ---
 
@@ -173,7 +173,7 @@ At the top of the sketch, uncomment exactly **one** receiver type:
 
 When using `RECEPTOR_DOS_VENTOS_PPM`:
 
-- **Library:** [PPMReaderRP2040](https://github.com/derflob/PPMReaderRP2040) — included in the repository under `libraries/PPMReaderRP2040/`. The library was patched to add `friend void ppm_isr_handler();` for correct ISR access.
+- **Library:** [PPMReaderRP2040](https://github.com/dantiel/PPMReaderRP2040) — custom rewrite of the classic PPM library for RP2040, available as an Arduino library with full metadata.
 - **Pin:** GPIO 2 (configurable via `#define PINO_DO_MENSAGEIRO 2`)
 - **Channels:** Up to 8 channels (`#define NUM_CANAIS_DO_MENSAGEIRO 8`). CH9 and CH10 fall back to hardcoded defaults.
 - **Telemetry:** Not available in PPM mode. The `SussurrarVooAoEter()` function is a no-op.
@@ -225,7 +225,7 @@ Install **"Raspberry Pi Pico/RP2040"** by Earle F. Philhower via Boards Manager.
 | Library | Author | When Needed |
 |---------|--------|-------------|
 | **CRSF** | Sam4uk | Only with `RECEPTOR_DOS_VENTOS_CRSF` |
-| **PPMReaderRP2040** | derflob | Only with `RECEPTOR_DOS_VENTOS_PPM` (included in repo) |
+| **PPMReaderRP2040** | [dantiel/PPMReaderRP2040](https://github.com/dantiel/PPMReaderRP2040) | Only with `RECEPTOR_DOS_VENTOS_PPM` |
 | **Adafruit NeoPixel** | Adafruit | Always required |
 
 **CRSF library:** Search for "CRSF" by Sam4uk in Library Manager, or get from [github.com/sam4uk/CRSF](https://github.com/sam4uk/CRSF).
