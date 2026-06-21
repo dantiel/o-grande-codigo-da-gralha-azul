@@ -35,7 +35,7 @@
 #include <PPMReaderRP2040.h>
 #endif
 
-//#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para que a Gralha sinta o peso do céu (requer a Biblioteca do Oráculo).
+#define ORACULO_DA_PRESSAO_DO_CEU // Descomente para que a Gralha sinta o peso do céu (requer a Biblioteca do Oráculo).
 #ifdef ORACULO_DA_PRESSAO_DO_CEU
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -376,8 +376,8 @@ void DespertarOraculoDaPressao() {
 }
 
 // Escuta a pressão do céu: lê o barômetro e calcula altura e subida.
-// Otimizado: getEvent() + getTemperature() alle 5 Zyklen (~1s) statt jedes Mal.
-// Intervall 200ms statt 100ms. Temperatur-Trend aus geglätteten Werten.
+// Otimizado: getEvent() + getTemperature() a cada 5 ciclos (~1s) em vez de todas as vezes.
+// Intervalo de 200ms em vez de 100ms. Tendência da temperatura a partir de valores suavizados.
 #define REFERENCIA_DA_PRESSAO_HPA 1013.25f
 void EscutarPressaoDoCeu() {
   if (!oraculo_respira) return;
@@ -387,27 +387,27 @@ void EscutarPressaoDoCeu() {
   if (dt < 0.001f) dt = 0.001f;
   ultimo_sopro_do_oraculo = agora;
 
-  // getEvent() liest Druck (+ Temperatur intern) in einem ~9ms-Durchgang
+  // getEvent() lê a pressão (+ temperatura interna) num único ciclo de ~9ms
   sensors_event_t evento;
   oraculo_da_pressao.getEvent(&evento);
   if (evento.pressure <= 0) return;
   pressao_do_ceu_hpa = evento.pressure;
 
-  // Temperatur nur jeden 5. Zyklus (~1s) — thermische Trägheit
+  // Temperatura apenas a cada 5 ciclos (~1s) — inércia térmica
   static uint8_t ciclo_termico = 0;
   if (++ciclo_termico >= 5) {
     ciclo_termico = 0;
     float nova_temp;
     oraculo_da_pressao.getTemperature(&nova_temp);
-    // 50/50 Glättung
+    // Suavização 50/50
     temperatura_do_ar_c = temperatura_do_ar_c * 0.5f + nova_temp * 0.5f;
   }
 
-  // Temperatur-Trend (jeden Zyklus)
+  // Tendência da temperatura (a cada ciclo)
   tendencia_da_temperatura_c = tendencia_da_temperatura_c * 0.9f + (temperatura_do_ar_c - ultima_temperatura_do_ar_c) * 0.1f;
   ultima_temperatura_do_ar_c = temperatura_do_ar_c;
 
-  // Altitude: barometrische Höhenformel (ISO 1976) — kein Library-Call
+  // Altitude: fórmula barométrica (ISO 1976) — sem chamada de biblioteca
   // h = 44307.69 * (1 - (p/1013.25)^0.190284)
   float razao = pressao_do_ceu_hpa / REFERENCIA_DA_PRESSAO_HPA;
   float fator = 1.0f - powf(razao, 0.190284f);
@@ -418,7 +418,7 @@ void EscutarPressaoDoCeu() {
   subida_da_gralha_ms = (altura_do_voo_sideral - ultima_altura_do_voo_sideral) / dt;
   ultima_altura_do_voo_sideral = altura_do_voo_sideral;
 
-  // Filtro passa-baixa (agressiver: ~470ms Zeitkonstante)
+  // Filtro passa-baixa (mais agressivo: ~470ms de constante de tempo)
   sopro_da_subida_alada = sopro_da_subida_alada * 0.7f + subida_da_gralha_ms * 0.3f;
 
   // Confiança termal
@@ -544,27 +544,27 @@ void AnimarPulsarDoCoracaoAlado() {
   unsigned long ultima = relogio_das_eras.ultima_pulsacao_do_sopro_alado;
   if (ultima == 0) { ultima = agora; }
   float dt = (agora - ultima) * 0.001f;
-  // Begrenze dt auf max 50ms (verhindert Riesen-Sprung beim ersten Durchlauf oder Blockaden)
+  // Limita dt a 50ms (evita salto gigante na primeira execução ou após bloqueios)
   if (dt > 0.05f) dt = 0.05f;
   relogio_das_eras.ultima_pulsacao_do_sopro_alado = agora;
 
   if(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
     // Intenção de cadência: frequência alvo da batida (rad/s)
-    // CH3 (1000..2000) skaliert die Grundfrequenz, CH6 moduliert sie
+    // CH3 (1000..2000) escala a frequência base, CH6 modula-a
     float sopro_norm = (voz_do_sopro_vital - 1000.0f) / 1000.0f; // 0..1
     float compasso_norm = (voz_do_compasso_da_alma - 1500.0f) / 500.0f; // -1..1
     float frequencia_alvo = (2.0f * PI / CICLO_DO_CORACAO_ALADO) * (0.5f + 0.5f * sopro_norm + 0.3f * compasso_norm);
     if (frequencia_alvo < 0.5f) frequencia_alvo = 0.5f;
 
-    // Sanfter, überdämpfter Folgeregelkreis — kein Überschwingen, kein Ruckeln
+    // Malha de seguimento suave e superamortecida — sem overshoot, sem solavancos
     float erro_frequencia = frequencia_alvo - cadencia_do_destino_alado;
     float beschleunigung = erro_frequencia * 8.0f; // Zeitkonstante ~125ms
     cadencia_do_destino_alado += beschleunigung * dt;
 
-    // Winkelintegration
+    // Integração do ângulo
     angulo_da_danca_alada += cadencia_do_destino_alado * dt;
 
-    // Winkel halten (optional, für Numerik)
+    // Mantém o ângulo (opcional, para estabilidade numérica)
     if (angulo_da_danca_alada > 20.0f * PI) angulo_da_danca_alada -= 20.0f * PI;
     if (angulo_da_danca_alada < -20.0f * PI) angulo_da_danca_alada += 20.0f * PI;
   } else { // Em sonho, o coração alado repousa seu ritmo.
@@ -576,16 +576,17 @@ void AnimarPulsarDoCoracaoAlado() {
 
 /*
    *  O Sustentar da Altura: O Ganho Que Escuta a Altura
-    CH10 wird zum Regler für die Verstärkung (gain) des Altitude-Holds:
-      1000 (= 0%)  → Altitude-Hold aus, CH3 ist reines Gas
-      >1500        → Altitude-Hold aktiv, CH3 steuert die Zielhöhe
-      2000 (=100%) → maximale Korrekturstärke
-    Bei aktivem Hold ersetzt der P-Regler das Gassignal, um die Höhe zu halten.
-    Gain = 0 bedeutet: keine Höhenregelung, CH3 direkt als Sopro.
+    CH10 é ganho contínuo (1000=0%, 2000=100%) — já não é um interruptor
+    Ganho_do_sustentar (0..1) escala FORCA_BASE_DO_SUSTENTAR
+    CH3 permanece sempre acelerador direto (sem reatribuição de canal)
+    Altitude alvo via CH3 (1000=0m, 2000=ALTURA_MAX_DO_SUSTENTAR_M=20m)
+    Zona morta: SILENCIO_DO_SUSTENTAR_M=0.5m
+    Com Hold ativo, o regulador P substitui o sinal de acelerador para manter a altura.
+    Gain = 0 significa: sem regulação de altura, CH3 direto como Sopro.
   */
   void SustentarAltura() {
   #ifdef ORACULO_DA_PRESSAO_DO_CEU
-    // CH10 als Gain: 1000=0, 2000=1
+    // CH10 como ganho: 1000=0, 2000=1
     ganho_do_sustentar = mapear_entre_escalas_harmonicas(
       (float)voz_do_sustentar_altura, 1000.0f, 2000.0f,
       0.0f, 1.0f);
@@ -595,13 +596,13 @@ void AnimarPulsarDoCoracaoAlado() {
       if (!modo_sustentar_ativo) {
         modo_sustentar_ativo = true;
       }
-      // CH3 steuert die Zielhöhe: 1000=0m, 2000=ALTURA_MAX
+      // CH3 controla a altitude alvo: 1000=0m, 2000=ALTURA_MAX
       altura_desejada_do_voo = mapear_entre_escalas_harmonicas(
         (float)voz_do_sopro_vital, 1000.0f, 2000.0f,
         0.0f, ALTURA_MAX_DO_SUSTENTAR_M);
-      // Error de altitude
+      // Erro de altitude
       float erro = altura_desejada_do_voo - altura_do_voo_sideral;
-      // P-regulador com gain variável: CH10 skaliert die Korrekturstärke
+      // Regulador P com ganho variável: CH10 escala a força da correção
       if (fabs(erro) < SILENCIO_DO_SUSTENTAR_M) {
         // Zona morta: nulo
       } else {
@@ -609,7 +610,7 @@ void AnimarPulsarDoCoracaoAlado() {
         sopro_vital_do_sustentar = constrain(sopro_vital_do_sustentar,
           SOPRO_MIN_DO_SUSTENTAR, SOPRO_MAX_DO_SUSTENTAR);
       }
-      // Ratenbegrenzung
+      // Limitação de taxa
       if (sopro_da_subida_alada > LIMITE_DA_SUBIDA_SUSTENTADA_MS) {
         sopro_vital_do_sustentar -= 10.0f;
       } else if (sopro_da_subida_alada < -LIMITE_DA_DESCIDA_SUSTENTADA_MS) {
