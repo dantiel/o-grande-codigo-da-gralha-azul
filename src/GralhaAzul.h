@@ -1,36 +1,18 @@
 /*
   O Grande Código da Gralha Azul
   A Inscrição Primordial da Lenda Alada
-  — Núcleo Hermético Partilhado entre Modelos —
-
-  Este header contém todas as constantes, tipos e declarações
-  que cada modelo (exemplo) pode sobrescrever via #define antes
-  de #include "src/GralhaAzul.h".
-
-  Uso:
-    #define RECEPTOR_DOS_VENTOS_PPM
-    #define ARTICULACAO_ASA_DA_MANHA 9
-    #include "src/GralhaAzul.h"
+  — Invocação do Coração Alado Partilhado entre Modelos —
 */
 
 #ifndef GRALHA_AZUL_H
 #define GRALHA_AZUL_H
 
-#include <Arduino.h>
-#include <Servo.h>
-
-// =======================================================
-// MÓDULOS OPCIONAIS (ativados por omissão)
-// Defina ANTES de #include "src/GralhaAzul.h" para desativar
-// =======================================================
-// #define GRALHA_AZUL_NEOPIXEL_DESLIGADO
-// #define GRALHA_AZUL_BAROMETRO_DESLIGADO
-// #define GRALHA_AZUL_TELEMETRIA_DESLIGADO
-
 // =======================================================
 // ORÁCULOS E CONEXÕES COM O COSMOS
 // =======================================================
-//#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA // Se definido, a Gralha partilha seus estados (Debug).
+#ifndef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
+  //#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
+#endif
 #ifndef FREQUENCIA_DO_SOPRO_COSMICO
   #define FREQUENCIA_DO_SOPRO_COSMICO 420000
 #endif
@@ -39,33 +21,35 @@
 #endif
 
 // =======================================================
-// ESCOLHA DO RECEPTOR (CRSF por omissão)
+// ESCOLHA DO RECEPTOR
 // =======================================================
 #ifndef RECEPTOR_DOS_VENTOS_CRSF
-  #define RECEPTOR_DOS_VENTOS_CRSF
+  #ifndef RECEPTOR_DOS_VENTOS_PPM
+    #define RECEPTOR_DOS_VENTOS_CRSF
+  #endif
 #endif
 
 // =======================================================
-// INCLUDES CONDICIONAIS
+// BIBLIOTECAS EXTERNAS
 // =======================================================
+#include <Arduino.h>
 #if defined(RECEPTOR_DOS_VENTOS_CRSF)
-#include <CrsfSerial.h>
+  #include <CrsfSerial.h>
 #elif defined(RECEPTOR_DOS_VENTOS_PPM)
-#include <PPMReaderRP2040.h>
+  #include <PPMReaderRP2040.h>
 #endif
-
-#ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
-#include <Adafruit_NeoPixel.h>
-#endif
-
 #ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP085_U.h>
+  #include <Wire.h>
+  #include <Adafruit_Sensor.h>
+  #include <Adafruit_BMP085_U.h>
+#endif
+#include <Servo.h>
+#ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
+  #include <Adafruit_NeoPixel.h>
 #endif
 
 // =======================================================
-// AS RELÍQUIAS DA GRALHA — PINOS
+// PINOS CONFIGURÁVEIS
 // =======================================================
 #ifndef ARTICULACAO_ASA_DA_MANHA
   #define ARTICULACAO_ASA_DA_MANHA 8
@@ -85,15 +69,17 @@
 #ifndef QUANTIDADE_DE_CENTELHAS_NA_CHAMA
   #define QUANTIDADE_DE_CENTELHAS_NA_CHAMA 1
 #endif
-
-// =======================================================
-// FIOS DO ORÁCULO DA PRESSÃO
-// =======================================================
 #ifndef PINO_SILENCIO_DA_ALTURA
   #define PINO_SILENCIO_DA_ALTURA 4
 #endif
 #ifndef PINO_RITMO_DA_PRESSAO
   #define PINO_RITMO_DA_PRESSAO 5
+#endif
+#ifndef PINO_DO_MENSAGEIRO
+  #define PINO_DO_MENSAGEIRO 2
+#endif
+#ifndef NUM_CANAIS_DO_MENSAGEIRO
+  #define NUM_CANAIS_DO_MENSAGEIRO 8
 #endif
 
 // =======================================================
@@ -119,7 +105,75 @@
 #endif
 
 // =======================================================
-// ESCALAS E MULTIPLICADORES DO MOVIMENTO ALADO
+// VIBRAÇÕES PRIMORDIAIS
+// =======================================================
+#ifndef VIBRACAO_NEUTRA_DO_ALETAO
+  #define VIBRACAO_NEUTRA_DO_ALETAO 1500
+#endif
+#ifndef VIBRACAO_NEUTRA_DO_PROFUNDOR
+  #define VIBRACAO_NEUTRA_DO_PROFUNDOR 1500
+#endif
+#ifndef VIBRACAO_MINIMA_DO_SOPRO_VITAL
+  #define VIBRACAO_MINIMA_DO_SOPRO_VITAL 1000
+#endif
+#ifndef VIBRACAO_NEUTRA_DO_LEME_ESTELAR
+  #define VIBRACAO_NEUTRA_DO_LEME_ESTELAR 1500
+#endif
+#ifndef VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA
+  #define VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA 1500
+#endif
+#ifndef VIBRACAO_DO_DESPERTAR_DESARMADO
+  #define VIBRACAO_DO_DESPERTAR_DESARMADO 1000
+#endif
+#ifndef VIBRACAO_MINIMA_DA_FEROCIDADE
+  #define VIBRACAO_MINIMA_DA_FEROCIDADE 1000
+#endif
+#ifndef VIBRACAO_MINIMA_DO_SUSTENTAR_ALTURA
+  #define VIBRACAO_MINIMA_DO_SUSTENTAR_ALTURA 1000
+#endif
+
+// =======================================================
+// PARÂMETROS DO SUSTENTAR (com barómetro)
+// =======================================================
+#ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
+#ifndef ALTURA_MAX_DO_SUSTENTAR_M
+  #define ALTURA_MAX_DO_SUSTENTAR_M    20.0f
+#endif
+#ifndef SOPRO_MIN_DO_SUSTENTAR
+  #define SOPRO_MIN_DO_SUSTENTAR       1100
+#endif
+#ifndef SOPRO_MAX_DO_SUSTENTAR
+  #define SOPRO_MAX_DO_SUSTENTAR       1800
+#endif
+#ifndef FORCA_BASE_DO_SUSTENTAR
+  #define FORCA_BASE_DO_SUSTENTAR      180
+#endif
+#ifndef SILENCIO_DO_SUSTENTAR_M
+  #define SILENCIO_DO_SUSTENTAR_M      0.5f
+#endif
+#ifndef LIMITE_DA_DESCIDA_SUSTENTADA_MS
+  #define LIMITE_DA_DESCIDA_SUSTENTADA_MS   2.0f
+#endif
+#ifndef LIMITE_DA_SUBIDA_SUSTENTADA_MS
+  #define LIMITE_DA_SUBIDA_SUSTENTADA_MS    3.0f
+#endif
+#ifndef REFERENCIA_DA_PRESSAO_HPA
+  #define REFERENCIA_DA_PRESSAO_HPA 1013.25f
+#endif
+#endif
+
+// =======================================================
+// PULSO DOS SERVOS
+// =======================================================
+#ifndef PULSO_MINIMO_SERVO
+  #define PULSO_MINIMO_SERVO 500
+#endif
+#ifndef PULSO_MAXIMO_SERVO
+  #define PULSO_MAXIMO_SERVO 2500
+#endif
+
+// =======================================================
+// PARÂMETROS ADICIONAIS DE VOO
 // =======================================================
 #ifndef ESCALA_ANGULAR_DA_ARTICULACAO
   #define ESCALA_ANGULAR_DA_ARTICULACAO 0.06f
@@ -157,10 +211,6 @@
 #ifndef LIMITE_FORMA_BATER
   #define LIMITE_FORMA_BATER 1.5f
 #endif
-
-// =======================================================
-// CONSTANTES DO CORAÇÃO ALADO (CADÊNCIA)
-// =======================================================
 #ifndef ACELERACAO_DO_COMPASSO
   #define ACELERACAO_DO_COMPASSO 8.0f
 #endif
@@ -173,61 +223,38 @@
 #ifndef PESO_DO_COMPASSO_NA_FREQUENCIA
   #define PESO_DO_COMPASSO_NA_FREQUENCIA 0.3f
 #endif
-#ifndef DT_MAXIMO_DO_SONHO
-  #define DT_MAXIMO_DO_SONHO 0.05f
-#endif
 #ifndef DECAIMENTO_DA_CADENCIA_SONOLENTA
   #define DECAIMENTO_DA_CADENCIA_SONOLENTA 0.90f
 #endif
 #ifndef EPSILON_CADENCIA_ZERO
   #define EPSILON_CADENCIA_ZERO 0.001f
 #endif
+#ifndef DT_MAXIMO_DO_SONHO
+  #define DT_MAXIMO_DO_SONHO 0.05f
+#endif
 #ifndef LIMITE_ANGULAR_DO_GIRO
   #define LIMITE_ANGULAR_DO_GIRO (20.0f * PI)
 #endif
-
-// =======================================================
-// CONSTANTES DO SUSTENTAR ALTURA
-// =======================================================
-#ifndef ALTURA_MAX_DO_SUSTENTAR_M
-  #define ALTURA_MAX_DO_SUSTENTAR_M 20.0f
+#ifndef INTERVALO_NEO_PIXEL_MS
+  #define INTERVALO_NEO_PIXEL_MS 33
 #endif
-#ifndef SOPRO_MIN_DO_SUSTENTAR
-  #define SOPRO_MIN_DO_SUSTENTAR 1100
+#ifndef INTERVALO_SERIAL_DEBUG_MS
+  #define INTERVALO_SERIAL_DEBUG_MS 250
 #endif
-#ifndef SOPRO_MAX_DO_SUSTENTAR
-  #define SOPRO_MAX_DO_SUSTENTAR 1800
+#ifndef BAUDRATE_SERIAL
+  #define BAUDRATE_SERIAL 115200
 #endif
-#ifndef FORCA_BASE_DO_SUSTENTAR
-  #define FORCA_BASE_DO_SUSTENTAR 180
-#endif
-#ifndef SILENCIO_DO_SUSTENTAR_M
-  #define SILENCIO_DO_SUSTENTAR_M 0.5f
-#endif
-#ifndef LIMITE_DA_DESCIDA_SUSTENTADA_MS
-  #define LIMITE_DA_DESCIDA_SUSTENTADA_MS 2.0f
-#endif
-#ifndef LIMITE_DA_SUBIDA_SUSTENTADA_MS
-  #define LIMITE_DA_SUBIDA_SUSTENTADA_MS 3.0f
-#endif
-#ifndef GANHO_LIMIAR_SUSTENTAR
-  #define GANHO_LIMIAR_SUSTENTAR 0.01f
-#endif
-#ifndef CORRECAO_TAXA_LIMITE_SUSTENTAR
-  #define CORRECAO_TAXA_LIMITE_SUSTENTAR 10.0f
-#endif
-
-// =======================================================
-// CONSTANTES DO BARÓMETRO (BMP180)
-// =======================================================
-#ifndef REFERENCIA_DA_PRESSAO_HPA
-  #define REFERENCIA_DA_PRESSAO_HPA 1013.25f
+#ifndef TEMPO_ESPERA_USB_MS
+  #define TEMPO_ESPERA_USB_MS 4000
 #endif
 #ifndef INTERVALO_LEITURA_BAROMETRO_MS
   #define INTERVALO_LEITURA_BAROMETRO_MS 200
 #endif
-#ifndef MINIMO_DT_SEGUNDOS
-  #define MINIMO_DT_SEGUNDOS 0.001f
+#ifndef AMOSTRAS_CALIBRACAO_BAROMETRO
+  #define AMOSTRAS_CALIBRACAO_BAROMETRO 10
+#endif
+#ifndef ATRASO_CALIBRACAO_BAROMETRO_MS
+  #define ATRASO_CALIBRACAO_BAROMETRO_MS 50
 #endif
 #ifndef SALTOS_CICLO_TEMPERATURA
   #define SALTOS_CICLO_TEMPERATURA 5
@@ -241,12 +268,6 @@
 #ifndef PESO_TENDENCIA_TEMPERATURA
   #define PESO_TENDENCIA_TEMPERATURA 0.1f
 #endif
-#ifndef EXPONENTE_FORMULA_BAROMETRICA
-  #define EXPONENTE_FORMULA_BAROMETRICA 0.190284f
-#endif
-#ifndef CONSTANTE_FORMULA_BAROMETRICA
-  #define CONSTANTE_FORMULA_BAROMETRICA 44307.69f
-#endif
 #ifndef PESO_VELOCIDADE_VERTICAL_ATUAL
   #define PESO_VELOCIDADE_VERTICAL_ATUAL 0.7f
 #endif
@@ -259,16 +280,12 @@
 #ifndef LIMIAR_CONFIANCA_TERMICA
   #define LIMIAR_CONFIANCA_TERMICA 0.5f
 #endif
-#ifndef AMOSTRAS_CALIBRACAO_BAROMETRO
-  #define AMOSTRAS_CALIBRACAO_BAROMETRO 10
+#ifndef MINIMO_DT_SEGUNDOS
+  #define MINIMO_DT_SEGUNDOS 0.001f
 #endif
-#ifndef ATRASO_CALIBRACAO_BAROMETRO_MS
-  #define ATRASO_CALIBRACAO_BAROMETRO_MS 50
+#ifndef CORRECAO_TAXA_LIMITE_SUSTENTAR
+  #define CORRECAO_TAXA_LIMITE_SUSTENTAR 10.0f
 #endif
-
-// =======================================================
-// CONSTANTES DE TELEMETRIA CRSF
-// =======================================================
 #ifndef INTERVALO_TELEMETRIA_GPS_MS
   #define INTERVALO_TELEMETRIA_GPS_MS 200
 #endif
@@ -276,7 +293,7 @@
   #define INTERVALO_TELEMETRIA_TEMPERATURA_MS 500
 #endif
 #ifndef FATOR_CONVERSAO_VELOCIDADE
-  #define FATOR_CONVERSAO_VELOCIDADE 36.0f
+  #define FATOR_CONVERSAO_VELOCIDADE (3.6f * 10.0f)
 #endif
 #ifndef OFFSET_ALTITUDE_CRSF
   #define OFFSET_ALTITUDE_CRSF 1000.0f
@@ -284,128 +301,54 @@
 #ifndef ESCALA_TEMPERATURA_CRSF
   #define ESCALA_TEMPERATURA_CRSF 100.0f
 #endif
-
-// =======================================================
-// CONSTANTES DE TEMPORIZAÇÃO DO LOOP
-// =======================================================
-#ifndef INTERVALO_NEO_PIXEL_MS
-  #define INTERVALO_NEO_PIXEL_MS 33
+#ifndef GANHO_LIMIAR_SUSTENTAR
+  #define GANHO_LIMIAR_SUSTENTAR 0.01f
 #endif
-#ifndef INTERVALO_SERIAL_DEBUG_MS
-  #define INTERVALO_SERIAL_DEBUG_MS 250
+#ifndef EXPONENTE_FORMULA_BAROMETRICA
+  #define EXPONENTE_FORMULA_BAROMETRICA 0.190284f
 #endif
-#ifndef TEMPO_ESPERA_USB_MS
-  #define TEMPO_ESPERA_USB_MS 4000
-#endif
-#ifndef BAUDRATE_SERIAL
-  #define BAUDRATE_SERIAL 115200
+#ifndef CONSTANTE_FORMULA_BAROMETRICA
+  #define CONSTANTE_FORMULA_BAROMETRICA 44307.69f
 #endif
 
 // =======================================================
-// CONSTANTES DOS SERVOS
-// =======================================================
-#ifndef PULSO_MINIMO_SERVO
-  #define PULSO_MINIMO_SERVO 500
-#endif
-#ifndef PULSO_MAXIMO_SERVO
-  #define PULSO_MAXIMO_SERVO 2500
-#endif
-
-// =======================================================
-// VIBRAÇÕES PRIMORDIAIS — CENTROS DOS CANAIS
-// =======================================================
-#ifndef VIBRACAO_NEUTRA_DO_ALETAO
-  #define VIBRACAO_NEUTRA_DO_ALETAO 1500
-#endif
-#ifndef VIBRACAO_NEUTRA_DO_PROFUNDOR
-  #define VIBRACAO_NEUTRA_DO_PROFUNDOR 1500
-#endif
-#ifndef VIBRACAO_MINIMA_DO_SOPRO_VITAL
-  #define VIBRACAO_MINIMA_DO_SOPRO_VITAL 1000
-#endif
-#ifndef VIBRACAO_NEUTRA_DO_LEME_ESTELAR
-  #define VIBRACAO_NEUTRA_DO_LEME_ESTELAR 1500
-#endif
-#ifndef VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA
-  #define VIBRACAO_NEUTRA_DO_COMPASSO_DA_ALMA 1500
-#endif
-#ifndef VIBRACAO_DO_DESPERTAR_DESARMADO
-  #define VIBRACAO_DO_DESPERTAR_DESARMADO 1000
-#endif
-#ifndef VIBRACAO_MINIMA_DA_FEROCIDADE
-  #define VIBRACAO_MINIMA_DA_FEROCIDADE 1000
-#endif
-#ifndef VIBRACAO_MINIMA_DO_SUSTENTAR_ALTURA
-  #define VIBRACAO_MINIMA_DO_SUSTENTAR_ALTURA 1000
-#endif
-
-// =======================================================
-// TIPOS E ENUMERAÇÕES
-// =======================================================
-enum EstadoDaAlmaAlada : uint8_t {
-  EM_DANCA_COM_OS_VENTOS,
-  EM_SONHO_NA_QUIETUDE_DA_FLORESTA
-};
-
-enum ModoDoEspiritoAlado {
-  EM_RITMO_DE_BATIDA_DAS_ASAS,
-  EM_DESLIZE_ETERNO_E_CONTEMPLATIVO
-};
-
-// =======================================================
-// CLASSE MANTO DE LUZ CELESTIAL
-// =======================================================
-#ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
-class MantoDeLuzCelestial {
-private:
-  Adafruit_NeoPixel chama_azul_pixel;
-  uint16_t tonalidade_do_sonho_florestal;
-  unsigned long ultimo_instante_de_respiracao_luminescente;
-  float pulsacao_da_chama_primordial;
-
-public:
-  MantoDeLuzCelestial();
-  void AcenderLuzPrimordial();
-  void IrradiarLuzDaAlma();
-};
-#else
-class MantoDeLuzCelestial {
-public:
-  MantoDeLuzCelestial() {}
-  void AcenderLuzPrimordial() {}
-  void IrradiarLuzDaAlma() {}
-};
-#endif
-
-// =======================================================
-// DECLARAÇÕES EXTERN — VARIÁVEIS GLOBAIS
+// VARIÁVEIS GLOBAIS — DECLARAÇÕES EXTERNAS
 // =======================================================
 #if defined(RECEPTOR_DOS_VENTOS_CRSF)
 extern CrsfSerial guardiao_dos_ventos_siderais;
 #elif defined(RECEPTOR_DOS_VENTOS_PPM)
 extern PPMReader mensageiro_dos_ventos_cosmicos;
 #endif
-
-extern MantoDeLuzCelestial manto_celestial_da_gralha;
-extern Servo tendao_da_asa_matutina;
-extern Servo tendao_da_asa_vespertina;
-
+extern unsigned long ultimo_sopro_sideral;
+extern unsigned long ultimo_sopro_termico;
 extern bool limiar_elevado;
 extern bool oraculo_respira;
 
+// =======================================================
+// ENUMS
+// =======================================================
+enum EstadoDaAlmaAlada : uint8_t {
+  EM_DANCA_COM_OS_VENTOS,
+  EM_SONHO_NA_QUIETUDE_DA_FLORESTA
+};
+enum ModoDoEspiritoAlado {
+  EM_RITMO_DE_BATIDA_DAS_ASAS,
+  EM_DESLIZE_ETERNO_E_CONTEMPLATIVO
+};
+
 extern EstadoDaAlmaAlada estado_presente_da_alma;
 extern ModoDoEspiritoAlado modo_presente_do_espirito;
-
 extern int voz_do_sustentar_altura;
 
-extern struct RelogioDasEras {
+struct RelogioDasEras {
   unsigned long instante_do_agora_cosmico;
   unsigned long ultimo_fulgor_da_chama_azul;
   unsigned long ultimo_eco_prescindivei;
   unsigned long ultima_pulsacao_do_sopro_alado;
   unsigned long ultimo_instante_de_respiracao_luminescente;
   float intervalo_entre_pulsacoes_do_coracao_alado;
-} relogio_das_eras;
+};
+extern RelogioDasEras relogio_das_eras;
 
 extern int voz_do_aletao;
 extern int voz_do_profundor;
@@ -430,38 +373,65 @@ extern float ultima_altura_do_voo_sideral;
 extern unsigned long ultimo_sopro_do_oraculo;
 extern float tendencia_da_temperatura_c;
 extern float ultima_temperatura_do_ar_c;
-
 extern bool modo_de_escuta_termal;
 extern float fe_no_sopro_quente;
-
 extern float ganho_do_sustentar;
 extern float altura_desejada_do_voo;
 extern float sopro_vital_do_sustentar;
 extern bool modo_sustentar_ativo;
-
 extern float pulsacao_da_chama_primordial;
-
 extern float angulo_da_danca_alada;
 extern float cadencia_do_destino_alado;
 extern float pulso_do_sopro_vital;
 
 // =======================================================
-// DECLARAÇÕES DE FUNÇÕES
+// PROTÓTIPOS
 // =======================================================
 float mapear_entre_escalas_harmonicas(float valor, float minimo_origem, float max_origem, float minimo_destino, float max_destino);
 float forma_do_bater_das_asas(float canto_do_vento, float direcao_do_bater, float ferocidade_do_bater, float ferocidade_do_retorno);
 
+#ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
+class MantoDeLuzCelestial {
+private:
+  Adafruit_NeoPixel chama_azul_pixel;
+  uint16_t tonalidade_do_sonho_florestal;
+  unsigned long ultimo_instante_de_respiracao_luminescente = 0;
+  float pulsacao_da_chama_primordial = 0.0f;
+public:
+  MantoDeLuzCelestial() : chama_azul_pixel(QUANTIDADE_DE_CENTELHAS_NA_CHAMA, NUCLEO_DA_CHAMA_AZUL, NEO_GRB + NEO_KHZ800), tonalidade_do_sonho_florestal(0) {}
+  void AcenderLuzPrimordial();
+  void IrradiarLuzDaAlma();
+};
+extern MantoDeLuzCelestial manto_celestial_da_gralha;
+#endif
+
+extern Servo tendao_da_asa_matutina;
+extern Servo tendao_da_asa_vespertina;
+
+#ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
 void DespertarOraculoDaPressao();
 void EscutarPressaoDoCeu();
+#else
+inline void DespertarOraculoDaPressao() {}
+inline void EscutarPressaoDoCeu() {}
+#endif
+
 void AoDespertarParaOCantoDoEter();
 void AoRecolherSeAoSilencioDaMata();
+#if defined(RECEPTOR_DOS_VENTOS_CRSF)
 void InterpretarAsVozesDoFirmamento();
+#elif defined(RECEPTOR_DOS_VENTOS_PPM)
+void InterpretarAsVozesDoFirmamento(const unsigned long* channelValues, byte numChannels);
+#endif
+void gralhaAzulSetup();
 void AnimarPulsarDoCoracaoAlado();
 void SustentarAltura();
 void ManifestarOVooNosVentos();
+#if !defined(GRALHA_AZUL_TELEMETRIA_DESLIGADO) && defined(RECEPTOR_DOS_VENTOS_CRSF)
 void SussurrarVooAoEter();
-
-void gralhaAzulSetup();
+#else
+inline void SussurrarVooAoEter() {}
+#endif
 void gralhaAzulLoop();
 
-#endif // GRALHA_AZUL_H
+#endif
