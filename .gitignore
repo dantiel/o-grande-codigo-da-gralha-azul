@@ -1,6 +1,6 @@
+*.bak
+*.sh
+/tmp/
 build/
 __pycache__/
-*.o
-*.elf
-*.hex
 .DS_Store
