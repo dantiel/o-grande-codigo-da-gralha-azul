@@ -32,7 +32,7 @@
 #define PINO_SILENCIO_DA_ALTURA 4   // SDA (Wire)
 #define PINO_RITMO_DA_PRESSAO 5     // SCL (Wire)
 
-#include <GralhaAzul.h>
+#include "src/GralhaAzul.h"
 
 void setup() {
   gralhaAzulSetup();

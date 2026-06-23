@@ -5,12 +5,12 @@
 
   Este header contém todas as constantes, tipos e declarações
   que cada modelo (exemplo) pode sobrescrever via #define antes
-  de #include <GralhaAzul.h>.
+  de #include "src/GralhaAzul.h".
 
   Uso:
     #define RECEPTOR_DOS_VENTOS_PPM
     #define ARTICULACAO_ASA_DA_MANHA 9
-    #include <GralhaAzul.h>
+    #include "src/GralhaAzul.h"
 */
 
 #ifndef GRALHA_AZUL_H
@@ -21,7 +21,7 @@
 
 // =======================================================
 // MÓDULOS OPCIONAIS (ativados por omissão)
-// Defina ANTES de #include <GralhaAzul.h> para desativar
+// Defina ANTES de #include "src/GralhaAzul.h" para desativar
 // =======================================================
 // #define GRALHA_AZUL_NEOPIXEL_DESLIGADO
 // #define GRALHA_AZUL_BAROMETRO_DESLIGADO
