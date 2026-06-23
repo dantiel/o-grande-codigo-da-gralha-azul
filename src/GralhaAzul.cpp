@@ -17,8 +17,8 @@ CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
 PPMReader mensageiro_dos_ventos_cosmicos(PINO_DO_MENSAGEIRO, NUM_CANAIS_DO_MENSAGEIRO);
 #endif
 // O éter que leva as novas da Gralha ao mundo: instantes do último sopro ao firmamento.
-unsigned long ultimo_sopro_sideral = 0;
-unsigned long ultimo_sopro_termico = 0;
+if (agora - ultimo_sopro_sideral >= INTERVALO_TELEMETRIA_GPS_MS) {
+if (agora - ultimo_sopro_termico >= INTERVALO_TELEMETRIA_TEMPERATURA_MS) {
 /* As Relíquias da Gralha: Vínculos de Poder e Essência
   Os pontos de contato com o mundo, ecos da sua jornada.
 */
@@ -105,13 +105,13 @@ float forma_do_bater_das_asas(float canto_do_vento, float direcao_do_bater, floa
   // A 'direcao_do_bater' revela se a asa desce ou retorna.
   float ferocidade = (direcao_do_bater >= 0.0f) ? ferocidade_do_bater : ferocidade_do_retorno;
   float equilibrio_do_ceu = tanh(ferocidade);
-  if (equilibrio_do_ceu < 0.001f) {
+  if (equilibrio_do_ceu < EPSILON_FORMA_BATER) {
     return canto_do_vento;
   }
   float resultado = tanh(ferocidade * canto_do_vento) / equilibrio_do_ceu;
   // Limita a saída para evitar valores extremos quando ferocidade é muito pequena.
-  if (resultado > 1.5f) resultado = 1.5f;
-  if (resultado < -1.5f) resultado = -1.5f;
+  if (resultado > LIMITE_FORMA_BATER) resultado = LIMITE_FORMA_BATER;
+  if (resultado < -LIMITE_FORMA_BATER) resultado = -LIMITE_FORMA_BATER;
   return resultado;
 }
 /*
@@ -143,17 +143,17 @@ void DespertarOraculoDaPressao() {
   // A Gralha aprende a sentir o chão: escuta a altura do ninho várias vezes
   float soma_altura = 0.0f;
   int leituras_validas = 0;
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < AMOSTRAS_CALIBRACAO_BAROMETRO; i++) {
     sensors_event_t evento;
     oraculo_da_pressao.getEvent(&evento);
     if (evento.pressure > 0) {
       float temperatura;
       oraculo_da_pressao.getTemperature(&temperatura);
-      float altitude = oraculo_da_pressao.pressureToAltitude(1013.25f, evento.pressure, temperatura);
+      float altitude = oraculo_da_pressao.pressureToAltitude(REFERENCIA_DA_PRESSAO_HPA, evento.pressure, temperatura);
       soma_altura += altitude;
       leituras_validas++;
     }
-    delay(50);
+    delay(ATRASO_CALIBRACAO_BAROMETRO_MS);
   }
   if (leituras_validas > 0) {
     altura_inicial_m = soma_altura / leituras_validas;
@@ -168,9 +168,9 @@ void DespertarOraculoDaPressao() {
 void EscutarPressaoDoCeu() {
   if (!oraculo_respira) return;
   unsigned long agora = millis();
-  if (agora - ultimo_sopro_do_oraculo < 200) return; // A cada 200ms
+  if (agora - ultimo_sopro_do_oraculo < INTERVALO_LEITURA_BAROMETRO_MS) return; // A cada 200ms
   float dt = (agora - ultimo_sopro_do_oraculo) * 0.001f;
-  if (dt < 0.001f) dt = 0.001f;
+  if (dt < MINIMO_DT_SEGUNDOS) dt = MINIMO_DT_SEGUNDOS;
   ultimo_sopro_do_oraculo = agora;
   // getEvent() lê a pressão (+ temperatura interna) num único ciclo de ~9ms
   sensors_event_t evento;
@@ -179,31 +179,31 @@ void EscutarPressaoDoCeu() {
   pressao_do_ceu_hpa = evento.pressure;
   // Temperatura apenas a cada 5 ciclos (~1s) — inércia térmica
   static uint8_t ciclo_termico = 0;
-  if (++ciclo_termico >= 5) {
+  if (++ciclo_termico >= SALTOS_CICLO_TEMPERATURA) {
     ciclo_termico = 0;
     float nova_temp;
     oraculo_da_pressao.getTemperature(&nova_temp);
     // Suavização 50/50
-    temperatura_do_ar_c = temperatura_do_ar_c * 0.5f + nova_temp * 0.5f;
+    temperatura_do_ar_c = temperatura_do_ar_c * SUAVIZACAO_TEMPERATURA + nova_temp * SUAVIZACAO_TEMPERATURA;
   }
   // Tendência da temperatura (a cada ciclo)
-  tendencia_da_temperatura_c = tendencia_da_temperatura_c * 0.9f + (temperatura_do_ar_c - ultima_temperatura_do_ar_c) * 0.1f;
+  tendencia_da_temperatura_c = tendencia_da_temperatura_c * FILTRO_TENDENCIA_TEMPERATURA + (temperatura_do_ar_c - ultima_temperatura_do_ar_c) * PESO_TENDENCIA_TEMPERATURA;
   ultima_temperatura_do_ar_c = temperatura_do_ar_c;
   // Altitude: fórmula barométrica (ISO 1976) — sem chamada de biblioteca
   // h = 44307.69 * (1 - (p/1013.25)^0.190284)
   float razao = pressao_do_ceu_hpa / REFERENCIA_DA_PRESSAO_HPA;
-  float fator = 1.0f - powf(razao, 0.190284f);
-  float altitude_absoluta = fator * 44307.69f;
+  float fator = 1.0f - powf(razao, EXPONENTE_FORMULA_BAROMETRICA);
+  float altitude_absoluta = fator * CONSTANTE_FORMULA_BAROMETRICA;
   altura_do_voo_sideral = altitude_absoluta - altura_inicial_m;
   // Subida (velocidade vertical)
   subida_da_gralha_ms = (altura_do_voo_sideral - ultima_altura_do_voo_sideral) / dt;
   ultima_altura_do_voo_sideral = altura_do_voo_sideral;
   // Filtro passa-baixa (mais agressivo: ~470ms de constante de tempo)
-  sopro_da_subida_alada = sopro_da_subida_alada * 0.7f + subida_da_gralha_ms * 0.3f;
+  sopro_da_subida_alada = sopro_da_subida_alada * PESO_VELOCIDADE_VERTICAL_ATUAL + subida_da_gralha_ms * PESO_VELOCIDADE_VERTICAL_ANTERIOR;
   // Confiança termal
-  fe_no_sopro_quente = sopro_da_subida_alada + tendencia_da_temperatura_c * 0.3f;
-  if (fe_no_sopro_quente > 0.5f) modo_de_escuta_termal = true;
-  else if (fe_no_sopro_quente < -0.5f) modo_de_escuta_termal = false;
+  fe_no_sopro_quente = sopro_da_subida_alada + tendencia_da_temperatura_c * PESO_CONFIANCA_TERMICA_TEMPERATURA;
+  if (fe_no_sopro_quente > LIMIAR_CONFIANCA_TERMICA) modo_de_escuta_termal = true;
+  else if (fe_no_sopro_quente < -LIMIAR_CONFIANCA_TERMICA) modo_de_escuta_termal = false;
 }
 #else
 void DespertarOraculoDaPressao() {}
@@ -272,9 +272,9 @@ void gralhaAzulSetup() {
   DespertarOraculoDaPressao();
   AoDespertarParaOCantoDoEter();
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
-  Serial.begin(115200);
+  Serial.begin(BAUDRATE_SERIAL);
   unsigned long tempo_de_espera_usb = millis();
-  while (!Serial && (millis() - tempo_de_espera_usb < 4000)) {  }
+  while (!Serial && (millis() - tempo_de_espera_usb < TEMPO_ESPERA_USB_MS)) {  }
   Serial.println("O Grande Código da Gralha Azul: A Lenda Viva se Inicia...");
 #endif
 #if defined(RECEPTOR_DOS_VENTOS_CRSF)
@@ -291,8 +291,8 @@ void gralhaAzulSetup() {
   mensageiro_dos_ventos_cosmicos.onDisconnect(AoRecolherSeAoSilencioDaMata);
   mensageiro_dos_ventos_cosmicos.onNewData(InterpretarAsVozesDoFirmamento);
 #endif
-  tendao_da_asa_matutina.attach(ARTICULACAO_ASA_DA_MANHA, 500, 2500);
-  tendao_da_asa_vespertina.attach(ARTICULACAO_ASA_DO_ENTARDECER, 500, 2500);
+  tendao_da_asa_matutina.attach(ARTICULACAO_ASA_DA_MANHA, PULSO_MINIMO_SERVO, PULSO_MAXIMO_SERVO);
+  tendao_da_asa_vespertina.attach(ARTICULACAO_ASA_DO_ENTARDECER, PULSO_MINIMO_SERVO, PULSO_MAXIMO_SERVO);
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   Serial.println("Asas de anil prontas para a dança dos céus e a canção da vida.");
 #endif
@@ -309,28 +309,28 @@ void AnimarPulsarDoCoracaoAlado() {
   if (ultima == 0) { ultima = agora; }
   float dt = (agora - ultima) * 0.001f;
   // Limita dt a 50ms (evita salto gigante na primeira execução ou após bloqueios)
-  if (dt > 0.05f) dt = 0.05f;
+  if (dt > DT_MAXIMO_DO_SONHO) dt = DT_MAXIMO_DO_SONHO;
   relogio_das_eras.ultima_pulsacao_do_sopro_alado = agora;
   if(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS) {
     // Intenção de cadência: frequência alvo da batida (rad/s)
     // CH3 (1000..2000) escala a frequência base, CH6 modula-a
     float sopro_norm = (voz_do_sopro_vital - 1000.0f) / 1000.0f; // 0..1
     float compasso_norm = (voz_do_compasso_da_alma - 1500.0f) / 500.0f; // -1..1
-    float frequencia_alvo = (2.0f * PI / CICLO_DO_CORACAO_ALADO) * (0.5f + 0.5f * sopro_norm + 0.3f * compasso_norm);
-    if (frequencia_alvo < 0.5f) frequencia_alvo = 0.5f;
+    float frequencia_alvo = (2.0f * PI / CICLO_DO_CORACAO_ALADO) * (MULTIPLICADOR_MINIMO_FREQUENCIA + PESO_DO_SOPRO_NA_FREQUENCIA * sopro_norm + PESO_DO_COMPASSO_NA_FREQUENCIA * compasso_norm);
+    if (frequencia_alvo < MULTIPLICADOR_MINIMO_FREQUENCIA) frequencia_alvo = MULTIPLICADOR_MINIMO_FREQUENCIA;
     // Malha de seguimento suave e superamortecida — sem overshoot, sem solavancos
     float erro_frequencia = frequencia_alvo - cadencia_do_destino_alado;
-    float beschleunigung = erro_frequencia * 8.0f; // Constante de tempo ~125ms
+    float beschleunigung = erro_frequencia * ACELERACAO_DO_COMPASSO; // Constante de tempo ~125ms
     cadencia_do_destino_alado += beschleunigung * dt;
     // Integração do ângulo
     angulo_da_danca_alada += cadencia_do_destino_alado * dt;
     // Mantém o ângulo (opcional, para estabilidade numérica)
-    if (angulo_da_danca_alada > 20.0f * PI) angulo_da_danca_alada -= 20.0f * PI;
-    if (angulo_da_danca_alada < -20.0f * PI) angulo_da_danca_alada += 20.0f * PI;
+    if (angulo_da_danca_alada > LIMITE_ANGULAR_DO_GIRO) angulo_da_danca_alada -= LIMITE_ANGULAR_DO_GIRO;
+    if (angulo_da_danca_alada < -LIMITE_ANGULAR_DO_GIRO) angulo_da_danca_alada += LIMITE_ANGULAR_DO_GIRO;
   } else { // Em sonho, o coração alado repousa seu ritmo.
     angulo_da_danca_alada = 0;
-    cadencia_do_destino_alado *= 0.90f;
-    if (fabs(cadencia_do_destino_alado) < 0.001f) cadencia_do_destino_alado = 0;
+    cadencia_do_destino_alado *= DECAIMENTO_DA_CADENCIA_SONOLENTA;
+    if (fabs(cadencia_do_destino_alado) < EPSILON_CADENCIA_ZERO) cadencia_do_destino_alado = 0;
   }
 }
 /*
@@ -350,7 +350,7 @@ void AnimarPulsarDoCoracaoAlado() {
       (float)voz_do_sustentar_altura, 1000.0f, 2000.0f,
       0.0f, 1.0f);
     ganho_do_sustentar = constrain(ganho_do_sustentar, 0.0f, 1.0f);
-    if (oraculo_respira && ganho_do_sustentar > 0.01f) {
+    if (oraculo_respira && ganho_do_sustentar > GANHO_LIMIAR_SUSTENTAR) {
       if (!modo_sustentar_ativo) {
         modo_sustentar_ativo = true;
       }
@@ -370,9 +370,9 @@ void AnimarPulsarDoCoracaoAlado() {
       }
       // Limitação da taxa de subida/descida
       if (sopro_da_subida_alada > LIMITE_DA_SUBIDA_SUSTENTADA_MS) {
-        sopro_vital_do_sustentar -= 10.0f;
+        sopro_vital_do_sustentar -= CORRECAO_TAXA_LIMITE_SUSTENTAR;
       } else if (sopro_da_subida_alada < -LIMITE_DA_DESCIDA_SUSTENTADA_MS) {
-        sopro_vital_do_sustentar += 10.0f;
+        sopro_vital_do_sustentar += CORRECAO_TAXA_LIMITE_SUSTENTAR;
       }
       sopro_vital_do_sustentar = constrain(sopro_vital_do_sustentar,
         SOPRO_MIN_DO_SUSTENTAR, SOPRO_MAX_DO_SUSTENTAR);
@@ -392,8 +392,8 @@ void AnimarPulsarDoCoracaoAlado() {
     No sustentar, o sopro vital é substituído pelo sopro do sustentar a altura.
   */
   void ManifestarOVooNosVentos() {
-    float comando_aletao = (voz_do_aletao - 1500.0f) * 0.06f;
-    float comando_profundor = (voz_do_profundor - 1500.0f) * 0.06f;
+    float comando_aletao = (voz_do_aletao - 1500.0f) * ESCALA_ANGULAR_DA_ARTICULACAO;
+    float comando_profundor = (voz_do_profundor - 1500.0f) * ESCALA_ANGULAR_DO_PROFUNDOR;
     int angulo_portal_esquerdo, angulo_portal_direito;
   // No modo sustentar, o sopro vital é substituído pelo sopro do sustentar a altura
   float sopro_efetivo = modo_sustentar_ativo ? sopro_vital_do_sustentar : (float)voz_do_sopro_vital;
@@ -419,16 +419,16 @@ void AnimarPulsarDoCoracaoAlado() {
   }
   if(modo_presente_do_espirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     // A 'magnitude_da_batida' é a força com que a Gralha impulsiona o ar.
-    float magnitude_da_batida = ((sopro_efetivo - LIMIAR_DO_VOO_ATIVO) * 0.06f) * (1.0f - (voz_do_compasso_da_alma - 1500.0f) * 0.0003f);
+    float magnitude_da_batida = ((sopro_efetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_ESCALA_DA_FEROCIDADE) * (1.0f - (voz_do_compasso_da_alma - 1500.0f) * MODULACAO_DO_COMPASSO);
     // O 'canto_original_da_asa' é o coração senoidal do movimento.
     float canto_original_da_asa = sin(angulo_da_danca_alada);
     // A 'direcao_do_bater' revela se a asa desce ou retorna.
     float direcao_do_bater = cos(angulo_da_danca_alada);
     // Ferocidade para as asas (CH7 = descida, CH8 = subida)
-    float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, 1.0f, 8.0f);
-    float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, 1.0f, 8.0f);
+    float ferocidade_do_bater = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_bater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
+    float ferocidade_do_retorno = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_retorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
     // Fator do leme (CH5): centro=0, extremos=±1 (±2 escala de ferocidade)
-    float fator_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, -4.0f, 4.0f);
+    float fator_do_leme = mapear_entre_escalas_harmonicas(voz_da_ferocidade_do_leme, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN, DIFERENCIAL_LEME_MAX);
     // Ferocidade do leme aplicada diferencialmente: +num esquerdo, -num direito
     float ferocidade_bater_esquerda = ferocidade_do_bater + fator_do_leme;
     float ferocidade_bater_direita  = ferocidade_do_bater - fator_do_leme;
@@ -445,14 +445,14 @@ void AnimarPulsarDoCoracaoAlado() {
         ferocidade_retorno_direita);
     float graus_asa_esquerda = magnitude_da_batida * pulso_asa_esquerda;
     float graus_asa_direita  = magnitude_da_batida * pulso_asa_direita;
-    angulo_portal_esquerdo = (int)((comando_aletao - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
-    angulo_portal_direito  = (int)((comando_aletao + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
+    angulo_portal_esquerdo = (int)((comando_aletao - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
+    angulo_portal_direito  = (int)((comando_aletao + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
   } else { // EM_DESLIZE_ETERNO_E_CONTEMPLATIVO
-    angulo_portal_esquerdo = (int)((comando_aletao - ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_MATUTINA - comando_profundor) * 2.0f);
-    angulo_portal_direito  = (int)((comando_aletao + ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_VESPERTINA + comando_profundor) * 2.0f);
+    angulo_portal_esquerdo = (int)((comando_aletao - ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_MATUTINA - comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
+    angulo_portal_direito  = (int)((comando_aletao + ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_VESPERTINA + comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
   }
-  tendao_da_asa_matutina.write(constrain(angulo_portal_esquerdo + 100, 0, 180));
-  tendao_da_asa_vespertina.write(constrain(angulo_portal_direito + 100, 0, 180));
+  tendao_da_asa_matutina.write(constrain(angulo_portal_esquerdo + OFFSET_ANGULAR_NEUTRO, 0, 180));
+  tendao_da_asa_vespertina.write(constrain(angulo_portal_direito + OFFSET_ANGULAR_NEUTRO, 0, 180));
 }
 /*
    *  O Sopro ao Éter: A Gralha Sussurra seu Voo ao Cosmos
@@ -472,7 +472,7 @@ void AnimarPulsarDoCoracaoAlado() {
       pergaminho_do_voo.longitude = htobe32(0);
       // Velocidade aparente: módulo da subida alada em km/h
   #ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
-      int16_t velocidade_chao = (int16_t)(fabs(sopro_da_subida_alada) * 3.6f * 10.0f);
+      int16_t velocidade_chao = (int16_t)(fabs(sopro_da_subida_alada) * FATOR_CONVERSAO_VELOCIDADE);
   #else
       int16_t velocidade_chao = 0;
   #endif
@@ -482,7 +482,7 @@ void AnimarPulsarDoCoracaoAlado() {
       pergaminho_do_voo.heading = htobe16(0);
       // Altitude: metros relativos + 1000 (offset CRSF), limitado a 0..65535
   #ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
-      int16_t alt_do_voo = (int16_t)(altura_do_voo_sideral + 1000.0f);
+      int16_t alt_do_voo = (int16_t)(altura_do_voo_sideral + OFFSET_ALTITUDE_CRSF);
   #else
       int16_t alt_do_voo = 0;
   #endif
@@ -502,7 +502,7 @@ void AnimarPulsarDoCoracaoAlado() {
       ultimo_sopro_termico = agora;
       crsf_sensor_battery_t bilhete_do_sopro_quente;
   #ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
-      uint16_t canto_termico = (uint16_t)(temperatura_do_ar_c * 100.0f);
+      uint16_t canto_termico = (uint16_t)(temperatura_do_ar_c * ESCALA_TEMPERATURA_CRSF);
   #else
       uint16_t canto_termico = 0;
   #endif
@@ -539,7 +539,7 @@ void gralhaAzulLoop() {
   SustentarAltura();
   ManifestarOVooNosVentos();
   SussurrarVooAoEter();
-  if(relogio_das_eras.instante_do_agora_cosmico - relogio_das_eras.ultimo_fulgor_da_chama_azul >= 33) { // ~30fps
+  if(relogio_das_eras.instante_do_agora_cosmico - relogio_das_eras.ultimo_fulgor_da_chama_azul >= INTERVALO_NEO_PIXEL_MS) { // ~30fps
     relogio_das_eras.ultimo_fulgor_da_chama_azul = relogio_das_eras.instante_do_agora_cosmico;
 #ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
     manto_celestial_da_gralha.IrradiarLuzDaAlma();
@@ -547,7 +547,7 @@ void gralhaAzulLoop() {
   }
 #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   if (relogio_das_eras.instante_do_agora_cosmico -
-        relogio_das_eras.ultimo_eco_prescindivei > 250) {
+        relogio_das_eras.ultimo_eco_prescindivei > INTERVALO_SERIAL_DEBUG_MS) {
       relogio_das_eras.ultimo_eco_prescindivei = relogio_das_eras.instante_do_agora_cosmico;
     Serial.print(estado_presente_da_alma == EM_DANCA_COM_OS_VENTOS ? "VOANDO" : "SONHANDO");
     Serial.print(" | Modo: ");
