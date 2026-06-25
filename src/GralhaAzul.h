@@ -7,9 +7,8 @@
 #ifndef GRALHA_AZUL_H
 #define GRALHA_AZUL_H
 
-// =======================================================
-// ORÁCULOS E CONEXÕES COM O COSMOS
-// =======================================================
+/* Oráculos e Conexões com o Cosmos
+   O sopro do firmamento que a Gralha escuta para dançar nos céus. */
 #ifndef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   //#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
 #endif
@@ -20,18 +19,16 @@
   #define PORTAL_DOS_VENTOS_CELESTES Serial1
 #endif
 
-// =======================================================
-// ESCOLHA DO RECEPTOR
-// =======================================================
+/* A Escolha do Mensageiro dos Ventos
+   CRSF — o guardião sideral que sussurra em ondas de rádio.
+   PPM — o mensageiro cósmico dos pulsos antigos. */
 #ifndef RECEPTOR_DOS_VENTOS_CRSF
   #ifndef RECEPTOR_DOS_VENTOS_PPM
     #define RECEPTOR_DOS_VENTOS_CRSF
   #endif
 #endif
 
-// =======================================================
-// BIBLIOTECAS EXTERNAS
-// =======================================================
+/* Bibliotecas que a Gralha invoca para seus rituais. */
 #include <Arduino.h>
 #if defined(RECEPTOR_DOS_VENTOS_CRSF)
   #include <CrsfSerial.h>
@@ -48,9 +45,7 @@
   #include <Adafruit_NeoPixel.h>
 #endif
 
-// =======================================================
-// PINOS CONFIGURÁVEIS
-// =======================================================
+/* Os Portais dos Tendões Alados — Pinos que a Gralha toca para mover as asas. */
 #ifndef ARTICULACAO_ASA_DA_MANHA
   #define ARTICULACAO_ASA_DA_MANHA 8
 #endif
@@ -82,9 +77,7 @@
   #define NUM_CANAIS_DO_MENSAGEIRO 8
 #endif
 
-// =======================================================
-// CONSTANTES DE VOO
-// =======================================================
+/* A Geometria Sagrada do Voo — Constantes que esculpem a dança alada. */
 #ifndef CICLO_DO_CORACAO_ALADO
   #define CICLO_DO_CORACAO_ALADO 0.052f
 #endif
@@ -104,9 +97,7 @@
   #define ORIGEM_ASA_VESPERTINA 0
 #endif
 
-// =======================================================
-// VIBRAÇÕES PRIMORDIAIS
-// =======================================================
+/* As Vozes do Céu — Vibrações que chegam do firmamento para ditar o destino. */
 #ifndef VIBRACAO_NEUTRA_DO_ALETAO
   #define VIBRACAO_NEUTRA_DO_ALETAO 1500
 #endif
@@ -132,9 +123,7 @@
   #define VIBRACAO_MINIMA_DO_SUSTENTAR_ALTURA 1000
 #endif
 
-// =======================================================
-// PARÂMETROS DO SUSTENTAR (com barómetro)
-// =======================================================
+/* O Hálito que Sustenta — Parâmetros do voo pairante quando a Gralha escuta a pressão do céu. */
 #ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
 #ifndef ALTURA_MAX_DO_SUSTENTAR_M
   #define ALTURA_MAX_DO_SUSTENTAR_M    20.0f
@@ -162,9 +151,7 @@
 #endif
 #endif
 
-// =======================================================
-// PULSO DOS SERVOS
-// =======================================================
+/* O Batimento dos Tendões — Limites do pulso que move as asas. */
 #ifndef PULSO_MINIMO_SERVO
   #define PULSO_MINIMO_SERVO 500
 #endif
@@ -172,9 +159,7 @@
   #define PULSO_MAXIMO_SERVO 2500
 #endif
 
-// =======================================================
-// PARÂMETROS ADICIONAIS DE VOO
-// =======================================================
+/* A Dança Secreta dos Ventos — Parâmetros que tecem a coreografia alada. */
 #ifndef ESCALA_ANGULAR_DA_ARTICULACAO
   #define ESCALA_ANGULAR_DA_ARTICULACAO 0.06f
 #endif
@@ -311,9 +296,7 @@
   #define CONSTANTE_FORMULA_BAROMETRICA 44307.69f
 #endif
 
-// =======================================================
-// VARIÁVEIS GLOBAIS — DECLARAÇÕES EXTERNAS
-// =======================================================
+/* As Relíquias da Gralha — Onde a memória do voo se guarda entre ciclos. */
 #if defined(RECEPTOR_DOS_VENTOS_CRSF)
 extern CrsfSerial guardiao_dos_ventos_siderais;
 #elif defined(RECEPTOR_DOS_VENTOS_PPM)
@@ -324,9 +307,7 @@ extern unsigned long ultimo_sopro_termico;
 extern bool limiar_elevado;
 extern bool oraculo_respira;
 
-// =======================================================
-// ENUMS
-// =======================================================
+/* Os Estados da Alma — A Gralha sonha na floresta ou dança com os ventos? */
 enum EstadoDaAlmaAlada : uint8_t {
   EM_DANCA_COM_OS_VENTOS,
   EM_SONHO_NA_QUIETUDE_DA_FLORESTA
@@ -384,9 +365,7 @@ extern float angulo_da_danca_alada;
 extern float cadencia_do_destino_alado;
 extern float pulso_do_sopro_vital;
 
-// =======================================================
-// PROTÓTIPOS
-// =======================================================
+/* As Invocações da Alma Alada — Rituais que a Gralha chama para manifestar o voo. */
 float mapear_entre_escalas_harmonicas(float valor, float minimo_origem, float max_origem, float minimo_destino, float max_destino);
 float forma_do_bater_das_asas(float canto_do_vento, float direcao_do_bater, float ferocidade_do_bater, float ferocidade_do_retorno);
 

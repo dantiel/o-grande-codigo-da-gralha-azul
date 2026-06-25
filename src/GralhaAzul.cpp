@@ -21,9 +21,7 @@
 
 #include "GralhaAzul.h"
 
-// =======================================================
-// VARIÁVEIS GLOBAIS — Definições
-// =======================================================
+/* As Relíquias da Gralha — Onde a memória do voo se guarda entre ciclos. */
 #if defined(RECEPTOR_DOS_VENTOS_CRSF)
 // O Guardião dos Ventos Siderais, intérprete dos desígnios para a Gralha.
 CrsfSerial guardiao_dos_ventos_siderais(PORTAL_DOS_VENTOS_CELESTES);
@@ -97,9 +95,7 @@ MantoDeLuzCelestial manto_celestial_da_gralha;
 #endif
 Servo tendao_da_asa_matutina, tendao_da_asa_vespertina;
 
-// =======================================================
-// FUNÇÕES DE MAPEAMENTO E FORMA
-// =======================================================
+/* A Alquimia dos Números — Rituais que transformam vibrações em movimento. */
 // Ritual de Mapeamento Harmônico: Converte vibrações entre escalas.
 float mapear_entre_escalas_harmonicas(float valor, float minimo_origem, float max_origem, float minimo_destino, float max_destino) {
   return (valor - minimo_origem) * (max_destino - minimo_destino) / (max_origem - minimo_origem) + minimo_destino;
@@ -117,9 +113,7 @@ float forma_do_bater_das_asas(float canto_do_vento, float direcao_do_bater, floa
   return resultado;
 }
 
-// =======================================================
-// MANTO DE LUZ CELESTIAL — Implementação
-// =======================================================
+/* O Manto de Luz — A chama azul que pulsa com o coração da Gralha. */
 #ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
 void MantoDeLuzCelestial::AcenderLuzPrimordial() {
   chama_azul_pixel.begin();
@@ -192,9 +186,7 @@ void MantoDeLuzCelestial::IrradiarLuzDaAlma() {
 }
 #endif
 
-// =======================================================
-// RITUAIS DE SINTONIA E PERCEPÇÃO DA ALMA ALADA
-// =======================================================
+/* Os Rituais de Escuta — A Gralha sintoniza seus oráculos para sentir o mundo. */
 #ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
 void DespertarOraculoDaPressao() {
   Wire.setSDA(PINO_SILENCIO_DA_ALTURA);
@@ -317,9 +309,8 @@ void InterpretarAsVozesDoFirmamento(const unsigned long* channelValues, byte num
 }
 #endif
 
-// =======================================================
-// O RITUAL DA ANIMAÇÃO PRIMORDIAL — gralhaAzulSetup()
-// =======================================================
+/* O Acordar da Lenda — gralhaAzulSetup()
+   Quando a Gralha desperta, cada tendão se estica, cada oráculo escuta. */
 void gralhaAzulSetup() {
 #ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
   manto_celestial_da_gralha.AcenderLuzPrimordial();
@@ -357,9 +348,8 @@ void gralhaAzulSetup() {
 #endif
 }
 
-// =======================================================
-// A DANÇA CÓSMICA — AnimarPulsarDoCoracaoAlado()
-// =======================================================
+/* O Coração que Pulso no Tempo — AnimarPulsarDoCoracaoAlado()
+   A cadência do bater das asas, tecida pelo sopro vital e pelo compasso da alma. */
 void AnimarPulsarDoCoracaoAlado() {
   unsigned long agora = relogio_das_eras.instante_do_agora_cosmico;
   unsigned long ultima = relogio_das_eras.ultima_pulsacao_do_sopro_alado;
@@ -386,9 +376,8 @@ void AnimarPulsarDoCoracaoAlado() {
   }
 }
 
-// =======================================================
-// O SUSTENTAR DA ALTURA — SustentarAltura()
-// =======================================================
+/* O Hálito que Sustenta o Voo — SustentarAltura()
+   Quando a Gralha ouve a pressão do céu, ela se segura no ar como uma prece. */
 void SustentarAltura() {
 #ifndef GRALHA_AZUL_BAROMETRO_DESLIGADO
   ganho_do_sustentar = mapear_entre_escalas_harmonicas(
@@ -427,9 +416,8 @@ void SustentarAltura() {
 #endif
 }
 
-// =======================================================
-// O MOVIMENTO DOS PORTAIS ALADOS — ManifestarOVooNosVentos()
-// =======================================================
+/* A Dança das Asas no Vento — ManifestarOVooNosVentos()
+   Onde o comando se faz carne, e a Gralha desenha no céu a sua sina. */
 void ManifestarOVooNosVentos() {
   float comando_aletao = (voz_do_aletao - 1500.0f) * ESCALA_ANGULAR_DA_ARTICULACAO;
   float comando_profundor = (voz_do_profundor - 1500.0f) * ESCALA_ANGULAR_DO_PROFUNDOR;
@@ -477,9 +465,8 @@ void ManifestarOVooNosVentos() {
   tendao_da_asa_vespertina.write(constrain(angulo_portal_direito + OFFSET_ANGULAR_NEUTRO, 0, 180));
 }
 
-// =======================================================
-// O SOPRO AO ÉTER — SussurrarVooAoEter()
-// =======================================================
+/* O Sussurro ao Firmamento — SussurrarVooAoEter()
+   A Gralha conta ao cosmos onde dança, para que o mundo saiba do seu voo. */
 #if !defined(GRALHA_AZUL_TELEMETRIA_DESLIGADO) && defined(RECEPTOR_DOS_VENTOS_CRSF)
 void SussurrarVooAoEter() {
   if (!oraculo_respira) return;
@@ -535,9 +522,8 @@ void SussurrarVooAoEter() {
 }
 #endif
 
-// =======================================================
-// O CICLO INFINITO — gralhaAzulLoop()
-// =======================================================
+/* O Ciclo Eterno — gralhaAzulLoop()
+   A cada batida do tempo, a Gralha renova a sua dança. */
 void gralhaAzulLoop() {
   relogio_das_eras.instante_do_agora_cosmico = millis();
 
@@ -600,6 +586,6 @@ void gralhaAzulLoop() {
   }
   relogio_das_eras.ultima_pulsacao_do_sopro_alado = relogio_das_eras.instante_do_agora_cosmico;
 }
-// E assim, o Grande Código da Gralha Azul se manifesta, em cada ciclo,
-// um testemunho alado da resiliência da vida, da magia da transformação,
-// e da perene esperança semeada entre o céu e a terra.
+/* E assim, o Grande Código da Gralha Azul se manifesta, em cada ciclo,
+   um testemunho alado da resiliência da vida, da magia da transformação,
+   e da perene esperança semeada entre o céu e a terra. */

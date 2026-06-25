@@ -1,6 +1,6 @@
 /*
   O Grande Código da Gralha Azul
-  — Exemplo PPM —
+  — Exemplo PPM: Gralha-dos-Pampas —
 
   Configuração para receptor PPM (8 canais).
   CH9 e CH10 são fixos (não disponíveis em PPM de 8 canais).
@@ -8,27 +8,36 @@
   Telemetria CRSF não está disponível em modo PPM.
 */
 
-// === Configuração do Modelo ===
+/* O mensageiro dos ventos cósmicos — PPM. */
 #define RECEPTOR_DOS_VENTOS_PPM
-#define PINO_DO_MENSAGEIRO 2
-#define NUM_CANAIS_DO_MENSAGEIRO 8
+#define PINO_DO_MENSAGEIRO            2
+#define NUM_CANAIS_DO_MENSAGEIRO       8
 
-// Descomente para desativar módulos opcionais:
-// #define GRALHA_AZUL_NEOPIXEL_DESLIGADO
-// #define GRALHA_AZUL_BAROMETRO_DESLIGADO
-// #define GRALHA_AZUL_TELEMETRIA_DESLIGADO
+/* Descomente para silenciar os módulos que não precisa:
+// #define GRALHA_AZUL_NEOPIXEL_DESLIGADO   — sem a chama azul
+// #define GRALHA_AZUL_BAROMETRO_DESLIGADO  — sem o oráculo da pressão
+*/
 
-// Pinos dos servos (RP2040 Zero)
-#define ARTICULACAO_ASA_DA_MANHA 8
-#define ARTICULACAO_ASA_DO_ENTARDECER 7
+/* Os portais dos tendões alados. */
+#define ARTICULACAO_ASA_DA_MANHA       8
+#define ARTICULACAO_ASA_DO_ENTARDECER  7
 
-// NeoPixel
-#define NUCLEO_DA_CHAMA_AZUL 16
+/* A chama que pulsa no peito da Gralha. */
+#define NUCLEO_DA_CHAMA_AZUL          16
 #define QUANTIDADE_DE_CENTELHAS_NA_CHAMA 1
 
-// I2C para BMP180 (RP2040 Zero: GPIO26/27)
-#define PINO_SILENCIO_DA_ALTURA 4   // SDA (Wire)
-#define PINO_RITMO_DA_PRESSAO 5     // SCL (Wire)
+/* O oráculo da pressão — I2C para BMP180. */
+#define PINO_SILENCIO_DA_ALTURA        4   // SDA
+#define PINO_RITMO_DA_PRESSAO          5   // SCL
+
+/* O ângulo de planar — glide degree para a Gralha-dos-Pampas,
+   que prefere planícies abertas com suave descida. */
+#define ANGULO_DO_PLANAR_SERENO       -3
+
+/* O ciclo do coração alado.
+   Para servos de 180° com rotação contínua via polia.
+   Ajuste conforme a especificação do servo: tempo mínimo de ciclo. */
+#define CICLO_DO_CORACAO_ALADO  0.052f
 
 #include "../../src/GralhaAzul.h"
 
