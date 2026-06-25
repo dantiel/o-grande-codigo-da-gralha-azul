@@ -390,10 +390,8 @@ void SustentarAltura() {
   if (oraculo_respira && ganho_do_sustentar > GANHO_LIMIAR_SUSTENTAR) {
     if (!modo_sustentar_ativo) {
       modo_sustentar_ativo = true;
+      altura_desejada_do_voo = altura_do_voo_sideral;
     }
-    altura_desejada_do_voo = mapear_entre_escalas_harmonicas(
-      (float)voz_do_sopro_vital, 1000.0f, 2000.0f,
-      0.0f, ALTURA_MAX_DO_SUSTENTAR_M);
     float erro = altura_desejada_do_voo - altura_do_voo_sideral;
     if (fabs(erro) < SILENCIO_DO_SUSTENTAR_M) {
       // Zona morta: nulo

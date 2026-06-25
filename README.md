@@ -29,11 +29,11 @@ Open `o-grande-codigo-da-gralha-azul.ino` in Arduino IDE with the `src/` folder 
   │              │               │          │            │          │
   │  GPIO 7 [~]──►──────────────►│          │════════════│          │
   │              │               │          │            │          │
-  │  GPIO 0 TX ──► (yel) ──────►│ ELRS RX  │            │          │
-  │  GPIO 1 RX ◄─── (blu) ◄─────│ ELRS TX  │            │          │
+  │  GPIO 0 TX ───► (yel) ──────►│ ELRS RX  │            │          │
+  │  GPIO 1 RX ◄─── (blu) ◄──────│ ELRS TX  │            │          │
   │              │               │          │            │          │
   │  VBUS ────────► ELRS VCC     │          │            │          │
-  │  GND  ◄── GND ◄── ELRS GND ◄┼──────────┼────────────┼──────────┤
+  │  GND  ◄──────── ELRS GND ◄───┼──────────┼────────────┼──────────┤
   │              │               │ red ─────┼── 5V BEC   │ red ─────┼── 5V BEC
   │              │               │ blk ─────┼── GND      │ blk ─────┼── GND
   └──────────────┘               └──────────┘            └──────────┘
