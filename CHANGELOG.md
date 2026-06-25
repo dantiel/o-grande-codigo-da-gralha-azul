@@ -1,18 +1,20 @@
 # CHANGELOG
+:start_line:2
+-------
 
 ## v1.17.1 — All non-code documentation restored to English
-- README.md restored from v1.1.0 English base, with library structure, config section, servo recommendations table, and full Portuguese name reference
-- DOCUMENTATION.md rewritten in English (~250 lines): technical reference with architecture, API parameters, performance, troubleshooting
-- MIGRATION_GUIDE.md rewritten in English: compact step-by-step from monolithic .ino
+- README.md: restored from v1.1.0 base with library structure, config section, servo recommendations, parameter name reference
+- DOCUMENTATION.md: rewritten in English, technical reference covering architecture, API, performance, troubleshooting
+- MIGRATION_GUIDE.md: rewritten in English, step-by-step from monolithic .ino
 
-## v1.17.0 — Servo-specific examples, poetic Brazilian code comments
-- **Purificatio**: New `src/GralhaAzulConfig.h` — centralised config header with `#ifndef` guards
-- **Purificatio**: src/GralhaAzul.h simplified — includes config, removes redundant defines
-- **Purificatio**: 4 examples each tailored to a servo type (Blue Arrow D0576HT, DSSERVO DS3218, KST MS320)
-- **Purificatio**: Removed redundant `extern float pulsacao_da_chama_primordial` (is class member)
-- **Validatio**: Fixed duplicate externs + missing definitions (potential linker errors)
-- **Validatio**: CRSF link loss fallback implemented
-- Code comments: 100% poetic Brazilian Portuguese (src/, examples/, .ino)
+## v1.17.0 — Config header, servo-specific examples, link-loss fallback
+- New `src/GralhaAzulConfig.h` — centralised configuration header with `#ifndef` guards
+- `src/GralhaAzul.h` simplified — includes config header, removes redundant defines
+- 4 example sketches tailored to different servo types (Blue Arrow D0576HT, DSSERVO DS3218, KST MS320)
+- Removed redundant `extern float pulsacao_da_chama_primordial` (already a class member)
+- Fix: duplicate extern declarations corrected; missing definitions added (potential linker errors fixed)
+- CRSF link loss fallback implemented
+- All source/example comments retain original Portuguese documentation style
 
 ## v1.16.3 — GralhaAzul.cpp full rewrite from v1.15.1 base
 - Relative include path `../../src/GralhaAzul.h` for examples
