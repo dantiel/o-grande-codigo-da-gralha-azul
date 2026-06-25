@@ -79,18 +79,21 @@ float tendencia_da_temperatura_c = 0.0f;
 float ultima_temperatura_do_ar_c = 0.0f;
 bool modo_de_escuta_termal = false;
 float fe_no_sopro_quente = 0.0f;
-float ganho_do_sustentar = 0.0f;
-float altura_desejada_do_voo = 0.0f;
-float sopro_vital_do_sustentar = 1500.0f;
-bool modo_sustentar_ativo = false;
-float pulsacao_da_chama_primordial = 0.0f;
+extern float ganho_do_sustentar;
+extern float altura_desejada_do_voo;
+extern float sopro_vital_do_sustentar;
+extern bool modo_sustentar_ativo;
 
 /* A Geometria Sagrada do Voo */
 float angulo_da_danca_alada = 0;
 float cadencia_do_destino_alado = 0;
 float pulso_do_sopro_vital = 0.0;
+float ganho_do_sustentar = 0.0f;
+float altura_desejada_do_voo = 0.0f;
+float sopro_vital_do_sustentar = 0.0f;
+bool modo_sustentar_ativo = false;
 
-#ifndef GRALHA_AZUL_NEOPIXEL_DESLIGADO
+/* A Alquimia dos Números — Rituais que transformam vibrações em movimento. */
 MantoDeLuzCelestial manto_celestial_da_gralha;
 #endif
 Servo tendao_da_asa_matutina, tendao_da_asa_vespertina;
