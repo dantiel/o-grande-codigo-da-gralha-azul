@@ -456,11 +456,11 @@ void ManifestarOVooNosVentos() {
     float pulso_asa_direita = forma_do_bater_das_asas(canto_original_da_asa, direcao_do_bater, ferocidade_bater_direita, ferocidade_retorno_direita);
     float graus_asa_esquerda = magnitude_da_batida * pulso_asa_esquerda;
     float graus_asa_direita  = magnitude_da_batida * pulso_asa_direita;
-    angulo_portal_esquerdo = (int)((comando_aletao - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
-    angulo_portal_direito  = (int)((comando_aletao + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
+    angulo_portal_esquerdo = (int)((comando_profundor - graus_asa_esquerda + ORIGEM_ASA_MATUTINA - comando_aletao) * MULTIPLICADOR_FINAL_ANGULAR);
+    angulo_portal_direito  = (int)((comando_profundor + graus_asa_direita + ORIGEM_ASA_VESPERTINA + comando_aletao) * MULTIPLICADOR_FINAL_ANGULAR);
   } else {
-    angulo_portal_esquerdo = (int)((comando_aletao - ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_MATUTINA - comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
-    angulo_portal_direito  = (int)((comando_aletao + ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_VESPERTINA + comando_profundor) * MULTIPLICADOR_FINAL_ANGULAR);
+    angulo_portal_esquerdo = (int)((comando_profundor - ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_MATUTINA - comando_aletao) * MULTIPLICADOR_FINAL_ANGULAR);
+    angulo_portal_direito  = (int)((comando_profundor + ANGULO_DO_PLANAR_SERENO + ORIGEM_ASA_VESPERTINA + comando_aletao) * MULTIPLICADOR_FINAL_ANGULAR);
   }
   tendao_da_asa_matutina.write(constrain(angulo_portal_esquerdo + OFFSET_ANGULAR_NEUTRO, 0, 180));
   tendao_da_asa_vespertina.write(constrain(angulo_portal_direito + OFFSET_ANGULAR_NEUTRO, 0, 180));
