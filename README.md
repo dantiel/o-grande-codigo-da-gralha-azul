@@ -188,10 +188,10 @@ Choose `CICLO_DO_CORACAO_ALADO` based on your servo's speed rating at your suppl
 
 | Servo | Speed (60°) | Torque | Weight | Suggested `CICLO_DO_CORACAO_ALADO` | Rate |
 |-------|-------------|--------|--------|-----------------------------------|------|
-| PTK 7465W | 0.07s @6V | 5.5 kg·cm | 13g | `0.070f` | ~14 Hz |
+| PTK 7465W | 0.07s @8.4V | 5.5 kg·cm | 13g | `0.070f` | ~14 Hz |
 | Blue Arrow AF D43S-6.0-MG | 0.041s @6V | 1.76 kg·cm | 5.6g | `0.041f` | ~24 Hz |
-| Blue Arrow D0576HT | 0.056s @5V | 4.2 kg·cm | 7.9g | `0.056f` | ~18 Hz |
-| KST MS320 | 0.08s @6V | 4.5 kg·cm | 21g | `0.080f` | ~12 Hz |
+| Blue Arrow D0576HT | 0.056s @7.4V | 4.2 kg·cm | 7.9g | `0.056f` | ~18 Hz |
+| KST MS320 | 0.08s @8.4V | 4.5 kg·cm | 21g | `0.080f` | ~12 Hz |
 
 ## Receiver Setup
 
@@ -261,7 +261,7 @@ A: Reduce wingbeat rate — increase `CICLO_DO_CORACAO_ALADO`. Check servo speed
 A: Verify CRSF wiring (TX↔RX crossover). Check baud rate (420000). Confirm receiver flashed with CRSF protocol.
 
 **Q: Barometer not detected.**
-A: Check I2C wiring (GP4=SDA, GP5=SCL). Ensure BMP180 is 3.3V compatible. I2C address: `0x77` (configurable via `PORTA_DA_ALTITUDE`).
+A: Check I2C wiring (GP4=SDA, GP5=SCL). Ensure BMP180 is 3.3V compatible. I2C address: `0x77`.
 
 **Q: NeoPixel stays dark.**
 A: Confirm `NEOPIXEL_DESLIGADO` is not defined. Check GPIO 16 connection.
