@@ -16,27 +16,24 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
 
 ```
   Complete Wiring Diagram (CRSF + Servos + BEC)
-  ═══════════════════════════════════════════════════════════════════
-
-                              6V BEC
-                         ╭───────────────╮
-                         │               │
-    Battery +V ◄─────────│  VIN          │
-    (LiPo 2S-4S)         │               │
-    Battery GND ◄────────│  GND          │
-                         │  6V OUT ├─────┼──────────────────────► Servo Left 6V
-                         │               │                      
-                         │         ╰─────┼──────────────────────► Servo Right 6V
-                         │               │                      
-                         │  GND    ├─────┼──────────────────────► Servo Left GND
-                         │               │
-                         │         ╰─────┼──────────────────────► Servo Right GND
-                         │               │
-                         │         ├─────┼──────────────────────► Battery GND
-                         │               │
-                         ╰───────────────┼──────────────────────┤
-                                         │                      │
-                                         │                      │
+                                6V BEC
+                           ╭───────────────╮
+                           │               │
+      Battery +V ─────────►│  VIN          │
+      (LiPo 2S-4S)         │               │
+      Battery GND ────────►│  GND          │
+                           │               │
+                           │  6V OUT ├─────┼──────────────────────► Servo Left 6V
+                           │               │
+                           │         ├─────┼──────────────────────► Servo Right 6V
+                           │               │
+                           │  GND    ├─────┼──────────────────────► Servo Left GND
+                           │               │
+                           │         ├─────┼──────────────────────► Servo Right GND
+                           │               │
+                           ╰───────────────┼──────────────────────┤
+                                           │                      │
+                                           │                      │
   RP2040 Zero                            │                      │
   ╭───────────────────╮                  │                      │
   │                   │                  │                      │
