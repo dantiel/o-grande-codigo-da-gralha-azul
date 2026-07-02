@@ -12,32 +12,61 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
 
 ### 2. Wire Your Hardware
 
-**Minimal CRSF + 2 Servos:**
+### CRSF Receiver (ExpressLRS)
 
 ```
-  RP2040 Zero                     Servo Left              Servo Right
-                             
-                                                               
-    GPIO 8 [~] Signal                Signal
-                                                               
-    GPIO 7 [~]
-                                                               
-    GPIO 0 TX  (yel)  ELRS RX
-    GPIO 1 RX  (blu)  ELRS TX
-                                                               
-    VBUS  ELRS VCC
-    GND   GND  ELRS GND
-                                red  5V BEC    red  5V BEC
-                                blk  GND       blk  GND
-                             
-
-  External 5V BEC
+RP2040 Zero              ELRS Receiver
+═══════════════════════════════════════          ═══════════════════════════════════════
+║ GPIO 0 (TX) ════════════════════════════════════ RX               ║  (yellow wire)
+║ GPIO 1 (RX) ════════════════════════════════════ TX               ║  (white/blue wire)
+║             ║          ║                        ║
+║ 3.3V       ═══════════════════════════════════════ VCC (3.3V)     ║
+║ GND        ════════════════════════════════════════ GND              ║
+═══════════════════════════════════════          ═══════════════════════════════════════
 ```
 
-- **Common ground** between RP2040, servos, and ELRS receiver
-- **Do not power servos from RP2040 3.3V** — use external BEC (5V / 6V)
-- CRSF baud: 420000
-- GPIO 0 (TX) → ELRS RX, GPIO 1 (RX) → ELRS TX (crossover)
+**Important:** Some ELRS receivers operate at 3.3V, others at 5V. Check your receiver's specifications. The RP2040 Zero's 3.3V output is sufficient for 3.3V receivers. For 5V receivers, power VCC from the external BEC/battery (same source as servos).
+
+### Servos (External Power)
+
+```
+External 5V BEC / Battery
+═══════════════════════════════════════════════════════════════════════════
+║ 5V+ ═══════════════════════════════════════════════════ Servo Power (red wires, both servos)
+║ GND ═══════════════════════════════════════════════════ Servo GND (black/brown wires, both servos)
+║                     ║   AND ═══════════ RP2040 GND (common ground!)
+═══════════════════════════════════════════════════════════════════════════
+
+RP2040 Zero              Servo Left Wing (GPIO 8)
+═══════════════════════════════════════          ═══════════════════════════════════════
+║ GPIO 8      ═════════════════════════════════════ Signal (white/yellow)
+═══════════════════════════════════════          ═══════════════════════════════════════
+
+RP2040 Zero              Servo Right Wing (GPIO 7)
+═══════════════════════════════════════          ═══════════════════════════════════════
+║ GPIO 7      ═════════════════════════════════════ Signal (white/yellow)
+═══════════════════════════════════════          ═══════════════════════════════════════
+```
+
+**Critical:** Servos draw significant current. The RP2040's internal regulator cannot supply this. Always use an external BEC or battery for servo power. Connect **all grounds** (RP2040, servos, receiver, BEC) together.
+
+### NeoPixel — Internal LED (Optional)
+
+The RP2040 Zero has a **built-in NeoPixel (WS2812B)** on GPIO 16. No external wiring is needed.
+
+### BMP180 Barometer (Optional)
+
+```
+BMP180 Module            RP2040 Zero
+═══════════════════════════════════════        ═══════════════════════════════════════
+║ VCC          ═══════════════════════════════════ 3V3           ║
+║ GND          ═══════════════════════════════════ GND           ║
+║ SDA (GP4)    ═══════════════════════════════════ GPIO 4        ║  (I2C0 SDA)
+║ SCL (GP5)    ═══════════════════════════════════ GPIO 5        ║  (I2C0 SCL)
+═══════════════════════════════════════        ═══════════════════════════════════════
+```
+
+**Enabled by:** `#define ORACULO_DA_PRESSAO_DO_CEU` at the top of the sketch. Without this define, no barometer libraries are required.
 
 **Pin Allocation:**
 
