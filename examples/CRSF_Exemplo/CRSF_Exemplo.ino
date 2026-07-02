@@ -6,17 +6,26 @@
   com asas que cortam o crepúsculo. Esta é a configuração completa:
   CRSF, NeoPixel, BMP180, Telemetria — todos os sentidos despertos.
 
-  Para configurar este modelo, crie um arquivo GralhaAzulConfig.h
-  no diretório do sketch com as constantes desejadas.
-  Sem ele, a biblioteca usará GralhaAzulConfig_Defaults.h.
+  Hardware: RP2040 | CRSF Serial1 | Servos em pinos configuráveis
 */
 
 #include <GralhaAzul.h>
 
+GralhaAzul gralha;
+
 void setup() {
-  gralhaAzulSetup();
+  // Articulações das asas
+  gralha.articulacaoAsaDaManha = 3;
+  gralha.articulacaoAsaDoEntardecer = 8;
+  
+  // O ciclo do coração alado
+  gralha.cicloDoCoracaoAlado = 0.065f;
+  
+  // Despertar a Gralha
+  gralha.begin();
 }
 
 void loop() {
-  gralhaAzulLoop();
+  // A pulsação eterna
+  gralha.update();
 }
