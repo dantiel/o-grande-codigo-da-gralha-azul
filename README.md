@@ -57,7 +57,7 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
 
 
 - **Common ground** between RP2040, servos, and ELRS receiver
-- **Do not power servos from RP2040 3.3V** — use external BEC (5V / 6V / 7.4V depending on servo specs)
+- **Do not power servos from RP2040 3.3V** — use external BEC (e.g., 6V for PTK 7465W, Blue Arrow AF D43S-6.0-MG)
 - CRSF baud: 420000 (`FREQUENCIA_DO_SOPRO_COSMICO`)
 - GPIO 0 (TX) → ELRS RX, GPIO 1 (RX) → ELRS TX (crossover)
 
@@ -149,7 +149,7 @@ The Gralha Azul will read your transmitter, animate the wings, and breathe life 
 Edit `src/GralhaAzul_Padraos.h` — all parameters use `#ifndef` guards, so you can override them in your sketch **before** `#include`:
 
 ```cpp
-#define CICLO_DO_CORACAO_ALADO 0.080f   // KST MS320 (12 Hz)
+#define CICLO_DO_CORACAO_ALADO 0.070f   // PTK 7465W (~14 Hz)
 #define ANGULO_DO_PLANAR_SERENO -2      // Gentle glide
 
 #include <GralhaAzul.h>
@@ -186,12 +186,12 @@ Define these **before** `#include <GralhaAzul.h>`.
 
 Choose `CICLO_DO_CORACAO_ALADO` based on your servo's speed rating at your supply voltage. Add ~20% safety margin. Slower = safer, faster = risk of overheating.
 
-| Servo | Speed (60°) | Torque | Suggested `CICLO_DO_CORACAO_ALADO` | Rate |
-|-------|-------------|--------|-----------------------------------|------|
-| PTK 7465W (5.6g) | 0.07s @6V | 1.5 kg·cm | `0.070f` | ~14 Hz |
-| Blue Arrow AF D43S-6.0-MG (4.3g) | 0.08s @6V | 1.2 kg·cm | `0.080f` | ~12 Hz |
-| Blue Arrow D0576HT (1.7g) | 0.07s @5V | 0.2 kg·cm | `0.070f` | ~14 Hz |
-| KST MS320 (56g) | 0.14s @8.4V | 8.5 kg·cm | `0.140f` | ~7 Hz |
+| Servo | Speed (60°) | Torque | Weight | Suggested `CICLO_DO_CORACAO_ALADO` | Rate |
+|-------|-------------|--------|--------|-----------------------------------|------|
+| PTK 7465W | 0.07s @6V | 5.5 kg·cm | 13g | `0.070f` | ~14 Hz |
+| Blue Arrow AF D43S-6.0-MG | 0.041s @6V | 1.76 kg·cm | 5.6g | `0.041f` | ~24 Hz |
+| Blue Arrow D0576HT | 0.056s @5V | 4.2 kg·cm | 7.9g | `0.056f` | ~18 Hz |
+| KST MS320 | 0.08s @6V | 4.5 kg·cm | 21g | `0.080f` | ~12 Hz |
 
 ## Receiver Setup
 
