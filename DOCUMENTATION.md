@@ -7,7 +7,7 @@ The Gralha Azul is a **class-based library** with minimal public interface. All 
 ```cpp
 class GralhaAzul {
 public:
-  // The Eight Relics (configuration)
+  // The Eleven Relics (configuration)
   uint8_t articulacaoAsaDaManha;
   uint8_t articulacaoAsaDoEntardecer;
   uint8_t viaDosSonhosLunares;
@@ -17,14 +17,24 @@ public:
   Stream* ecosPrescindiveis;
   bool barometroDesligado;
   bool neopixelDesligado;
-  bool telemetriaDesligada;
-  
-  // The Messenger (for PPM)
-  void* mensageiroDosVentosCosmicos;
+  bool telemetriaDesligado;
   
   // The Rituals
   void begin();
   void update();
+  
+  // External Control (Injection)
+  void injetarVozDoAlerao(int valor);
+  void injetarVozDoProfundor(int valor);
+  void injetarVozDoSoproVital(int valor);
+  void injetarVozDoLemeEstelar(int valor);
+  void injetarVozDoDespertar(int valor);
+  void injetarVozDoCompassoDaAlma(int valor);
+  void injetarVozDaFerocidadeDoBater(int valor);
+  void injetarVozDaFerocidadeDoRetorno(int valor);
+  void injetarVozDaFerocidadeDoLeme(int valor);
+  void injetarVozDoSustentarAltura(int valor);
+  void injetarEstadoPresenteDaAlma(EstadoDaAlmaAlada estado);
 };
 ```
 
@@ -39,9 +49,10 @@ gralha.articulacaoAsaDoEntardecer = 8; // Right wing
 
 ### CRSF Setup
 
-CRSF is automatic if `CrsfSerial.h` is available at compile time:
-
 ```cpp
+#define RECEPTOR_CRSF
+#include <GralhaAzul.h>
+
 gralha.viaDosSonhosLunares = 1;  // RX pin
 gralha.viaDosEcosSolares = 0;    // TX pin
 ```
@@ -49,12 +60,11 @@ gralha.viaDosEcosSolares = 0;    // TX pin
 ### PPM Setup
 
 ```cpp
-#include <PPMReaderRP2040.h>
-
-gralha.mensageiroDosVentosCosmicos = new PPMReader(PIN, CHANNELS);
+#define RECEPTOR_PPM
+#define PORTAL_DOS_CANTOS_COSMICOS 1  // PPM input pin
+#define NUMERO_DE_CANTOS 8            // Number of channels
+#include <GralhaAzul.h>
 ```
-
-If `mensageiroDosVentosCosmicos` is set, CRSF will not be initialized.
 
 ### Flight Parameters
 
@@ -68,8 +78,26 @@ gralha.escalaAngularArticulacao = 0.04f;  // Servo travel multiplier
 ```cpp
 gralha.barometroDesligado = true;    // Disable BMP180
 gralha.neopixelDesligado = true;     // Disable NeoPixel
-gralha.telemetriaDesligada = true;   // Disable CRSF telemetry
+gralha.telemetriaDesligado = true;   // Disable CRSF telemetry
 ```
+
+## External Control (Injection)
+
+For custom receivers or mixing, use the injection methods:
+
+| Method | Channel | Range | Purpose |
+|--------|---------|-------|---------|
+| `injetarVozDoAlerao(valor)` | CH1 | 1000-2000 | Aileron |
+| `injetarVozDoProfundor(valor)` | CH2 | 1000-2000 | Elevator |
+| `injetarVozDoSoproVital(valor)` | CH3 | 1000-2000 | Throttle |
+| `injetarVozDoLemeEstelar(valor)` | CH4 | 1000-2000 | Rudder |
+| `injetarVozDoDespertar(valor)` | CH5 | 0/1 | Arm switch |
+| `injetarVozDoCompassoDaAlma(valor)` | CH6 | 1000-2000 | Flight mode |
+| `injetarVozDaFerocidadeDoBater(valor)` | CH7 | 1000-2000 | Flap speed |
+| `injetarVozDaFerocidadeDoRetorno(valor)` | CH8 | 1000-2000 | Flap return speed |
+| `injetarVozDaFerocidadeDoLeme(valor)` | CH9 | 1000-2000 | Rudder mix |
+| `injetarVozDoSustentarAltura(valor)` | CH10 | 1000-2000 | Altitude hold target |
+| `injetarEstadoPresenteDaAlma(estado)` | — | enum | `EM_DANCA_COM_OS_VENTOS` or `EM_SONHO_NA_QUIETUDE_DA_FLORESTA` |
 
 ## The Pulse Cycle
 
@@ -81,24 +109,13 @@ Each `update()` call performs:
 4. **Breathe the Light** — NeoPixel animation
 5. **Whisper to the Ether** — Telemetry transmission
 
-## CRSF Events
-
-The library provides callbacks for CRSF link state:
-
-```cpp
-void eventoLinkUp();    // Called when CRSF connects
-void eventoLinkDown();  // Called when CRSF disconnects
-```
-
-These are handled internally but can be extended.
-
 ## Default Values
 
 All defaults are defined in `GralhaAzul_Padraos.h`:
 
 ```cpp
-#define ARTICULACAO_DA_ASA_MATUTINA_PADRAO 3
-#define ARTICULACAO_DA_ASA_VESPERTINA_PADRAO 8
+#define ARTICULACAO_ASA_DA_MANHA_PADRAO 3
+#define ARTICULACAO_ASA_DO_ENTARDECER_PADRAO 8
 #define CICLO_DO_CORACAO_ALADO_PADRAO 0.052f
 #define ESCALA_ANGULAR_ARTICULACAO_PADRAO 0.04f
 // ... etc
@@ -110,7 +127,7 @@ The library is designed for one sketch per model. Each sketch:
 
 1. Includes `GralhaAzul.h`
 2. Creates a `GralhaAzul` instance
-3. Configures the 8 relics
+3. Configures the relics
 4. Calls `begin()` in `setup()`
 5. Calls `update()` in `loop()`
 
@@ -123,7 +140,7 @@ All identifiers follow Portuguese poetic naming:
 | Technical Concept | Poetic Name |
 |-------------------|-------------|
 | Servo pin | `articulacaoAsaDaManha` |
-| Throttle | `pulsoDoDestinoAlado` |
+| Throttle | `vozDoSoproVital` |
 | Altitude hold | `sustentar` |
 | Flapping | `coracaoAlado` |
 | Telemetry | `sussurrarVooAoEter` |

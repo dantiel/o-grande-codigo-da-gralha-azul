@@ -44,41 +44,59 @@ void loop() {
 
 The Gralha Azul will read your transmitter, animate the wings, and breathe life into your creation.
 
-## The Eight Relics
+## The Eleven Relics
 
-These are the only fields you need to configure:
+These are the fields you can configure before calling `begin()`:
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| `articulacaoAsaDaManha` | 3 | Left wing servo pin |
-| `articulacaoAsaDoEntardecer` | 8 | Right wing servo pin |
-| `viaDosSonhosLunares` | 1 | CRSF RX pin |
-| `viaDosEcosSolares` | 0 | CRSF TX pin |
-| `cicloDoCoracaoAlado` | 0.052f | Flapping frequency |
-| `escalaAngularArticulacao` | 0.04f | Servo travel scale |
-| `ecosPrescindiveis` | nullptr | Debug stream (Serial) |
-| `barometroDesligado` | false | Disable barometer |
-| `neopixelDesligado` | false | Disable NeoPixel |
-| `telemetriaDesligada` | false | Disable telemetry |
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `articulacaoAsaDaManha` | uint8_t | 3 | Left wing servo pin |
+| `articulacaoAsaDoEntardecer` | uint8_t | 8 | Right wing servo pin |
+| `viaDosSonhosLunares` | uint8_t | 1 | CRSF RX pin |
+| `viaDosEcosSolares` | uint8_t | 0 | CRSF TX pin |
+| `cicloDoCoracaoAlado` | float | 0.052f | Flapping frequency |
+| `escalaAngularArticulacao` | float | 0.04f | Servo travel scale |
+| `ecosPrescindiveis` | Stream* | nullptr | Debug stream (Serial) |
+| `barometroDesligado` | bool | false | Disable barometer |
+| `neopixelDesligado` | bool | false | Disable NeoPixel |
+| `telemetriaDesligado` | bool | false | Disable telemetry |
 
 ## Receiver Types
 
-### CRSF (Default)
+### CRSF
 ```cpp
-// CRSF is automatic if CrsfSerial.h is available
-// Pins: viaDosSonhosLunares (RX), viaDosEcosSolares (TX)
+#define RECEPTOR_CRSF
+#include <GralhaAzul.h>
+
+// CRSF uses: viaDosSonhosLunares (RX), viaDosEcosSolares (TX)
 ```
 
-### PPM (Optional)
+### PPM
 ```cpp
-#include <PPMReaderRP2040.h>
+#define RECEPTOR_PPM
+#define PORTAL_DOS_CANTOS_COSMICOS 1
+#define NUMERO_DE_CANTOS 8
+#include <GralhaAzul.h>
 
-GralhaAzul gralha;
+// PPM is automatic when RECEPTOR_PPM is defined
+```
 
-void setup() {
-  gralha.mensageiroDosVentosCosmicos = new PPMReader(1, 8);  // Pin 1, 8 channels
-  gralha.begin();
-}
+## External Control (Injection)
+
+For custom receivers or mixing, inject channel values directly:
+
+```cpp
+gralha.injetarVozDoAlerao(1500);        // Aileron (CH1)
+gralha.injetarVozDoProfundor(1500);     // Elevator (CH2)
+gralha.injetarVozDoSoproVital(1000);    // Throttle (CH3)
+gralha.injetarVozDoLemeEstelar(1500);   // Rudder (CH4)
+gralha.injetarVozDoDespertar(0);        // Arm switch (CH5)
+gralha.injetarVozDoCompassoDaAlma(1500); // Flight mode (CH6)
+gralha.injetarVozDaFerocidadeDoBater(1000);    // Flap speed (CH7)
+gralha.injetarVozDaFerocidadeDoRetorno(1000);   // Flap return (CH8)
+gralha.injetarVozDaFerocidadeDoLeme(1000);      // Rudder mix (CH9)
+gralha.injetarVozDoSustentarAltura(1000);       // Altitude hold (CH10)
+gralha.injetarEstadoPresenteDaAlma(EM_DANCA_COM_OS_VENTOS); // Armed
 ```
 
 ## Examples
