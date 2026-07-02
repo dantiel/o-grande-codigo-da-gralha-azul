@@ -1,57 +1,88 @@
 # CHANGELOG
 
-## v1.23.0 — The Pure Essence
+## v1.0.0 — First Official Release
 
-- **Purified**: Removed all meta-commentary about poetry
-- **Essence**: Code now IS the incantation, not commentary about it
-- **Documentation**: Complete rewrite for class-based API
+**The Gralha Azul awakens.**
 
-## v1.22.0 — The Purification
+- **Architecture**: Class-based API with public configuration fields
+- **Receivers**: CRSF (ExpressLRS) and PPM support
+- **Servos**: Dual servo control for flapping wings
+- **Lighting**: NeoPixel support with breathing animation
+- **Telemetry**: CRSF telemetry output (altitude, battery)
+- **Barometer**: Optional altitude hold using BMP280
+- **Naming**: Poetic/mystical naming throughout
+  - `articulacaoAsaDaManha` — Left wing servo pin
+  - `articulacaoAsaDoEntardecer` — Right wing servo pin
+  - `viaDosSonhosLunares` — CRSF RX pin
+  - `viaDosEcosSolares` — CRSF TX pin
+  - `cicloDoCoracaoAlado` — Flapping frequency
+  - `escalaAngularArticulacao` — Servo travel range
+  - `ecosPrescindiveis` — Debug serial
+  - `barometroDesligado` — Disable barometer
+  - `neopixelDesligado` — Disable NeoPixel
+  - `telemetriaDesligado` — Disable telemetry
 
-- **Removed**: All technical naming fallbacks (`_PIN`, `_MS`, `_HPA`)
-- **Pure**: Only poetic names throughout
-- **Sketches**: All 4 models updated to poetic naming
+### API
 
-## v1.21.0 — The Great Renaming
+```cpp
+GralhaAzul gralha;
 
-- **Poetic naming**: All macros renamed from technical to mystical
-  - `ASA_MANHA_PIN` → `ARTICULACAO_DA_ASA_MATUTINA`
-  - `PPM_PIN` → `PORTAL_DOS_CANTOS_COSMICOS`
-  - `CRSF_BAUDRATE` → `FREQUENCIA_DO_SOPRO_COSMICO`
-- **Removed**: `_MS` and `_HPA` suffixes from defaults
+void setup() {
+  gralha.articulacaoAsaDaManha = 3;
+  gralha.articulacaoAsaDoEntardecer = 8;
+  gralha.begin();
+}
 
-## v1.20.0 — The Macro Simplification
+void loop() {
+  gralha.update();
+}
+```
 
-- **Optimization**: Using `_PADRAO` macros directly instead of duplicating as fields
-- **Memory**: ~160 bytes RAM saved by removing redundant fields
-- **Fields reduced**: From ~55 to 8 essential public fields
+### Configuration
 
-## v1.19.0 — The Class Awakening
+Before `begin()`, set the public fields:
 
-- **Architecture**: Refactored from global functions to class-based
-- **API**: `GralhaAzul gralha; gralha.begin(); gralha.update();`
-- **Removed**: `gralhaAzulSetup()` / `gralhaAzulLoop()` globals
-- **Added**: Proper encapsulation with public configuration fields
+| Field | Type | Default | Purpose |
+|-------|------|---------|---------|
+| `articulacaoAsaDaManha` | `uint8_t` | 3 | Left wing servo pin |
+| `articulacaoAsaDoEntardecer` | `uint8_t` | 8 | Right wing servo pin |
+| `viaDosSonhosLunares` | `uint8_t` | 1 | CRSF RX pin |
+| `viaDosEcosSolares` | `uint8_t` | 0 | CRSF TX pin |
+| `cicloDoCoracaoAlado` | `float` | 0.052 | Flapping frequency |
+| `escalaAngularArticulacao` | `float` | 1.0 | Servo travel scale |
+| `ecosPrescindiveis` | `Stream*` | `&Serial` | Debug output |
+| `barometroDesligado` | `bool` | `false` | Disable BMP280 |
+| `neopixelDesligado` | `bool` | `false` | Disable NeoPixel |
+| `telemetriaDesligado` | `bool` | `false` | Disable telemetry |
 
-## v1.18.0 — The __has_include Architecture
+### Receiver Selection
 
-- **Feature**: Auto-detection of `GralhaAzulConfig.h` per model
-- **Feature**: `__has_include` for optional dependencies
-- **Refactor**: Three models to new architecture
+Use `#define` before including the header:
 
-## v1.17.0 — The Event System
+```cpp
+// For CRSF (ExpressLRS)
+#define RECEPTOR_CRSF
+#include <GralhaAzul.h>
 
-- **Feature**: CRSF link up/down callbacks
-- **Feature**: `eventoLinkUp()` / `eventoLinkDown()`
+// For PPM
+#define RECEPTOR_PPM
+#define PORTAL_DOS_CANTOS_COSMICOS 1
+#define NUMERO_DE_CANTOS 8
+#include <GralhaAzul.h>
+```
 
-## v1.16.0 — The Library Birth
+### Dependencies
 
-- **Refactor**: Extracted from monolithic .ino to library
-- **Structure**: `src/`, `examples/`, `library.properties`
-- **Models**: servo_mandorla_entomoid, servo_haliastur_indus, servo_hypervolution_xh4f_aetherwing
+- `CrsfSerial` (for CRSF receiver)
+- `PPMReaderRP2040` (for PPM receiver)
+- `Adafruit_NeoPixel` (optional, for lighting)
+- `Adafruit_BMP280` (optional, for altitude hold)
 
-## v1.15.1 and earlier
+### Examples
 
-- Monolithic .ino files
-- Global variables
-- Direct macro dependencies
+- `CRSF_Exemplo` — Basic CRSF setup
+- `PPM_Exemplo` — Basic PPM setup
+
+---
+
+*The Gralha Azul flies.*

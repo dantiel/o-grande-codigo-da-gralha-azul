@@ -1,6 +1,6 @@
 /*
   O Grande Código da Gralha Azul
-  v1.23.0 — A Essência Pura: O Código como Encantamento
+  First Official Release
   
   A Inscrição Primordial da Lenda Alada
   
@@ -86,18 +86,6 @@ public:
   void begin();   // O Despertar
   void update();  // A Pulsação Contínua
 
-  // Injeção de Vontades Externas — para receptores alheios
-  void injetarVozDoAlerao(int valor) { vozDoAlerao = valor; }
-  void injetarVozDoProfundor(int valor) { vozDoProfundor = valor; }
-  void injetarVozDoSoproVital(int valor) { vozDoSoproVital = valor; }
-  void injetarVozDoLemeEstelar(int valor) { vozDoLemeEstelar = valor; }
-  void injetarVozDoDespertar(int valor) { vozDoDespertar = valor; }
-  void injetarVozDoCompassoDaAlma(int valor) { vozDoCompassoDaAlma = valor; }
-  void injetarVozDaFerocidadeDoBater(int valor) { vozDaFerocidadeDoBater = valor; }
-  void injetarVozDaFerocidadeDoRetorno(int valor) { vozDaFerocidadeDoRetorno = valor; }
-  void injetarVozDaFerocidadeDoLeme(int valor) { vozDaFerocidadeDoLeme = valor; }
-  void injetarVozDoSustentarAltura(int valor) { vozDoSustentarAltura = valor; }
-  void injetarEstadoPresenteDaAlma(EstadoDaAlmaAlada estado) { estadoPresenteDaAlma = estado; }
 
 private:
   /* A Ponte Estática: Ecos entre Dimensões */

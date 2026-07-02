@@ -1,4 +1,6 @@
-# O Grande Código da Gralha Azul v1.23.0
+# O Grande Código da Gralha Azul
+
+**First Official Release**
 
 **The Great Code of the Azure Jay** — *A living incantation for ornithopter flight*
 

@@ -1,4 +1,6 @@
-# Documentation — O Grande Código da Gralha Azul v1.23.0
+# Documentation — O Grande Código da Gralha Azul
+
+**First Official Release**
 
 ## Architecture
 
@@ -22,19 +24,6 @@ public:
   // The Rituals
   void begin();
   void update();
-  
-  // External Control (Injection)
-  void injetarVozDoAlerao(int valor);
-  void injetarVozDoProfundor(int valor);
-  void injetarVozDoSoproVital(int valor);
-  void injetarVozDoLemeEstelar(int valor);
-  void injetarVozDoDespertar(int valor);
-  void injetarVozDoCompassoDaAlma(int valor);
-  void injetarVozDaFerocidadeDoBater(int valor);
-  void injetarVozDaFerocidadeDoRetorno(int valor);
-  void injetarVozDaFerocidadeDoLeme(int valor);
-  void injetarVozDoSustentarAltura(int valor);
-  void injetarEstadoPresenteDaAlma(EstadoDaAlmaAlada estado);
 };
 ```
 
