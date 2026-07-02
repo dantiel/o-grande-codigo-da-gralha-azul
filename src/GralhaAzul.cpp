@@ -179,7 +179,7 @@ void GralhaAzul::update() {
   #endif
 
   // ── O Descanso entre Batidas ──────────────────────────────
-  delay(1);
+  delay(5);
 }
 
 // ============================================================
@@ -267,7 +267,7 @@ void GralhaAzul::sustentarAltura() {
       if (soproDaSubidaAlada > LIMITE_DA_SUBIDA_SUSTENTADA_PADRAO) {
         soproVitalDoSustentar -= CORRECAO_DA_TAXA_LIMITE_SUSTENTAR_PADRAO;
       } else if (soproDaSubidaAlada < LIMITE_DA_DESCIDA_SUSTENTADA_PADRAO) {
-        soproVitalDoSustentar += CORRECAO_TAXA_LIMITE_SUSTENTAR_PADRAO;
+        soproVitalDoSustentar += (float)CORRECAO_DA_TAXA_LIMITE_SUSTENTAR_PADRAO;
       }
       soproVitalDoSustentar = constrain(soproVitalDoSustentar, (float)SOPRO_MIN_DO_SUSTENTAR_PADRAO, (float)SOPRO_MAX_DO_SUSTENTAR_PADRAO);
     } else {

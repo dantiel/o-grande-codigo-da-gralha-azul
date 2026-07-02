@@ -162,7 +162,7 @@ private:
   float pulsoDoSoproVital = 0.0;
   float ganhoDoSustentar = 0.0f;
   float alturaDesejadaDoVoo = 0.0f;
-  float soproVitalDoSustentar = 0.0f;
+  float soproVitalDoSustentar = 1000.0f;
   bool modoSustentarAtivo = false;
   float erroFiltradoSustentar = 0.0f;
 

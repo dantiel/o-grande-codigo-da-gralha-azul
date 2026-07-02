@@ -7,7 +7,7 @@
 
 /* — Articulações das Asas — */
 #define ARTICULACAO_ASA_DA_MANHA_PADRAO        8
-#define ARTICULACAO_ASA_DO_ENTARDECER_PADRAO   9
+#define ARTICULACAO_ASA_DO_ENTARDECER_PADRAO   7
 
 /* — Receptor dos Ventos (PPM ou CRSF) — */
 // PPM: definir ARTICULACAO_DO_RECEPTOR_PPM e NUMERO_DE_CANTOS no sketch

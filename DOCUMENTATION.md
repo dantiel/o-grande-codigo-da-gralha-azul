@@ -1,7 +1,5 @@
 # Documentation — O Grande Código da Gralha Azul
 
-**First Official Release**
-
 ## Architecture
 
 The Gralha Azul is a **class-based library** with minimal public interface. All configuration happens through public fields before calling `begin()`.
@@ -68,26 +66,6 @@ gralha.escalaAngularArticulacao = 0.04f;  // Servo travel multiplier
 gralha.barometroDesligado = true;    // Disable BMP180
 gralha.neopixelDesligado = true;     // Disable NeoPixel
 gralha.telemetriaDesligado = true;   // Disable CRSF telemetry
-```
-
-## External Control (Injection)
-
-For custom receivers or mixing, use the injection methods:
-
-| Method | Channel | Range | Purpose |
-|--------|---------|-------|---------|
-| `injetarVozDoAlerao(valor)` | CH1 | 1000-2000 | Aileron |
-| `injetarVozDoProfundor(valor)` | CH2 | 1000-2000 | Elevator |
-| `injetarVozDoSoproVital(valor)` | CH3 | 1000-2000 | Throttle |
-| `injetarVozDoLemeEstelar(valor)` | CH4 | 1000-2000 | Rudder |
-| `injetarVozDoDespertar(valor)` | CH5 | 0/1 | Arm switch |
-| `injetarVozDoCompassoDaAlma(valor)` | CH6 | 1000-2000 | Flight mode |
-| `injetarVozDaFerocidadeDoBater(valor)` | CH7 | 1000-2000 | Flap speed |
-| `injetarVozDaFerocidadeDoRetorno(valor)` | CH8 | 1000-2000 | Flap return speed |
-| `injetarVozDaFerocidadeDoLeme(valor)` | CH9 | 1000-2000 | Rudder mix |
-| `injetarVozDoSustentarAltura(valor)` | CH10 | 1000-2000 | Altitude hold target |
-| `injetarEstadoPresenteDaAlma(estado)` | — | enum | `EM_DANCA_COM_OS_VENTOS` or `EM_SONHO_NA_QUIETUDE_DA_FLORESTA` |
-
 ## The Pulse Cycle
 
 Each `update()` call performs:
