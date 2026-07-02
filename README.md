@@ -18,15 +18,15 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
   RP2040 Zero              Servo Left              Servo Right
   ╭───────────────╮        ╭───────────────╮        ╭───────────────╮
   │               │        │               │        │               │
-  │  GPIO 8 [PWM] ├────────────────────────┼────────┤ Signal        │
+  │  GPIO 8 [PWM] ├─────────────────────────────────┤ Signal        │
   │               │        │               │        │               │
-  │  GPIO 7 [PWM] ├────────────────────────┼────────┤ Signal        │
+  │  GPIO 7 [PWM] ├────────┤ Signal        │        │
   │               │        │               │        │               │
   ╰───────────────╯        ╰───────────────╯        ╰───────────────╯
 
-  CRSF Receiver            RP2040 Zero
-  ╭───────────────╮        ╭───────────────╮
-  │               │        │               │
+  CRSF Receiver              RP2040 Zero
+  ╭───────────────╮          ╭───────────────╮
+  │               │          │               │
   │  RX ◄─────────┼──────────┤ GPIO 0 TX     │
   │               │ (yellow) │               │
   │  TX ◄─────────┼──────────┤ GPIO 1 RX     │
@@ -35,29 +35,29 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
   │               │          │               │
   │  GND ◄────────┼──────────┤ GND           │
   │               │          │               │
-  ╰───────────────╯        ╰───────────────╯
+  ╰───────────────╯          ╰───────────────╯
 
-  Power Distribution (External 5V BEC)
+  Power Distribution (External 6V BEC)
   ╭────────────────────────╮
   │                        │
-  │  5V BEC  ├──────────────┼──────────► Servo Left 5V
-  │          │              │
-  │          ├──────────────┼──────────► Servo Right 5V
-  │          │              │
-  │          ╰──────────────┼──────────► CRSF 5V
+  │  5V BEC  ├─────────────┼──────────► Servo Left 5V
+  │          │             │
+  │          ├─────────────┼──────────► Servo Right 5V
+  │          │             │
+  │          ╰─────────────┼──────────► CRSF 5V
   │                        │
-  │  GND     ├──────────────┼──────────► Servo Left GND
-  │          │              │
-  │          ├──────────────┼──────────► Servo Right GND
-  │          │              │
-  │          ╰──────────────┼──────────► CRSF GND
+  │  GND     ├─────────────┼──────────► Servo Left GND
+  │          │             │
+  │          ├─────────────┼──────────► Servo Right GND
+  │          │             │
+  │          ╰─────────────┼──────────► CRSF GND
   │                        │
   ╰────────────────────────╯
 ```
-```
+
 
 - **Common ground** between RP2040, servos, and ELRS receiver
-- **Do not power servos from RP2040 3.3V** — use external BEC (5V / 6V)
+- **Do not power servos from RP2040 3.3V** — use external BEC (5V / 6V / 7.4V depending on servo specs)
 - CRSF baud: 420000 (`FREQUENCIA_DO_SOPRO_COSMICO`)
 - GPIO 0 (TX) → ELRS RX, GPIO 1 (RX) → ELRS TX (crossover)
 
@@ -188,9 +188,10 @@ Choose `CICLO_DO_CORACAO_ALADO` based on your servo's speed rating at your suppl
 
 | Servo | Speed (60°) | Torque | Suggested `CICLO_DO_CORACAO_ALADO` | Rate |
 |-------|-------------|--------|-----------------------------------|------|
-| DSSERVO DS3218 MG (25g) | 0.17s @6V | 3 kg·cm | `0.052f` | ~19 Hz |
-| Blue Arrow D0576HT (1.7g) | 0.07s @5V | 0.2 kg·cm | `0.030f` | ~33 Hz |
-| KST MS320 (56g) | 0.14s @8.4V | 8.5 kg·cm | `0.080f` | ~12 Hz |
+| PTK 7465W (5.6g) | 0.07s @6V | 1.5 kg·cm | `0.070f` | ~14 Hz |
+| Blue Arrow AF D43S-6.0-MG (4.3g) | 0.08s @6V | 1.2 kg·cm | `0.080f` | ~12 Hz |
+| Blue Arrow D0576HT (1.7g) | 0.07s @5V | 0.2 kg·cm | `0.070f` | ~14 Hz |
+| KST MS320 (56g) | 0.14s @8.4V | 8.5 kg·cm | `0.140f` | ~7 Hz |
 
 ## Receiver Setup
 

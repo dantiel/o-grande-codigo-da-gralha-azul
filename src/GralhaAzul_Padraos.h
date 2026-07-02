@@ -24,7 +24,7 @@
 #define QUANTIDADE_DE_CENTELHAS_PADRAO         1
 
 /* — Geometria do Voo — */
-#define CICLO_DO_CORACAO_ALADO_PADRAO          0.052f
+#define CICLO_DO_CORACAO_ALADO_PADRAO          0.070f
 #define LIMIAR_DO_VOO_ATIVO_PADRAO             1040
 #define ANGULO_DO_PLANAR_SERENO_PADRAO         -4
 
