@@ -1,11 +1,8 @@
 # O Grande Código da Gralha Azul
 
-**The Great Code of the Azure Jay** — *A living incantation for ornithopter flight*
+**The Great Code of the Azure Jay** — CRSF/PPM servo ornithopter library for RP2040 (Raspberry Pi Pico / Zero).
 
-
-## What Is This?
-
-A C++ library for RP2040-based ornithopters (flapping-wing aircraft) that speaks in the voice of Brazilian folklore. It controls servos, reads CRSF/PPM receivers, manages NeoPixel lighting, and streams telemetry — all through an API that feels like summoning a spirit rather than configuring hardware.
+A C++ library for RP2040-based ornithopters (flapping-wing aircraft) that controls servos, reads CRSF/PPM receivers, manages NeoPixel lighting, and streams telemetry.
 
 ## Quick Start
 
@@ -96,24 +93,43 @@ void loop() {
 
 The Gralha Azul will read your transmitter, animate the wings, and breathe life into your creation.
 
-## Configuration Macros
+## Configuration
 
-Configure your model using `#define` macros before including the library:
+Edit `src/GralhaAzul_Padraos.h` — all parameters use `#ifndef` guards, so you can override them in your sketch **before** `#include`:
 
-| Macro | Default | Meaning |
-|-------|---------|---------|
-| `ARTICULACAO_DA_ASA_MATUTINA` | 8 | Left wing servo pin |
-| `ARTICULACAO_DA_ASA_VESPERTINA` | 7 | Right wing servo pin |
-| `NUCLEO_DA_CHAMA_AZUL` | 16 | NeoPixel pin |
-| `QUANTIDADE_DE_CENTELHAS` | 1 | NeoPixel count |
-| `CICLO_DO_CORACAO_ALADO` | 0.052f | Flapping frequency |
-| `ESCALA_ANGULAR_ARTICULACAO` | 1.0f | Servo travel scale |
-| `BAROMETRO_DESLIGADO` | — | Disable barometer |
-| `TELEMETRIA_DESLIGADO` | — | Disable telemetry |
-| `NEOPIXEL_DESLIGADO` | — | Disable NeoPixel |
-| `ECOS_PRESCINDIVEIS_DA_ALMA_ALADA` | — | Enable debug output |
+```cpp
+#define CICLO_DO_CORACAO_ALADO 0.080f   // KST MS320 (12 Hz)
+#define ANGULO_DO_PLANAR_SERENO -2      // Gentle glide
 
-These macros are read by the library at compile time to configure the internal state.
+#include <GralhaAzul.h>
+```
+
+### Key Parameters
+
+| Define | Default | Description |
+|--------|---------|-------------|
+| `CICLO_DO_CORACAO_ALADO` | `0.052f` | Wingbeat period in seconds. See servo table |
+| `ANGULO_DO_PLANAR_SERENO` | `-4` | Glide angle (degrees, negative = descend) |
+| `ORIGEM_ASA_MATUTINA` | `0` | Left wing neutral offset (µs) |
+| `ORIGEM_ASA_VESPERTINA` | `0` | Right wing neutral offset (µs) |
+| `FEROCIDADE_MINIMA` | `1.0f` | Minimum stroke amplitude |
+| `FEROCIDADE_MAXIMA` | `8.0f` | Maximum stroke amplitude |
+| `PULSO_MINIMO_SERVO` | `500` | Servo minimum pulse (µs) |
+| `PULSO_MAXIMO_SERVO` | `2500` | Servo maximum pulse (µs) |
+| `GRAU_MINIMO_DA_ASA` | `0` | Minimum wing angle (degrees) |
+| `GRAU_MAXIMO_DA_ASA` | `90` | Maximum wing angle (degrees) |
+
+Full list: see `src/GralhaAzul_Padraos.h`.
+
+### Optional Modules
+
+```cpp
+#define BAROMETRO_DESLIGADO
+#define TELEMETRIA_DESLIGADO
+#define NEOPIXEL_DESLIGADO
+```
+
+Define these **before** `#include <GralhaAzul.h>`.
 
 ## Servo Recommendations
 
@@ -125,15 +141,9 @@ Choose `CICLO_DO_CORACAO_ALADO` based on your servo's speed rating at your suppl
 | Blue Arrow D0576HT (1.7g) | 0.07s @5V | 0.2 kg·cm | `0.030f` | ~33 Hz |
 | KST MS320 (56g) | 0.14s @8.4V | 8.5 kg·cm | `0.080f` | ~12 Hz |
 
-## Receiver Types
+## Receiver Setup
 
 ### CRSF
-```cpp
-#define RECEPTOR_CRSF
-#define VIA_DOS_SONHOS_LUNARES 1
-#define VIA_DOS_ECOS_SOLARES 0
-#include <GralhaAzul.h>
-```
 
 | Parameter | Setting | Reason |
 |-----------|---------|--------|
@@ -142,6 +152,7 @@ Choose `CICLO_DO_CORACAO_ALADO` based on your servo's speed rating at your suppl
 | Rate | 50-100 Hz | 100 Hz ideal for ornithopter |
 
 ### PPM
+
 ```cpp
 #define RECEPTOR_PPM
 #define PORTAL_DOS_CANTOS_COSMICOS 2
@@ -166,19 +177,28 @@ PPM input on GPIO 2, up to 8 channels.
 | CH9 | Potentiometer | Rudder differential |
 | CH10 | Potentiometer (gain) | Altitude hold gain |
 
-PPM: CH1-CH8 only. CH9-CH10 require CRSF.
+PPM: CH1-CH8 only. CH9-CH10 require `#define CANAL_DO_PLANAR_AMPLIADO`.
 
 ## Examples
 
+See the `examples/` folder:
 - **CRSF_Exemplo** — Basic CRSF setup
 - **PPM_Exemplo** — Basic PPM setup
+
+## Performance
+
+- Loop time (idle): ~200 µs
+- Loop time (all features): ~400 µs
+- No `delay()` — all waits use `millis()` timers
+- No floating-point in ISR — all FP in main loop
 
 ## Safety
 
 - **Servo pulse clamping**: `PULSO_MINIMO_SERVO` / `PULSO_MAXIMO_SERVO` enforced
-- **Angle clamping**: Minimum/maximum wing angles enforced
-- **CRSF link loss**: Servo hold on last position
+- **Angle clamping**: `GRAU_MINIMO_DA_ASA` / `GRAU_MAXIMO_DA_ASA` enforced
+- **CRSF link loss**: Servo hold on last position, timer resets after 1 s
 - **BMP180 failure**: Altitude hold gracefully disables, flight continues
+- **NeoPixel timeout**: 100 ms max per frame, no animation stalls the loop
 
 ## FAQ
 
@@ -186,24 +206,16 @@ PPM: CH1-CH8 only. CH9-CH10 require CRSF.
 A: Reduce wingbeat rate — increase `CICLO_DO_CORACAO_ALADO`. Check servo speed rating.
 
 **Q: No response from receiver.**
-A: Verify CRSF wiring (TX-RX crossover). Check baud rate (420000). Confirm receiver flashed with CRSF protocol.
+A: Verify CRSF wiring (TX↔RX crossover). Check baud rate (420000). Confirm receiver flashed with CRSF protocol.
 
 **Q: Barometer not detected.**
-A: Check I2C wiring (GP4=SDA, GP5=SCL). Ensure BMP180 is 3.3V compatible.
+A: Check I2C wiring (GP4=SDA, GP5=SCL). Ensure BMP180 is 3.3V compatible. I2C address: `0x77` (configurable via `PORTA_DA_ALTITUDE`).
 
 **Q: NeoPixel stays dark.**
 A: Confirm `NEOPIXEL_DESLIGADO` is not defined. Check GPIO 16 connection.
 
-## The Language
-
-This library uses poetic naming throughout:
-
-- `guardiaoDosVentosSiderais` — CRSF receiver
-- `sussurrarVooAoEter()` — Send telemetry
-- `manifestarOVooNosVentos()` — Calculate servo positions
-- `pulsoDoDestinoAlado` — Throttle channel value
-
-*The code is the poem. The poem is the code.*
+**Q: Compilation error — "undefined reference to ..."**
+A: Ensure `src/` folder is in the same directory as your sketch. The `.ino` file auto-includes all `.cpp` files in `src/`.
 
 ## Requirements
 
@@ -213,4 +225,4 @@ This library uses poetic naming throughout:
 
 ## License
 
-MIT — *May your Gralha Azul fly true.*
+MIT — share, build, fly.
