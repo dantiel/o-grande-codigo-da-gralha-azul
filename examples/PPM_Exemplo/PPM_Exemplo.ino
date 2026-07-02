@@ -7,29 +7,30 @@
   que ecoam do rádio antigo. PPM puro, sem telemetria —
   apenas a alma e o horizonte.
 
-  Configuração para receptor PPM (8 canais).
-  CH9 e CH10 são fixos (não disponíveis em PPM de 8 canais).
-  NeoPixel e BMP180 são opcionais.
-  Telemetria CRSF não está disponível em modo PPM.
-
-  Para configurar este modelo, edite o arquivo:
-  src/GralhaAzulConfig.h
-
-  Lá encontrará todas as constantes documentadas:
-  - RECEPTOR_DOS_VENTOS_PPM (em vez de CRSF)
-  - PINO_DO_MENSAGEIRO: 2
-  - NUM_CANAIS_DO_MENSAGEIRO: 8
-  - CICLO_DO_CORACAO_ALADO: 0.052f (~19 Hz)
-  - ANGULO_DO_PLANAR_SERENO: -3 (glide degree suave)
-  - Módulos: todos ativos (NeoPixel, BMP180)
+  Hardware: RP2040 | PPM em GPIO1 | Servos em pinos configuráveis
 */
 
-#include "../../src/GralhaAzul.h"
+#include <PPMReaderRP2040.h>
+#include <GralhaAzul.h>
+
+GralhaAzul gralha;
 
 void setup() {
-  gralhaAzulSetup();
+  // Articulações das asas
+  gralha.articulacaoAsaDaManha = 3;
+  gralha.articulacaoAsaDoEntardecer = 8;
+  
+  // O portal dos cantos cósmicos (PPM)
+  gralha.mensageiroDosVentosCosmicos = new PPMReader(1, 8);
+  
+  // O ciclo do coração alado
+  gralha.cicloDoCoracaoAlado = 0.065f;
+  
+  // Despertar a Gralha
+  gralha.begin();
 }
 
 void loop() {
-  gralhaAzulLoop();
+  // A pulsação eterna
+  gralha.update();
 }
