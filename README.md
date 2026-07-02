@@ -12,61 +12,57 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
 
 ### 2. Wire Your Hardware
 
-### CRSF Receiver (ExpressLRS)
+### Minimal — CRSF + 2 Servos
 
 ```
-RP2040 Zero              ELRS Receiver
-═══════════════════════════════════════          ═══════════════════════════════════════
-║ GPIO 0 (TX) ════════════════════════════════════ RX               ║  (yellow wire)
-║ GPIO 1 (RX) ════════════════════════════════════ TX               ║  (white/blue wire)
-║             ║          ║                        ║
-║ 3.3V       ═══════════════════════════════════════ VCC (3.3V)     ║
-║ GND        ════════════════════════════════════════ GND              ║
-═══════════════════════════════════════          ═══════════════════════════════════════
+  RP2040 Zero                     Servo Left              Servo Right
+  ╭───────────────────────────────────────╮               ╭───────────────────────────╮            ╭───────────────────────────╮
+  │              │               │          │            │          │
+  │  GPIO 8 [~]  ├───────────────┼──────────┼────────────┼──────────┤ Signal   │            │ Signal   │
+  │              │               │          │            │          │
+  │  GPIO 7 [~]  ├───────────────┼──────────┼────────────┼──────────┤          ├───────────────────────────┤          │
+  │              │               │          │            │          │
+  │  GPIO 0 TX   ├─── (yel) ─────┼──────────┼──► ELRS RX  │            │          │
+  │  GPIO 1 RX   ├─── (blu) ─────┼──────────┼──► ELRS TX  │            │          │
+  │              │               │          │            │          │
+  │  VBUS        ├───────────────┼──────────┼──► ELRS VCC │            │          │
+  │  GND         ├─── GND ───────┼──────────┼──► ELRS GND ├──────────┼──────────┼──────────┼──────────┤
+  │              │               │ red ├──────────────────► 5V BEC   │ red ├──────────────────► 5V BEC
+  │              │               │ blk ├──────────────────► GND      │ blk ├──────────────────► GND
+  ╰───────────────────────────────────────╯               ╰───────────────────────────╯            ╰───────────────────────────╯
+
+  External 5V BEC ───────────────────────────────────────────────────────────────────────────────────────────────────────────────►
 ```
 
-**Important:** Some ELRS receivers operate at 3.3V, others at 5V. Check your receiver's specifications. The RP2040 Zero's 3.3V output is sufficient for 3.3V receivers. For 5V receivers, power VCC from the external BEC/battery (same source as servos).
+- **Common ground** between RP2040, servos, and ELRS receiver
+- **Do not power servos from RP2040 3.3V** — use external BEC (5V / 6V)
+- CRSF baud: 420000 (`FREQUENCIA_DO_SOPRO_COSMICO`)
+- GPIO 0 (TX) → ELRS RX, GPIO 1 (RX) → ELRS TX (crossover)
 
-### Servos (External Power)
+### With Barometer (BMP180)
 
 ```
-External 5V BEC / Battery
-═══════════════════════════════════════════════════════════════════════════
-║ 5V+ ═══════════════════════════════════════════════════ Servo Power (red wires, both servos)
-║ GND ═══════════════════════════════════════════════════ Servo GND (black/brown wires, both servos)
-║                     ║   AND ═══════════ RP2040 GND (common ground!)
-═══════════════════════════════════════════════════════════════════════════
-
-RP2040 Zero              Servo Left Wing (GPIO 8)
-═══════════════════════════════════════          ═══════════════════════════════════════
-║ GPIO 8      ═════════════════════════════════════ Signal (white/yellow)
-═══════════════════════════════════════          ═══════════════════════════════════════
-
-RP2040 Zero              Servo Right Wing (GPIO 7)
-═══════════════════════════════════════          ═══════════════════════════════════════
-║ GPIO 7      ═════════════════════════════════════ Signal (white/yellow)
-═══════════════════════════════════════          ═══════════════════════════════════════
+  RP2040 Zero                     BMP180 Module
+  ╭───────────────────────────────────────╮               ╭───────────────────────────╮
+  │              │               │          │            │          │
+  │  GPIO 4      ├───────────────┼──────────┼────────────┼──────────┤ SDA      │
+  │  GPIO 5      ├───────────────┼──────────┼────────────┼──────────┤ SCL      │
+  │  3.3V        ├───────────────┼──────────┼────────────┼──────────┤ VCC      │
+  │  GND         ├───────────────┼──────────┼────────────┼──────────┤ GND      │
+  ╰───────────────────────────────────────╯               ╰───────────────────────────╯
 ```
 
-**Critical:** Servos draw significant current. The RP2040's internal regulator cannot supply this. Always use an external BEC or battery for servo power. Connect **all grounds** (RP2040, servos, receiver, BEC) together.
+> **Note**: GPIO 5 serves double duty (Servo Left + BMP180 SCL) only if barometer is enabled. Ensure no conflict if using both.
 
 ### NeoPixel — Internal LED (Optional)
 
 The RP2040 Zero has a **built-in NeoPixel (WS2812B)** on GPIO 16. No external wiring is needed.
 
-### BMP180 Barometer (Optional)
-
-```
-BMP180 Module            RP2040 Zero
-═══════════════════════════════════════        ═══════════════════════════════════════
-║ VCC          ═══════════════════════════════════ 3V3           ║
-║ GND          ═══════════════════════════════════ GND           ║
-║ SDA (GP4)    ═══════════════════════════════════ GPIO 4        ║  (I2C0 SDA)
-║ SCL (GP5)    ═══════════════════════════════════ GPIO 5        ║  (I2C0 SCL)
-═══════════════════════════════════════        ═══════════════════════════════════════
-```
-
 **Enabled by:** `#define ORACULO_DA_PRESSAO_DO_CEU` at the top of the sketch. Without this define, no barometer libraries are required.
+
+> **Important:** Some ELRS receivers operate at 3.3V, others at 5V. Check your receiver's specifications. The RP2040 Zero's 3.3V output is sufficient for 3.3V receivers. For 5V receivers, power VCC from the external BEC/battery (same source as servos).
+
+> **Critical:** Servos draw significant current. The RP2040's internal regulator cannot supply this. Always use an external BEC or battery for servo power. Connect **all grounds** (RP2040, servos, receiver, BEC) together.
 
 **Pin Allocation:**
 
