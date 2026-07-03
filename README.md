@@ -15,39 +15,44 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
 ### Minimal — CRSF + 2 Servos
 
 ```
-  Wiring Diagram (CRSF + Servos + BEC)
+  Wiring Diagram (Dual BEC)
   ═══════════════════════════════════════════════════════════════════════════════
 
-  Battery (LiPo 2S-4S)    6V BEC              RP2040 Zero (USB 5V)
-  ╭───────────────╮       ╭───────────────╮   ╭───────────────╮
-  │               │       │               │   │               │
-  │  +V ──────────┼───────┼► VIN          │   │               │
-  │               │       │               │   │  GPIO 8 PWM ──┼──► Servo L Signal
-  │  GND ─────────┼───────┼► GND          │   │               │
-  │               │       │               │   │  GPIO 7 PWM ──┼──► Servo R Signal
-  ╰───────────────╯       │  6V OUT ──────┼───┼───────────────┼──► Servo L/R 6V
-                          │               │   │               │
-                          │  GND ─────────┼───┼───────────────┼──► Common GND
-                          ╰───────────────╯   │               │
-                                              │  GPIO 0 TX ───┼──► CRSF RX
-                                              │               │
-                                              │  GPIO 1 RX ───┼──◄ CRSF TX
-                                              │               │
-                                              │  VBUS (5V) ───┼──► CRSF VCC
-                                              │               │
-                                              │  GND ─────────┼──► CRSF GND
-                                              ╰───────────────╯
+  Battery (LiPo 2S-4S)
+  ╭───────────────╮
+  │               │
+  │  +V ──┬───────┼──► 6V BEC VIN        RP2040 Zero (USB 5V)
+  │       │       │      ╭──────────╮      ╭───────────────╮
+  │  GND ─┴───────┼──► 6V BEC GND      │  │               │
+  │               │      │          │      │  GPIO 8 PWM ──┼──► Servo L Signal
+  │               │      │ 6V OUT ──┼──────┼──► Servo L 6V │
+  │               │      │          │      │               │
+  │               │      │ 6V OUT ──┼──────┼──► Servo R 6V │
+  │               │      │          │      │               │
+  │               │      │ GND ─────┼──────┼──► Common GND  │
+  │               │      ╰──────────╯      │               │
+  │               │                        │  GPIO 7 PWM ──┼──► Servo R Signal
+  │               │                        │               │
+  │               │                        │  GPIO 0 TX ───┼──► CRSF RX
+  │               │                        │               │
+  │               │                        │  GPIO 1 RX ───┼──◄ CRSF TX
+  │               │                        │               │
+  │               │                        │  VBUS (5V) ───┼──► CRSF VCC
+  │               │                        │               │
+  │               │                        │  GND ─────────┼──► Common GND
+  │               │                        ╰───────────────╯
+  ╰───────────────╯
 
   Servo Left              Servo Right         CRSF Receiver
   ╭───────────────╮       ╭───────────────╮   ╭───────────────╮
   │               │       │               │   │               │
   │  Signal ◄─────┼───────┼───────────────┼───┼── GPIO 8 PWM  │
   │               │       │               │   │               │
-  │  6V ◄─────────┼───────┼───────────────┼───┼── 6V OUT      │
+  │  6V ◄─────────┼───────┼───────────────┼───┼── 6V BEC      │
   │               │       │               │   │               │
   │  GND ◄────────┼───────┼───────────────┼───┼── Common GND  │
-  │               │       │               │   │               │
-  ╰───────────────╯       ╰───────────────╯   │  RX ◄─────────┼── GPIO 0 TX
+  ╰───────────────╯       ╰───────────────╯   │               │
+                                              │  RX ◄─────────┼── GPIO 0 TX
                                               │               │
                                               │  TX ─────────►── GPIO 1 RX
                                               │               │
@@ -58,7 +63,9 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
 ```
 
 **Power Architecture:**
+- **6V BEC**: Powers servos only (high current)
 - **RP2040 + CRSF**: Powered from USB (5V via VBUS) — no extra BEC needed
+- **Common GND**: All GNDs connected together (critical!)
 - **Servos**: Powered from external 6V BEC (not from RP2040)
 - **Common ground**: All GNDs tied together (RP2040, BEC, CRSF, servos)
 
