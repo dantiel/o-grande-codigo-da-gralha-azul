@@ -25,15 +25,6 @@
 
 GralhaAzul* GralhaAzul::instanciaGralhaParaEventos = nullptr;
 
-/* As Invocações de Bibliotecas — os rituais de poder */
-#if __has_include(<Adafruit_NeoPixel.h>)
-  #include <Adafruit_NeoPixel.h>
-#endif
-#if __has_include(<Adafruit_BMP085_U.h>)
-  #include <Adafruit_Sensor.h>
-  #include <Adafruit_BMP085_U.h>
-#endif
-
 // ============================================================
 //  O DESPERTAR — Quando a Gralha Abre os Olhos
 // ============================================================
@@ -97,13 +88,11 @@ void GralhaAzul::begin() {
   tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
 
   // ── O Acender da Chama Azul ───────────────────────────────
-  #if __has_include(<Adafruit_NeoPixel.h>)
   if (!neopixelDesligado) {
     memset(chamaAzulBuffer, 0, sizeof(chamaAzulBuffer));
     chamaAzulPixel = new (chamaAzulBuffer) Adafruit_NeoPixel(QUANTIDADE_DE_CENTELHAS_PADRAO, NUCLEO_DA_CHAMA_AZUL_PADRAO, NEO_GRB + NEO_KHZ800);
     acenderLuzPrimordial();
   }
-  #endif
 
   // ── O Despertar do Oráculo ────────────────────────────────
   if (!barometroDesligado) {
@@ -139,12 +128,10 @@ void GralhaAzul::update() {
 
   // ── O Fulgor da Chama Azul ────────────────────────────────
   if (!neopixelDesligado && chamaAzulPixel) {
-    #if __has_include(<Adafruit_NeoPixel.h>)
     if (relogioDasEras.instante_do_agora_cosmico - relogioDasEras.ultimo_fulgor_da_chama_azul >= INTERVALO_DA_CHAMA_AZUL_PADRAO) {
       relogioDasEras.ultimo_fulgor_da_chama_azul = relogioDasEras.instante_do_agora_cosmico;
       irradiarLuzDaAlma();
     }
-    #endif
   }
 
   #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
@@ -358,7 +345,6 @@ void GralhaAzul::sussurrarVooAoEter() {
 //  O ORÁCULO DA PRESSÃO — Aquele que Lê o Sopro do Mundo
 // ============================================================
 void GralhaAzul::despertarOraculoDaPressao() {
-  #if __has_include(<Adafruit_BMP085_U.h>)
   Wire.setSDA(SILENCIO_DA_ALTURA_PADRAO);
   Wire.setSCL(RITMO_DA_PRESSAO_PADRAO);
   Wire.begin();
@@ -395,11 +381,9 @@ void GralhaAzul::despertarOraculoDaPressao() {
   ultimaAlturaDoVooSideral = 0.0f;
   ultimoSoproDoOraculo = millis();
   ultimaTemperaturaDoArC = 0.0f;
-  #endif
 }
 
 void GralhaAzul::escutarPressaoDoCeu() {
-  #if __has_include(<Adafruit_BMP085_U.h>)
   if (!oraculoRespira || !oraculoDaPressao) return;
   auto* bmp = (Adafruit_BMP085_Unified*)oraculoDaPressao;
   unsigned long agora = millis();
@@ -430,7 +414,6 @@ void GralhaAzul::escutarPressaoDoCeu() {
   feNoSoproQuente = soproDaSubidaAlada + tendenciaDaTemperaturaC * PESO_DA_CONFIANCA_TERMICA_PADRAO;
   if (feNoSoproQuente > LIMIAR_DE_CONFIANCA_PADRAO) modoDeEscutaTermal = true;
   else if (feNoSoproQuente < -LIMIAR_DE_CONFIANCA_PADRAO) modoDeEscutaTermal = false;
-  #endif
 }
 
 // ============================================================
@@ -489,17 +472,14 @@ void GralhaAzul::interpretarAsVozesDoFirmamento() {
 //  A CHAMA AZUL — A Alma Luminosa que Pulsa na Escuridão
 // ============================================================
 void GralhaAzul::acenderLuzPrimordial() {
-  #if __has_include(<Adafruit_NeoPixel.h>)
   if (!chamaAzulPixel) return;
   auto* neo = chamaAzulPixel;
   neo->begin();
   neo->setBrightness(70);
   neo->show();
-  #endif
 }
 
 void GralhaAzul::irradiarLuzDaAlma() {
-  #if __has_include(<Adafruit_NeoPixel.h>)
   if (!chamaAzulPixel) return;
   auto* neo = chamaAzulPixel;
   unsigned long agora = millis();
@@ -563,5 +543,4 @@ void GralhaAzul::irradiarLuzDaAlma() {
   }
   neo->setPixelColor(0, constrain(r,0,255), constrain(g,0,255), constrain(b,0,255));
   neo->show();
-  #endif
 }
