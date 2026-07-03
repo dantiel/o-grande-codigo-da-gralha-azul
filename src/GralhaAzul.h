@@ -187,8 +187,5 @@ private:
 /* Ecos Prescindíveis: A Voz que Partilha Estados */
 // Defina #define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA antes de #include <GralhaAzul.h>
 // para que a Gralha possa sussurrar seus estados ao mundo.
-#ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
-#define GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
-#endif
 
 #endif /* GRALHA_AZUL_H */

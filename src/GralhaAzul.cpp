@@ -38,7 +38,7 @@ GralhaAzul* GralhaAzul::instanciaGralhaParaEventos = nullptr;
 //  O DESPERTAR — Quando a Gralha Abre os Olhos
 // ============================================================
 void GralhaAzul::begin() {
-  #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+  #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   ecosPrescindiveis->println("O Grande Código da Gralha Azul: A Lenda Viva se Inicia...");
   #endif
   
@@ -147,7 +147,7 @@ void GralhaAzul::update() {
     #endif
   }
 
-  #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+  #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   if (relogioDasEras.instante_do_agora_cosmico - relogioDasEras.ultimo_eco_prescindivei > INTERVALO_DOS_ECOS_PADRAO) {
     relogioDasEras.ultimo_eco_prescindivei = relogioDasEras.instante_do_agora_cosmico;
     ecosPrescindiveis->print(estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS ? "VOANDO" : "SONHANDO");
@@ -254,7 +254,7 @@ void GralhaAzul::sustentarAltura() {
       }
       float erroBruto = alturaDesejadaDoVoo - alturaDoVooSideral;
       erroFiltradoSustentar += AMORTECIMENTO_DO_ERRO_SUSTENTAR_PADRAO * (erroBruto - erroFiltradoSustentar);
-      #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+      #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
       ecosPrescindiveis->println("A Gralha sente o chamado do éter!");
       #endif
       float soproAlvo = 1500.0f + erroFiltradoSustentar * FORCA_BASE_DO_SUSTENTAR_PADRAO * ganhoDoSustentar;
@@ -366,13 +366,13 @@ void GralhaAzul::despertarOraculoDaPressao() {
   auto* bmp = (Adafruit_BMP085_Unified*)oraculoDaPressao;
   if (!bmp->begin()) {
     oraculoRespira = false;
-    #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+    #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
     ecosPrescindiveis->println("O oráculo da pressão silencia — não ouve o céu.");
     #endif
     return;
   }
   oraculoRespira = true;
-  #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+  #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   ecosPrescindiveis->println("O oráculo da pressão desperta — escuta a altura invisível.");
   #endif
   float somaAltura = 0.0f;
@@ -389,7 +389,7 @@ void GralhaAzul::despertarOraculoDaPressao() {
     }
     delay(ATRASO_DE_CALIBRACAO_PADRAO);
   }
-  #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+  #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   ecosPrescindiveis->println("A Gralha sente o chamado do éter!");
   #endif
   ultimaAlturaDoVooSideral = 0.0f;
@@ -437,7 +437,7 @@ void GralhaAzul::escutarPressaoDoCeu() {
 //  OS EVENTOS — Quando o Destino Toca a Gralha
 // ============================================================
 void GralhaAzul::aoDespertarParaOCantoDoEter() {
-  #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+  #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   ecosPrescindiveis->println("A Gralha sente o chamado do éter!");
   #endif
 }
@@ -446,7 +446,7 @@ void GralhaAzul::aoRecolherSeAoSilencioDaMata() {
   estadoPresenteDaAlma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
   limiarElevado = false;
-  #ifdef GRALHA_AZUL_ECOS_PRESCINDIVEIS_ATIVO
+  #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
   ecosPrescindiveis->println("A Gralha sente o chamado do éter!");
   #endif
 }
