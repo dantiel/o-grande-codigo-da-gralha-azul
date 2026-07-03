@@ -127,9 +127,9 @@ void GralhaAzul::update() {
   #ifdef RECEPTOR_PPM
   if (mensageiroDosVentosCosmicos) {
     mensageiroDosVentosCosmicos->loop();
-    interpretarAsVozesDoFirmamento();
   }
   #endif
+  interpretarAsVozesDoFirmamento();
 
   animarPulsarDoCoracaoAlado();
   escutarPressaoDoCeu();
