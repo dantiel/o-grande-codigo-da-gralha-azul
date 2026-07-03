@@ -92,6 +92,9 @@ void GralhaAzul::begin() {
 
   tendaoDaAsaMatutina.attach(articulacaoAsaDaManha, PULSO_MINIMO_SERVO_PADRAO, PULSO_MAXIMO_SERVO_PADRAO);
   tendaoDaAsaVespertina.attach(articulacaoAsaDoEntardecer, PULSO_MINIMO_SERVO_PADRAO, PULSO_MAXIMO_SERVO_PADRAO);
+  // Posicionar as asas em neutro ao iniciar
+  tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
+  tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
 
   // ── O Acender da Chama Azul ───────────────────────────────
   #if __has_include(<Adafruit_NeoPixel.h>)
