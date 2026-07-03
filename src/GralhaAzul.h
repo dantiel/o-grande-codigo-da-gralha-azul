@@ -34,9 +34,6 @@
   #include <PPMReaderRP2040.h>
 #endif
 #include <Servo.h>
-#include <Adafruit_NeoPixel.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP085_U.h>
 
 /* Os Estados da Alma Alada: Fases da Consciência da Gralha */
 enum EstadoDaAlmaAlada : uint8_t {
@@ -110,8 +107,12 @@ private:
   Servo tendaoDaAsaMatutina;
   Servo tendaoDaAsaVespertina;
 
+  #if __has_include(<Adafruit_NeoPixel.h>)
   alignas(alignof(Adafruit_NeoPixel)) uint8_t chamaAzulBuffer[sizeof(Adafruit_NeoPixel)] = {0};
   Adafruit_NeoPixel* chamaAzulPixel = nullptr;
+  #else
+  void* chamaAzulPixel = nullptr;
+  #endif
   uint16_t tonalidadeDoSonhoFlorestal = 0;
   unsigned long ultimoInstanteRespiracaoLuminescente = 0;
   float pulsacaoDaChamaPrimordial = 0.0f;
