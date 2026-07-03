@@ -42,18 +42,9 @@ void GralhaAzul::begin() {
   ecosPrescindiveis->println("O Grande Código da Gralha Azul: A Lenda Viva se Inicia...");
   #endif
   
-  // ── A Configuração das Articulações ───────────────────────
-  #ifdef ARTICULACAO_DA_ASA_MATUTINA
-  articulacaoAsaDaManha = ARTICULACAO_DA_ASA_MATUTINA;
-  #endif
-  #ifdef ARTICULACAO_DA_ASA_VESPERTINA
-  articulacaoAsaDoEntardecer = ARTICULACAO_DA_ASA_VESPERTINA;
-  #endif
-
-  // ── O Ciclo do Coração Alado ──────────────────────────────
-  #ifdef CICLO_DO_CORACAO_ALADO
-  cicloDoCoracaoAlado = CICLO_DO_CORACAO_ALADO;
-  #endif
+  // As configurações de articulações e ciclo são aplicadas via
+  // inicialização no header (GralhaAzul.h) onde os #defines do sketch são visíveis.
+  // Não é necessário redefinir aqui.
 
   // ── As Faculdades que Dormem ──────────────────────────────
   #ifdef BAROMETRO_DESLIGADO

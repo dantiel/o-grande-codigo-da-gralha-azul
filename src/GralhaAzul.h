@@ -63,16 +63,33 @@ public:
   // Os pontos de contato com o mundo, ecos da sua jornada.
   
   // Articulações das Asas — onde a matéria responde à vontade alada
-  uint8_t articulacaoAsaDaManha    = ARTICULACAO_ASA_DA_MANHA_PADRAO;      // Asa que se ergue com a aurora.
-  uint8_t articulacaoAsaDoEntardecer = ARTICULACAO_ASA_DO_ENTARDECER_PADRAO;  // Asa que se recolhe com o crepúsculo.
+  // Configuráveis via #define no sketch antes do include
+  #ifdef ARTICULACAO_DA_ASA_MATUTINA
+  uint8_t articulacaoAsaDaManha    = ARTICULACAO_DA_ASA_MATUTINA;
+  #else
+  uint8_t articulacaoAsaDaManha    = ARTICULACAO_ASA_DA_MANHA_PADRAO;
+  #endif
+  #ifdef ARTICULACAO_DA_ASA_VESPERTINA
+  uint8_t articulacaoAsaDoEntardecer = ARTICULACAO_DA_ASA_VESPERTINA;
+  #else
+  uint8_t articulacaoAsaDoEntardecer = ARTICULACAO_ASA_DO_ENTARDECER_PADRAO;
+  #endif
 
   // Vias do Sopro Cósmico — os canais pelos quais o destino sussurra
   uint8_t viaDosSonhosLunares      = VIA_DOS_SONHOS_LUNARES_PADRAO;      // Canal dos sussurros da noite.
   uint8_t viaDosEcosSolares        = VIA_DOS_ECOS_SOLARES_PADRAO;        // Canal da canção ao dia.
 
   // Geometria Sagrada do Voo — as leis imutáveis da natureza alada
-  float cicloDoCoracaoAlado        = CICLO_DO_CORACAO_ALADO_PADRAO;      // A pulsação rítmica do voo.
-  float escalaAngularArticulacao   = ESCALA_ANGULAR_DA_ARTICULACAO_PADRAO;  // A medida do arco celeste.
+  #ifdef CICLO_DO_CORACAO_ALADO
+  float cicloDoCoracaoAlado        = CICLO_DO_CORACAO_ALADO;
+  #else
+  float cicloDoCoracaoAlado        = CICLO_DO_CORACAO_ALADO_PADRAO;
+  #endif
+  #ifdef ESCALA_ANGULAR_DA_ARTICULACAO
+  float escalaAngularArticulacao   = ESCALA_ANGULAR_DA_ARTICULACAO;
+  #else
+  float escalaAngularArticulacao   = ESCALA_ANGULAR_DA_ARTICULACAO_PADRAO;
+  #endif
 
   // Ecos Prescindíveis — a voz que partilha estados (Debug)
   Stream* ecosPrescindiveis = nullptr;
