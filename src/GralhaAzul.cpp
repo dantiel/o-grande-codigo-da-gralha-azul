@@ -148,6 +148,7 @@ void GralhaAzul::update() {
   }
 
   #ifdef ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
+  ecosPrescindiveis->println("DBG: #ifdef OK");
   if (relogioDasEras.instante_do_agora_cosmico - relogioDasEras.ultimo_eco_prescindivei > INTERVALO_DOS_ECOS_PADRAO) {
     relogioDasEras.ultimo_eco_prescindivei = relogioDasEras.instante_do_agora_cosmico;
     ecosPrescindiveis->print(estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS ? "VOANDO" : "SONHANDO");
