@@ -70,7 +70,7 @@ The UART port itself is `VIA_DO_SOPRO_COSMICO` (default: `Serial1`), overridable
 | `cicloDoCoracaoAlado` | `CICLO_DO_CORACAO_ALADO` | 0.070f |
 | `escalaAngularArticulacao` | `ESCALA_ANGULAR_ARTICULACAO` | 0.04f |
 
-`cicloDoCoracaoAlado` is the servo cycle time in seconds. This must match your servo's actual speed — amplitude, frequency, and scaling of the flapping algorithm all derive from it.
+`cicloDoCoracaoAlado` is the servo's max speed rating — 60° travel time at supply voltage. Actual frequency emerges from throttle position (`vozDoSoproVital`), cadence modifiers, and other runtime inputs — not from this value alone.
 
 #### Optional Module Disable Flags
 
@@ -122,7 +122,7 @@ Called every loop iteration. Executes in this order:
 
 | Channel | Variable | Function |
 |---|---|---|
-| 1 | `vozDoAlerao` | Roll |
+| 1 | `vozDoAletao` | Roll |
 | 2 | `vozDoProfundor` | Pitch |
 | 3 | `vozDoSoproVital` | Throttle |
 | 4 | `vozDoLemeEstelar` | Yaw |
@@ -267,7 +267,7 @@ All defaults live in `GralhaAzul_Padraos.h`. Override by `#define` before `#incl
 | `LIMIAR_DO_VOO_ATIVO_PADRAO` | 1040 |
 | `ESCALA_ANGULAR_DA_ARTICULACAO_PADRAO` | 0.04f |
 | `ESCALA_ANGULAR_DO_PROFUNDOR_PADRAO` | 0.06f |
-| `MAGNITUDE_ESCALA_DA_FEROCIDADE_PADRAO` | 0.06f |
+| `MAGNITUDE_DA_BATIDA_PADRAO` | 0.04f |
 | `FEROCIDADE_MINIMA_PADRAO` | 1.0f |
 | `FEROCIDADE_MAXIMA_PADRAO` | 8.0f |
 | `DIFERENCIAL_LEME_MIN_PADRAO` | −4.0f |

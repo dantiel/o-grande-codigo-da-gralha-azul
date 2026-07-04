@@ -167,6 +167,11 @@ public:
 #else
   float escalaAngularArticulacao = ESCALA_ANGULAR_DA_ARTICULACAO_PADRAO;
 #endif
+#ifdef MAGNITUDE_DA_BATIDA
+  float magnitudeDaBatida = MAGNITUDE_DA_BATIDA;
+#else
+  float magnitudeDaBatida = MAGNITUDE_DA_BATIDA_PADRAO;
+#endif
 
   /* ── Ecos Prescindíveis — atribuir antes de begin() ──────── */
   decltype(&Serial) ecosPrescindiveis = nullptr; 
@@ -230,7 +235,7 @@ private:
   bool oraculoRespira = false;
 
   /* ── Vozes do Céu ────────────────────────────────────────── */
-  int vozDoAlerao = 1500;
+  int vozDoAletao = 1500;
   int vozDoProfundor = 1500;
   int vozDoSoproVital = 1000;
   int vozDoLemeEstelar = 1500;
@@ -431,7 +436,7 @@ inline void GralhaAzul::update() {
       ecosPrescindiveis->print(" | Modo: ");
       ecosPrescindiveis->print(modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS ? "RITMADO" : "PLANANDO");
       ecosPrescindiveis->print(" | SoproV: "); ecosPrescindiveis->print(vozDoSoproVital);
-      ecosPrescindiveis->print(" | Alet: "); ecosPrescindiveis->print(vozDoAlerao);
+      ecosPrescindiveis->print(" | Alet: "); ecosPrescindiveis->print(vozDoAletao);
       ecosPrescindiveis->print(" | Prof: "); ecosPrescindiveis->print(vozDoProfundor);
       ecosPrescindiveis->print(" | Leme: "); ecosPrescindiveis->print(vozDoLemeEstelar);
       ecosPrescindiveis->print(" | Despertar: "); ecosPrescindiveis->print(vozDoDespertar);
@@ -561,7 +566,12 @@ inline void GralhaAzul::sustentarAltura() {
 //  A MANIFESTAÇÃO — Quando a Vontade se Torna Voo
 // ============================================================
 inline void GralhaAzul::manifestarOVooNosVentos() {
-  float comandoAlerao = (vozDoAlerao - 1500.0f) * escalaAngularArticulacao;
+  if (estadoPresenteDaAlma != EM_DANCA_COM_OS_VENTOS) {
+    tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
+    tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
+    return;
+  }
+  float comandoAletao = (vozDoAletao - 1500.0f) * escalaAngularArticulacao;
   float comandoProfundor = (vozDoProfundor - 1500.0f) * ESCALA_ANGULAR_DO_PROFUNDOR_PADRAO;
   int anguloPortalEsquerdo, anguloPortalDireito;
   float soproEfetivo = modoSustentarAtivo ? soproVitalDoSustentar : (float)vozDoSoproVital;
@@ -586,7 +596,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   }
 
   if (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
-    float magnitudeDaBatida = ((soproEfetivo - LIMIAR_DO_VOO_ATIVO_PADRAO) * MAGNITUDE_ESCALA_DA_FEROCIDADE_PADRAO) * (1.0f - (vozDoCompassoDaAlma - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
+    float amplitudeDoBater = ((soproEfetivo - LIMIAR_DO_VOO_ATIVO_PADRAO) * magnitudeDaBatida) * (1.0f - (vozDoCompassoDaAlma - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
     float cantoOriginalDaAsa = sin(anguloDaDancaAlada);
     float ferocidadeDoBater = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float ferocidadeDoRetorno = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
@@ -598,13 +608,13 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     float pulsoAsaEsquerda = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda);
     float pulsoAsaDireita = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterDireita, ferocidadeRetornoDireita);
     float fatorLemeEstelar = ((1500.0f / (float)vozDoLemeEstelar) - 1.0f) * 2.0f + 1.0f;
-    float grausAsaEsquerda = magnitudeDaBatida * pulsoAsaEsquerda * fatorLemeEstelar;
-    float grausAsaDireita  = magnitudeDaBatida * pulsoAsaDireita / fatorLemeEstelar;
-    anguloPortalEsquerdo = (int)((comandoAlerao - grausAsaEsquerda + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
-    anguloPortalDireito  = (int)((comandoAlerao + grausAsaDireita + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;
+    float grausAsaDireita  = amplitudeDoBater * pulsoAsaDireita / fatorLemeEstelar;
+    anguloPortalEsquerdo = (int)((comandoAletao - grausAsaEsquerda + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalDireito  = (int)((comandoAletao + grausAsaDireita + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   } else {
-    anguloPortalEsquerdo = (int)((comandoAlerao - ANGULO_DO_PLANAR_SERENO_PADRAO + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
-    anguloPortalDireito  = (int)((comandoAlerao + ANGULO_DO_PLANAR_SERENO_PADRAO + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalEsquerdo = (int)((comandoAletao - ANGULO_DO_PLANAR_SERENO_PADRAO + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalDireito  = (int)((comandoAletao + ANGULO_DO_PLANAR_SERENO_PADRAO + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   }
 
   tendaoDaAsaMatutina.write(constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180));
@@ -723,6 +733,7 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
   #if GRALHA_TEM_GUARDIAO_DOS_VENTOS
   if (guardiaoDosVentosSiderais) {
     auto* crsf = static_cast<CrsfSerial*>(guardiaoDosVentosSiderais);
+    if (!crsf->isLinkUp()) return;
     if (ecosPrescindiveis) {
       ecosPrescindiveis->println("[CANTO] A Gralha interpreta as vozes do Firmamento...");
       ecosPrescindiveis->print("[CANTO] Voz1="); ecosPrescindiveis->print(crsf->getChannel(1));
@@ -730,7 +741,7 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
       ecosPrescindiveis->print(" Voz3="); ecosPrescindiveis->print(crsf->getChannel(3));
       ecosPrescindiveis->print(" Voz4="); ecosPrescindiveis->println(crsf->getChannel(4));
     }
-    vozDoAlerao = crsf->getChannel(1);
+    vozDoAletao = crsf->getChannel(1);
     vozDoProfundor = crsf->getChannel(2);
     vozDoSoproVital = crsf->getChannel(3);
     vozDoLemeEstelar = crsf->getChannel(4);
@@ -753,7 +764,7 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
   #if GRALHA_TEM_MENSAGEIRO_DOS_CANTOS
   if (mensageiroDosVentosCosmicos) {
     auto* ppm = static_cast<PPMReader*>(mensageiroDosVentosCosmicos);
-    vozDoAlerao = ppm->getChannel(1);
+    vozDoAletao = ppm->getChannel(1);
     vozDoProfundor = ppm->getChannel(2);
     vozDoSoproVital = ppm->getChannel(3);
     vozDoLemeEstelar = ppm->getChannel(4);

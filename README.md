@@ -16,6 +16,8 @@ A C++ library for RP2040-based ornithopters (flapping-wing aircraft) that contro
 
 After placing, restart the Arduino IDE. The library and its examples will appear under **File → Examples → O Grande Código da Gralha Azul**.
 
+**Target board:** select **Tools → Board → Waveshare RP2040 Zero** when uploading.
+
 ### 2. Wire Your Hardware
 ### 2a. Power & Servos
 
@@ -143,8 +145,8 @@ The Gralha Azul will read your transmitter, animate the wings, and breathe life 
 Override these in your sketch **before** `#include <GralhaAzul.h>`. For all other parameters, edit `src/GralhaAzul_Padraos.h` directly.
 
 ```cpp
-#define CICLO_DO_CORACAO_ALADO     0.070f   // PTK 7465W (~14 Hz)
-#define ESCALA_ANGULAR_ARTICULACAO 0.05f    // wider strokes
+#define CICLO_DO_CORACAO_ALADO     0.070f   // servo max speed rating (60° travel time)
+#define ESCALA_ANGULAR_ARTICULACAO 0.05f    // elevator movement scale
 
 #include <GralhaAzul.h>
 ```
@@ -155,13 +157,14 @@ These can be overridden with `#define` **before** `#include <GralhaAzul.h>`:
 
 | Define | Default | Description |
 |--------|---------|-------------|
-| `CICLO_DO_CORACAO_ALADO` | `0.052f` | Wingbeat period in seconds. See servo table |
+| `CICLO_DO_CORACAO_ALADO` | `0.070f` | Servo max speed rating (60° travel time). Actual frequency depends on throttle and cadence modifiers |
 | `ARTICULACAO_DA_ASA_MATUTINA` | `8` | Left wing servo GPIO pin |
 | `ARTICULACAO_DA_ASA_DO_ENTARDECER` | `7` | Right wing servo GPIO pin |
-| `ESCALA_ANGULAR_ARTICULACAO` | `0.04f` | Stroke angle sensitivity |
+| `ESCALA_ANGULAR_ARTICULACAO` | `0.04f` | Elevator movement scale |
 | `VIA_DOS_SONHOS_LUNARES` | `1` | CRSF RX GPIO pin |
 | `VIA_DOS_ECOS_SOLARES` | `0` | CRSF TX GPIO pin |
 | `FREQUENCIA_DO_SOPRO_COSMICO` | `420000` | CRSF baud rate |
+| `MAGNITUDE_DA_BATIDA` | `0.04f` | Stroke amplitude scale |
 
 > **All other parameters** (pulse limits, gain values, PID constants, etc.) are in `src/GralhaAzul_Padraos.h` — edit that file directly.
 
@@ -177,14 +180,14 @@ Define these **before** `#include <GralhaAzul.h>`.
 
 ## Servo Recommendations
 
-**`CICLO_DO_CORACAO_ALADO` must match your servo's rated 60° travel time** at your supply voltage. The entire flapping algorithm — amplitude, frequency, and scaling — derives from this value. Set it to the servo's spec (or slightly slower). If the wingbeat feels off, the dance has lost its form.
+**`CICLO_DO_CORACAO_ALADO` is your servo's max speed rating — the time it takes for 60° travel at your supply voltage.** Set it to the servo's spec (or slightly slower). Actual wingbeat frequency depends on throttle position and cadence modifiers at runtime.
 
-| Servo | Speed (60°) | Torque | Weight | Suggested `CICLO_DO_CORACAO_ALADO` | Rate |
-|-------|-------------|--------|--------|-----------------------------------|------|
-| PTK 7465W | 0.07s @8.4V | 5.5 kg·cm | 13g | `0.070f` | ~14 Hz |
-| Blue Arrow AF D43S-6.0-MG | 0.041s @6V | 1.76 kg·cm | 5.6g | `0.041f` | ~24 Hz |
-| Blue Arrow D0576HT | 0.056s @7.4V | 4.2 kg·cm | 7.9g | `0.056f` | ~18 Hz |
-| KST MS320 | 0.08s @8.4V | 4.5 kg·cm | 21g | `0.080f` | ~12 Hz |
+| Servo | Speed (60°) | Torque | Weight | `CICLO_DO_CORACAO_ALADO` |
+|-------|-------------|--------|--------|--------------------------|
+| PTK 7465W | 0.07s @8.4V | 5.5 kg·cm | 13g | `0.070f` |
+| Blue Arrow AF D43S-6.0-MG | 0.041s @6V | 1.76 kg·cm | 5.6g | `0.041f` |
+| Blue Arrow D0576HT | 0.056s @7.4V | 4.2 kg·cm | 7.9g | `0.056f` |
+| KST MS320 | 0.08s @8.4V | 4.5 kg·cm | 21g | `0.080f` |
 
 ## Receiver Setup
 
