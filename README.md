@@ -103,6 +103,8 @@ After placing, restart the Arduino IDE. The library and its examples will appear
 ```
 
 > **Note**: GPIO 5 serves double duty (Servo Left + BMP180 SCL) only if barometer is enabled. Ensure no conflict if using both.
+>
+> To disable the barometer, define `#define ORACULO_DESLIGADO` before `#include <GralhaAzul.h>`.
 
 ### NeoPixel — Internal LED (Optional)
 
@@ -136,15 +138,15 @@ The RP2040 Zero has a **built-in NeoPixel (WS2812B)** on GPIO 16. No external wi
 // ─── Configuration ────────────────────────────────────────────────
 #define ARTICULACAO_DA_ASA_MATUTINA   8
 #define ARTICULACAO_DA_ASA_VESPERTINA 7
-#define CICLO_DO_CORACAO_ALADO        0.065f
+#define CICLO_DO_CORACAO_ALADO        0.065f   // Must match your servo's 60° speed. Amplitude, frequency, and scaling derive from this.
 
 // ─── Optional Features ────────────────────────────────────────────
-// #define ORACULO_DESLIGADO
-// #define SUSSURRO_DESLIGADO
+#define ORACULO_DESLIGADO
+#define SUSSURRO_DESLIGADO
 // #define CHAMA_AZUL_DESLIGADA
 
-// ─── Debug ──────────────────────────────────────────────────────────
-#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
+// ─── Ecos ao Monitor Serial ───────────────────────────────────────
+// (debug output via gralha.ecosPrescindiveis = &Serial; — see setup)
 
 // ─── Includes ───────────────────────────────────────────────────────
 #include <GralhaAzul.h>
@@ -209,7 +211,7 @@ Define these **before** `#include <GralhaAzul.h>`.
 
 ## Servo Recommendations
 
-Choose `CICLO_DO_CORACAO_ALADO` based on your servo's speed rating at your supply voltage. Add ~20% safety margin. Slower = safer, faster = risk of overheating.
+**`CICLO_DO_CORACAO_ALADO` must match your servo's rated 60° travel time** at your supply voltage. The entire flapping algorithm — amplitude, frequency, and scaling — derives from this value. Set it to the servo's spec (or slightly slower). If the wingbeat feels off, the dance has lost its form.
 
 | Servo | Speed (60°) | Torque | Weight | Suggested `CICLO_DO_CORACAO_ALADO` | Rate |
 |-------|-------------|--------|--------|-----------------------------------|------|
@@ -256,6 +258,47 @@ PPM input on GPIO 2, up to 8 channels.
 
 PPM: CH1-CH8 only. CH9-CH10 require `#define CANAL_DO_PLANAR_AMPLIADO`.
 
+## Telemetry (Sussurro ao Éter)
+
+When `SUSSURRO_DESLIGADO` is **not** defined, the Gralha whispers flight data to the serial monitor every second (via `INTERVALO_DOS_ECOS_PADRAO`, default 1000 ms). Output is formatted as space-separated key-value pairs on a single line.
+
+### Always sent
+
+| Campo | Significado |
+|-------|-------------|
+| VOANDO / SONHANDO | Flight state (flying / standby) |
+| Modo: RITMADO / PLANANDO | Wing mode (flapping / gliding) |
+| SoproV | Throttle channel raw value |
+| Alet | Aileron channel raw value |
+| Prof | Elevator channel raw value |
+| Leme | Rudder channel raw value |
+| Despertar | Arming switch state |
+| FerBater | Downstroke ferocity |
+| FerRetorno | Upstroke ferocity |
+| FerLeme | Rudder ferocity differential |
+| GainSust | Altitude hold gain |
+| CH10Sust | Altitude hold channel raw value |
+| Fase | Wing phase angle (radians) |
+| Cadencia | Wingbeat frequency (Hz) |
+
+### When Oráculo (barometer) is active
+
+These additional fields appear only if the barometer is enabled and breathing:
+
+| Campo | Significado |
+|-------|-------------|
+| AltVoo | Altitude above launch (m) |
+| Subida | Vertical speed / climb rate (m/s) |
+| SoproDoCeu | Air temperature (°C) |
+| FeNoSopro | Barometer confidence (0–1) |
+| AltDesej | Target altitude, altitude hold active (m) |
+| SoproSustentar | Throttle pulse for altitude hold (µs) |
+| GainEfetivo | Effective altitude hold gain |
+
+**Without the Oráculo**, barometric fields are omitted — only flight surface and rhythm data is sent.
+
+To disable telemetry entirely: `#define SUSSURRO_DESLIGADO`.
+
 ## Examples
 
 See the `examples/` folder:
@@ -279,8 +322,8 @@ See the `examples/` folder:
 
 ## FAQ
 
-**Q: Servo gets hot mid-flight.**
-A: Reduce wingbeat rate — increase `CICLO_DO_CORACAO_ALADO`. Check servo speed rating.
+**Q: Wingbeat feels wrong — wrong amplitude, frequency, or scaling.**
+A: `CICLO_DO_CORACAO_ALADO` must match your servo's 60° travel time. The entire algorithm derives from it. Also check servo speed rating for overheating.
 
 **Q: No response from receiver.**
 A: Verify CRSF wiring (TX↔RX crossover). Check baud rate (420000). Confirm receiver flashed with CRSF protocol.

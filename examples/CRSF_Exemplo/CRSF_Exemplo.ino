@@ -3,8 +3,8 @@
   — Exemplo CRSF: Gralha-das-Araucárias —
 
   A Gralha-das-Araucárias dança entre os pinheiros centenários
-  com asas que cortam o crepúsculo. Esta é a configuração completa:
-  CRSF, NeoPixel, BMP180, Telemetria — todos os sentidos despertos.
+  com asas que cortam o crepúsculo. CRSF, servo, e a Chama Azul
+  acesa — tudo que é essencial para o primeiro voo.
 
   Hardware: RP2040 | CRSF Serial1 | Servos em pinos configuráveis
 */
@@ -15,15 +15,12 @@
 #define ARTICULACAO_DA_ASA_VESPERTINA 8
 #define NUCLEO_DA_CHAMA_AZUL          16
 #define QUANTIDADE_DE_CENTELHAS       1
-#define CICLO_DO_CORACAO_ALADO        0.065f
+#define CICLO_DO_CORACAO_ALADO        0.065f   // Deve corresponder à velocidade real do servo. Amplitude, frequência e escala do batimento derivam daqui.
 
 // ─── Faculdades Opcionais ─────────────────────────────────────────
-// #define ORACULO_DESLIGADO
-// #define SUSSURRO_DESLIGADO
+#define ORACULO_DESLIGADO
+#define SUSSURRO_DESLIGADO
 // #define CHAMA_AZUL_DESLIGADA
-
-// ─── Debug ──────────────────────────────────────────────────────────
-#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
 
 // ─── Includes ───────────────────────────────────────────────────────
 #include <GralhaAzul.h>

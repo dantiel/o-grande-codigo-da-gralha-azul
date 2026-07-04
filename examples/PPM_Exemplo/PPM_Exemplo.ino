@@ -19,15 +19,12 @@
 #define ARTICULACAO_DA_ASA_VESPERTINA 8
 #define NUCLEO_DA_CHAMA_AZUL          16
 #define QUANTIDADE_DE_CENTELHAS       1
-#define CICLO_DO_CORACAO_ALADO        0.065f
+#define CICLO_DO_CORACAO_ALADO        0.065f   // Deve corresponder à velocidade real do servo. Amplitude, frequência e escala do batimento derivam daqui.
 
 // ─── Faculdades Opcionais ─────────────────────────────────────────
 #define ORACULO_DESLIGADO
 #define SUSSURRO_DESLIGADO
-#define CHAMA_AZUL_DESLIGADA
-
-// ─── Debug ──────────────────────────────────────────────────────────
-#define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
+// #define CHAMA_AZUL_DESLIGADA
 
 // ─── Includes ───────────────────────────────────────────────────────
 #include <PPMReaderRP2040.h>
