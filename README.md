@@ -8,7 +8,13 @@ A C++ library for RP2040-based ornithopters (flapping-wing aircraft) that contro
 
 ### 1. Install the Library
 
-Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries directory.
+**The entire repository is the library.** Place the whole `o-grande-codigo-da-gralha-azul` folder into your Arduino libraries directory:
+
+- **macOS**: `~/Documents/Arduino/libraries/o-grande-codigo-da-gralha-azul/`
+- **Linux**: `~/Arduino/libraries/o-grande-codigo-da-gralha-azul/`
+- **Windows**: `Documents\Arduino\libraries\o-grande-codigo-da-gralha-azul\`
+
+After placing, restart the Arduino IDE. The library and its examples will appear under **File → Examples → O Grande Código da Gralha Azul**.
 
 ### 2. Wire Your Hardware
 
@@ -102,7 +108,7 @@ Copy the `o-grande-codigo-da-gralha-azul` folder to your Arduino libraries direc
 
 The RP2040 Zero has a **built-in NeoPixel (WS2812B)** on GPIO 16. No external wiring is needed.
 
-**Enabled by:** `#define ORACULO_DA_PRESSAO_DO_CEU` at the top of the sketch. Without this define, no barometer libraries are required.
+**Enabled by default.** The NeoPixel is auto-detected — no define needed. To disable: `#define CHAMA_AZUL_DESLIGADA` before `#include <GralhaAzul.h>`.
 
 > **Important:** Some ELRS receivers operate at 3.3V, others at 5V. Check your receiver's specifications. The RP2040 Zero's 3.3V output is sufficient for 3.3V receivers. For 5V receivers, power VCC from the external BEC/battery (same source as servos).
 
@@ -120,20 +126,22 @@ The RP2040 Zero has a **built-in NeoPixel (WS2812B)** on GPIO 16. No external wi
 | GPIO 4 | BMP180 SDA              | `SILENCIO_DA_ALTURA`           |
 | GPIO 5 | BMP180 SCL              | `RITMO_DA_PRESSAO`             |
 
-> **Note**: GPIO 5 serves double duty (BMP180 SCL) only if barometer is enabled. Ensure no conflict if using both.
-
 ### 3. Create Your Model Sketch
 
 ```cpp
+// ─── Choose Your Receiver ─────────────────────────────────────────
+#define GUARDIAO_DOS_VENTOS_SIDERAIS      // CRSF receiver
+// #define MENSAGEIRO_DOS_CANTOS_COSMICOS // PPM receiver (uncomment instead)
+
 // ─── Configuration ────────────────────────────────────────────────
 #define ARTICULACAO_DA_ASA_MATUTINA   8
 #define ARTICULACAO_DA_ASA_VESPERTINA 7
 #define CICLO_DO_CORACAO_ALADO        0.065f
 
 // ─── Optional Features ────────────────────────────────────────────
-// #define BAROMETRO_DESLIGADO
-// #define TELEMETRIA_DESLIGADO
-// #define NEOPIXEL_DESLIGADO
+// #define ORACULO_DESLIGADO
+// #define SUSSURRO_DESLIGADO
+// #define CHAMA_AZUL_DESLIGADA
 
 // ─── Debug ──────────────────────────────────────────────────────────
 #define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
@@ -149,7 +157,6 @@ void setup() {
   delay(100);
   gralha.ecosPrescindiveis = &Serial;
   gralha.begin();
-}
 }
 
 // ─── Loop ───────────────────────────────────────────────────────────
@@ -193,9 +200,9 @@ Full list: see `src/GralhaAzul_Padraos.h`.
 ### Optional Modules
 
 ```cpp
-#define BAROMETRO_DESLIGADO
-#define TELEMETRIA_DESLIGADO
-#define NEOPIXEL_DESLIGADO
+#define ORACULO_DESLIGADO
+#define SUSSURRO_DESLIGADO
+#define CHAMA_AZUL_DESLIGADA
 ```
 
 Define these **before** `#include <GralhaAzul.h>`.
@@ -224,9 +231,9 @@ Choose `CICLO_DO_CORACAO_ALADO` based on your servo's speed rating at your suppl
 ### PPM
 
 ```cpp
-#define RECEPTOR_PPM
-#define PORTAL_DOS_CANTOS_COSMICOS 2
-#define NUMERO_DE_CANTOS 8
+#define MENSAGEIRO_DOS_CANTOS_COSMICOS
+#define PORTAL_DOS_CANTOS_COSMICOS  2
+#define NUMERO_DE_CANTOS            8
 #include <GralhaAzul.h>
 ```
 
@@ -282,7 +289,7 @@ A: Verify CRSF wiring (TX↔RX crossover). Check baud rate (420000). Confirm rec
 A: Check I2C wiring (GP4=SDA, GP5=SCL). Ensure BMP180 is 3.3V compatible. I2C address: `0x77`.
 
 **Q: NeoPixel stays dark.**
-A: Confirm `NEOPIXEL_DESLIGADO` is not defined. Check GPIO 16 connection.
+A: Confirm `CHAMA_AZUL_DESLIGADA` is not defined. Check GPIO 16 connection.
 
 **Q: Compilation error — "undefined reference to ..."**
 A: Ensure `src/` folder is in the same directory as your sketch. The `.ino` file auto-includes all `.cpp` files in `src/`.

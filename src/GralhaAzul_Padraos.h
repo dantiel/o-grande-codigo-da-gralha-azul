@@ -9,17 +9,17 @@
 #define ARTICULACAO_ASA_DA_MANHA_PADRAO        8
 #define ARTICULACAO_ASA_DO_ENTARDECER_PADRAO   7
 
-/* — Receptor dos Ventos (PPM ou CRSF) — */
-// PPM: definir ARTICULACAO_DO_RECEPTOR_PPM e NUMERO_DE_CANTOS no sketch
-// CRSF: definir VIA_DOS_SONHOS_LUNARES, VIA_DOS_ECOS_SOLARES, FREQUENCIA_DO_SOPRO_COSMICO
+/* — O Guardião e o Mensageiro dos Ventos — */
+// MENSAGEIRO_DOS_CANTOS_COSMICOS: definir PORTAL_DOS_CANTOS_COSMICOS e NUMERO_DE_CANTOS no sketch
+// GUARDIAO_DOS_VENTOS_SIDERAIS: definir VIA_DOS_SONHOS_LUNARES, VIA_DOS_ECOS_SOLARES, FREQUENCIA_DO_SOPRO_COSMICO
 
-/* — Via do Sopro Cósmico (CRSF) — */
-#define SOPRO_SERIAL_PADRAO                    Serial1
+/* — A Via do Sopro Cósmico — */
+#define VIA_DO_SOPRO_COSMICO_PADRAO                    Serial1
 #define VIA_DOS_SONHOS_LUNARES_PADRAO          1    /* entrada dos sonhos */
 #define VIA_DOS_ECOS_SOLARES_PADRAO            0    /* saída dos ecos */
 #define FREQUENCIA_DO_SOPRO_COSMICO_PADRAO     420000
 
-/* — Núcleo da Chama Azul (NeoPixel) — */
+/* — O Núcleo da Chama Azul — */
 #define NUCLEO_DA_CHAMA_AZUL_PADRAO            16
 #define QUANTIDADE_DE_CENTELHAS_PADRAO         1
 
@@ -62,11 +62,11 @@
 #define GANHO_LIMIAR_SUSTENTAR_PADRAO          0.1f
 #define ALTURA_MAX_DO_SUSTENTAR_M_PADRAO       20
 
-/* — Origem das Asas (offset) — */
+/* — A Origem das Asas — */
 #define ORIGEM_ASA_MATUTINA_PADRAO             0
 #define ORIGEM_ASA_VESPERTINA_PADRAO           0
 
-/* — Limites dos Servos (PWM) — */
+/* — Os Limites dos Tendões Alados — */
 #define PULSO_MINIMO_SERVO_PADRAO              500
 #define PULSO_MAXIMO_SERVO_PADRAO              2500
 
@@ -77,7 +77,7 @@
 #define PESO_DO_COMPASSO_NA_FREQUENCIA_PADRAO  0.3f
 #define LIMITE_ANGULAR_DO_GIRO_PADRAO          6.283185307f
 
-/* — Oráculo da Pressão (Barómetro) — */
+/* — O Oráculo da Pressão — */
 #define SILENCIO_DA_ALTURA_PADRAO              4
 #define RITMO_DA_PRESSAO_PADRAO                5
 #define AMOSTRAS_DE_CALIBRACAO_PADRAO          10
@@ -97,6 +97,7 @@
 
 /* — Intervalos de Sopro — */
 #define INTERVALO_DO_GUARDIAO_LUMINAR_PADRAO     1000
+#define INTERVALO_DO_ORACULO_TERMICO_PADRAO      1000
 #define INTERVALO_DA_CHAMA_AZUL_PADRAO           50
 #define INTERVALO_DOS_ECOS_PADRAO              1000
 

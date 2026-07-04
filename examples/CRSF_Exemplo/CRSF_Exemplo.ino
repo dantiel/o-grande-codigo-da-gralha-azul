@@ -10,7 +10,7 @@
 */
 
 // ─── Configuração da Gralha ───────────────────────────────────────
-#define RECEPTOR_CRSF
+#define GUARDIAO_DOS_VENTOS_SIDERAIS
 #define ARTICULACAO_DA_ASA_MATUTINA   3
 #define ARTICULACAO_DA_ASA_VESPERTINA 8
 #define NUCLEO_DA_CHAMA_AZUL          16
@@ -18,9 +18,9 @@
 #define CICLO_DO_CORACAO_ALADO        0.065f
 
 // ─── Faculdades Opcionais ─────────────────────────────────────────
-// #define BAROMETRO_DESLIGADO
-// #define TELEMETRIA_DESLIGADO
-// #define NEOPIXEL_DESLIGADO
+// #define ORACULO_DESLIGADO
+// #define SUSSURRO_DESLIGADO
+// #define CHAMA_AZUL_DESLIGADA
 
 // ─── Debug ──────────────────────────────────────────────────────────
 #define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA

@@ -4,16 +4,16 @@
 
   Configuração completa: CRSF, NeoPixel, BMP180, Telemetria.
   Altere os #defines abaixo para personalizar para o seu modelo.
-  Comente #define GRALHA_AZUL_*_DESLIGADO para desativar módulos.
+  Comente #define ..._DESLIGADO / ..._DESLIGADA para desativar módulos.
 */
 
 // === Configuração do Modelo ===
-#define RECEPTOR_DOS_VENTOS_CRSF
+#define GUARDIAO_DOS_VENTOS_SIDERAIS
 
 // Descomente para desativar módulos opcionais:
-// #define GRALHA_AZUL_NEOPIXEL_DESLIGADO
-// #define GRALHA_AZUL_BAROMETRO_DESLIGADO
-// #define GRALHA_AZUL_TELEMETRIA_DESLIGADO
+// #define CHAMA_AZUL_DESLIGADA
+// #define ORACULO_DESLIGADO
+// #define SUSSURRO_DESLIGADO
 
 // Pinos dos servos (RP2040 Zero)
 #define ARTICULACAO_ASA_DA_MANHA 8

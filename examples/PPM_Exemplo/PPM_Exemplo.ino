@@ -11,7 +11,7 @@
 */
 
 // ─── Configuração da Gralha ───────────────────────────────────────
-#define RECEPTOR_PPM
+#define MENSAGEIRO_DOS_CANTOS_COSMICOS
 #define PORTAL_DOS_CANTOS_COSMICOS  1
 #define NUMERO_DE_CANTOS            8
 
@@ -22,9 +22,9 @@
 #define CICLO_DO_CORACAO_ALADO        0.065f
 
 // ─── Faculdades Opcionais ─────────────────────────────────────────
-#define BAROMETRO_DESLIGADO
-#define TELEMETRIA_DESLIGADO
-#define NEOPIXEL_DESLIGADO
+#define ORACULO_DESLIGADO
+#define SUSSURRO_DESLIGADO
+#define CHAMA_AZUL_DESLIGADA
 
 // ─── Debug ──────────────────────────────────────────────────────────
 #define ECOS_PRESCINDIVEIS_DA_ALMA_ALADA
