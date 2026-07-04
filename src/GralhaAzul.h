@@ -577,7 +577,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   float soproEfetivo = modoSustentarAtivo ? soproVitalDoSustentar : (float)vozDoSoproVital;
 
   if (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
-    limiarElevado = true;
+    limiarElevado = false;
   }
   int limiarAtual = limiarElevado
     ? LIMIAR_DO_VOO_ATIVO_PADRAO
@@ -588,11 +588,11 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
         ? EM_RITMO_DE_BATIDA_DAS_ASAS
         : EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
     if (modoPresenteDoEspirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
-      limiarElevado = false;
+      limiarElevado = true;
     }
   } else {
     modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
-    limiarElevado = false;
+    limiarElevado = true;
   }
 
   if (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
@@ -725,7 +725,7 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
 inline void GralhaAzul::aoRecolherSeAoSilencioDaMata() {
   estadoPresenteDaAlma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
-  limiarElevado = false;
+  limiarElevado = true;
   if (ecosPrescindiveis) ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se rompeu — a Gralha só ouve o silêncio da mata.");
 }
 
