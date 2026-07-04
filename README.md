@@ -17,106 +17,73 @@ A C++ library for RP2040-based ornithopters (flapping-wing aircraft) that contro
 After placing, restart the Arduino IDE. The library and its examples will appear under **File → Examples → O Grande Código da Gralha Azul**.
 
 ### 2. Wire Your Hardware
+### 2a. Power & Servos
 
-### Minimal — CRSF + 2 Servos
-
-```
-  Wiring Diagram (Dual BEC)
-  ═══════════════════════════════════════════════════════════════════════════════
-
-  Battery (LiPo 2S-4S)
-  ╭───────────────╮
-  │               │
-  │  +V ──┬───────┼──► 6V BEC VIN        RP2040 Zero (USB 5V)
-  │       │       │      ╭──────────╮      ╭───────────────╮
-  │  GND ─┴───────┼──► 6V BEC GND      │  │               │
-  │               │      │          │      │  GPIO 8 PWM ──┼──► Servo L Signal
-  │               │      │ 6V OUT ──┼──────┼──► Servo L 6V │
-  │               │      │          │      │               │
-  │               │      │ 6V OUT ──┼──────┼──► Servo R 6V │
-  │               │      │          │      │               │
-  │               │      │ GND ─────┼──────┼──► Common GND  │
-  │               │      ╰──────────╯      │               │
-  │               │                        │  GPIO 7 PWM ──┼──► Servo R Signal
-  │               │                        │               │
-  │               │                        │  GPIO 0 TX ───┼──► CRSF RX
-  │               │                        │               │
-  │               │                        │  GPIO 1 RX ───┼──◄ CRSF TX
-  │               │                        │               │
-  │               │                        │  VBUS (5V) ───┼──► CRSF VCC
-  │               │                        │               │
-  │               │                        │  GND ─────────┼──► Common GND
-  │               │                        ╰───────────────╯
-  ╰───────────────╯
-
-  Servo Left              Servo Right         CRSF Receiver
-  ╭───────────────╮       ╭───────────────╮   ╭───────────────╮
-  │               │       │               │   │               │
-  │  Signal ◄─────┼───────┼───────────────┼───┼── GPIO 8 PWM  │
-  │               │       │               │   │               │
-  │  6V ◄─────────┼───────┼───────────────┼───┼── 6V BEC      │
-  │               │       │               │   │               │
-  │  GND ◄────────┼───────┼───────────────┼───┼── Common GND  │
-  ╰───────────────╯       ╰───────────────╯   │               │
-                                              │  RX ◄─────────┼── GPIO 0 TX
-                                              │               │
-                                              │  TX ─────────►── GPIO 1 RX
-                                              │               │
-                                              │  VCC ◄────────┼── VBUS (5V)
-                                              │               │
-                                              │  GND ◄────────┼── Common GND
-                                              ╰───────────────╯
-```
-
-**Power Architecture:**
-- **6V BEC**: Powers servos only (high current)
-- **RP2040 + CRSF**: Powered from USB (5V via VBUS) — no extra BEC needed
-- **Common GND**: All GNDs connected together (critical!)
-- **Servos**: Powered from external 6V BEC (not from RP2040)
-- **Common ground**: All GNDs tied together (RP2040, BEC, CRSF, servos)
-
-**Signal Flow:**
-- GPIO 8 [PWM] → Servo Left Signal + Servo Right Signal
-- GPIO 7 [PWM] → (available for other servos)
-- GPIO 0 TX → CRSF RX (yellow)
-- GPIO 1 RX → CRSF TX (blue)
-
-**Notes:**
-- CRSF baud: 420000 (`FREQUENCIA_DO_SOPRO_COSMICO`)
-- Do not power servos from RP2040 3.3V pin — use external BEC
-
-### With Barometer (BMP180)
+Two separate BECs from the same battery: one for the RP2040 (5V), one for the servos (6V, high current).
 
 ```
-  RP2040 Zero                        BMP180 Module
-  ╭───────────────────╮               ╭─────────────╮
-  │                   │               │             │
-  │           GPIO 4  ├──────────────►│ SDA         │
-  │                   │               │             │
-  │           GPIO 5  ├──────────────►│ SCL         │
-  │                   │               │             │
-  │           5V      ├──────────────►│ VCC         │
-  │                   │               │             │
-  │           GND     ├──────────────►│ GND         │
-  │                   │               │             │
-  ╰───────────────────╯               ╰─────────────╯
+    Battery (2S-4S LiPo)
+    ┌────────────────────┐
+    │ +V ─────┬──────────┼──┐
+    │ GND ────│──────────┼──│─── common GND
+    └─────────┼──────────┘  │
+              │             │
+         ┌────┘        ┌────┘
+         ▼             ▼
+    ┌─────────┐   ┌─────────┐
+    │BEC → 5V │   │BEC → 6V │
+    │ (to RP) │   │(servos) │
+    └────┬────┘   └────┬────┘
+         │             │
+         ▼             ├──────────┬──────────┐
+    ┌─────────┐        ▼          ▼          ▼
+    │ RP2040  │   ┌──────────┐┌──────────┐
+    │         │   │ Servo L  ││ Servo R  │
+    │ GPIO 8 ─┼───┼► Signal  ││          │
+    │ GPIO 7 ─┼───┼──────────┼┼► Signal  │
+    │ GND ────┼───┼─ common ─┼┼─ common ─┼─── all tied
+    └─────────┘   └──────────┘└──────────┘
 ```
 
-> **Note**: GPIO 5 serves double duty (Servo Left + BMP180 SCL) only if barometer is enabled. Ensure no conflict if using both.
->
-> To disable the barometer, define `#define ORACULO_DESLIGADO` before `#include <GralhaAzul.h>`.
+> ⚠️ **Servos draw high current** — never power them from the RP2040's 3.3V pin. Always use a dedicated BEC. If your servos are small direct-drive, a single BEC (5V) may suffice, but separate rails are safer.
 
-### NeoPixel — Internal LED (Optional)
+### 2b. Receiver (CRSF)
 
-The RP2040 Zero has a **built-in NeoPixel (WS2812B)** on GPIO 16. No external wiring is needed.
+```
+    RP2040                         CRSF Receiver
+    ┌──────────────┐               ┌──────────────┐
+    │ GPIO 0 (TX)  ├──────────────►│ RX           │
+    │ GPIO 1 (RX)  ├──────────────◄│ TX           │
+    │ VBUS (5V)    ├──────────────►│ VCC          │
+    │ GND          ├───────────────│ GND          │
+    └──────────────┘               └──────────────┘
 
-**Enabled by default.** The NeoPixel is auto-detected — no define needed. To disable: `#define CHAMA_AZUL_DESLIGADA` before `#include <GralhaAzul.h>`.
+    Baud rate: 420000 (fixed in library)
+```
 
-> **Important:** Some ELRS receivers operate at 3.3V, others at 5V. Check your receiver's specifications. The RP2040 Zero's 3.3V output is sufficient for 3.3V receivers. For 5V receivers, power VCC from the external BEC/battery (same source as servos).
+> Some ELRS receivers run at 3.3V — check your receiver's specs. Power from the RP2040's 5V VBUS pin (not 3.3V), which covers both 3.3V and 5V receivers.
 
-> **Critical:** Servos draw significant current. The RP2040's internal regulator cannot supply this. Always use an external BEC or battery for servo power. Connect **all grounds** (RP2040, servos, receiver, BEC) together.
+### 2c. Barometer — BMP180 (Optional)
 
-**Pin Allocation:**
+```
+    RP2040                         BMP180 Module
+    ┌──────────────┐               ┌─────────────┐
+    │ GPIO 4 (SDA) ├──────────────►│ SDA         │
+    │ GPIO 5 (SCL) ├──────────────►│ SCL         │
+    │ 3.3V         ├──────────────►│ 3.3V        │
+    │ GND          ├──────────────►│ GND         │
+    └──────────────┘               └─────────────┘
+```
+
+To disable, define `ORACULO_DESLIGADO` before `#include <GralhaAzul.h>`.
+
+### 2d. NeoPixel — Onboard LED
+
+The RP2040 Zero has a built-in WS2812B on **GPIO 16**. No external wiring needed. Auto-detected.
+
+To disable: `#define CHAMA_AZUL_DESLIGADA` before `#include <GralhaAzul.h>`.
+
+**Pin Reference:**
 
 | Pin    | Function                | Macro                          |
 |--------|-------------------------|--------------------------------|
@@ -173,31 +140,30 @@ The Gralha Azul will read your transmitter, animate the wings, and breathe life 
 
 ## Configuration
 
-Edit `src/GralhaAzul_Padraos.h` — all parameters use `#ifndef` guards, so you can override them in your sketch **before** `#include`:
+Override these in your sketch **before** `#include <GralhaAzul.h>`. For all other parameters, edit `src/GralhaAzul_Padraos.h` directly.
 
 ```cpp
-#define CICLO_DO_CORACAO_ALADO 0.070f   // PTK 7465W (~14 Hz)
-#define ANGULO_DO_PLANAR_SERENO -2      // Gentle glide
+#define CICLO_DO_CORACAO_ALADO     0.070f   // PTK 7465W (~14 Hz)
+#define ESCALA_ANGULAR_ARTICULACAO 0.05f    // wider strokes
 
 #include <GralhaAzul.h>
 ```
 
 ### Key Parameters
 
+These can be overridden with `#define` **before** `#include <GralhaAzul.h>`:
+
 | Define | Default | Description |
 |--------|---------|-------------|
 | `CICLO_DO_CORACAO_ALADO` | `0.052f` | Wingbeat period in seconds. See servo table |
-| `ANGULO_DO_PLANAR_SERENO` | `-4` | Glide angle (degrees, negative = descend) |
-| `ORIGEM_ASA_MATUTINA` | `0` | Left wing neutral offset (µs) |
-| `ORIGEM_ASA_VESPERTINA` | `0` | Right wing neutral offset (µs) |
-| `FEROCIDADE_MINIMA` | `1.0f` | Minimum stroke amplitude |
-| `FEROCIDADE_MAXIMA` | `8.0f` | Maximum stroke amplitude |
-| `PULSO_MINIMO_SERVO` | `500` | Servo minimum pulse (µs) |
-| `PULSO_MAXIMO_SERVO` | `2500` | Servo maximum pulse (µs) |
-| `GRAU_MINIMO_DA_ASA` | `0` | Minimum wing angle (degrees) |
-| `GRAU_MAXIMO_DA_ASA` | `90` | Maximum wing angle (degrees) |
+| `ARTICULACAO_DA_ASA_MATUTINA` | `8` | Left wing servo GPIO pin |
+| `ARTICULACAO_DA_ASA_DO_ENTARDECER` | `7` | Right wing servo GPIO pin |
+| `ESCALA_ANGULAR_ARTICULACAO` | `0.04f` | Stroke angle sensitivity |
+| `VIA_DOS_SONHOS_LUNARES` | `1` | CRSF RX GPIO pin |
+| `VIA_DOS_ECOS_SOLARES` | `0` | CRSF TX GPIO pin |
+| `FREQUENCIA_DO_SOPRO_COSMICO` | `420000` | CRSF baud rate |
 
-Full list: see `src/GralhaAzul_Padraos.h`.
+> **All other parameters** (pulse limits, gain values, PID constants, etc.) are in `src/GralhaAzul_Padraos.h` — edit that file directly.
 
 ### Optional Modules
 
@@ -314,8 +280,7 @@ See the `examples/` folder:
 
 ## Safety
 
-- **Servo pulse clamping**: `PULSO_MINIMO_SERVO` / `PULSO_MAXIMO_SERVO` enforced
-- **Angle clamping**: `GRAU_MINIMO_DA_ASA` / `GRAU_MAXIMO_DA_ASA` enforced
+- **Servo pulse clamping**: internal limits enforced (500–2500 µs)
 - **CRSF link loss**: Servo hold on last position, timer resets after 1 s
 - **BMP180 failure**: Altitude hold gracefully disables, flight continues
 - **NeoPixel timeout**: 100 ms max per frame, no animation stalls the loop
