@@ -161,6 +161,7 @@ These can be overridden with `#define` **before** `#include <GralhaAzul.h>`:
 | `ARTICULACAO_DA_ASA_MATUTINA` | `8` | Left wing servo GPIO pin |
 | `ARTICULACAO_DA_ASA_DO_ENTARDECER` | `7` | Right wing servo GPIO pin |
 | `ESCALA_ANGULAR_ARTICULACAO` | `0.04f` | Elevator movement scale |
+| `ANGULO_DO_PLANAR_SERENO` | `-4` | Glide position offset (°). **0** = upstroke/downstroke centered in glide position, **-4** = default dihedral |
 | `VIA_DOS_SONHOS_LUNARES` | `1` | CRSF RX GPIO pin |
 | `VIA_DOS_ECOS_SOLARES` | `0` | CRSF TX GPIO pin |
 | `FREQUENCIA_DO_SOPRO_COSMICO` | `420000` | CRSF baud rate |
@@ -178,6 +179,25 @@ These can be overridden with `#define` **before** `#include <GralhaAzul.h>`:
 
 Define these **before** `#include <GralhaAzul.h>`.
 
+## Glide Position (`ANGULO_DO_PLANAR_SERENO`)
+
+Controls the **static wing position** when CH5 (flight mode) is in glide position (centered).
+
+| Value | Behavior |
+|-------|----------|
+| **`-4`** (default) | Wings maintain a slight dihedral (left 4° down, right 4° up relative to neutral) |
+| **`0`** | **Upstroke and downstroke are centered** — glide position equals the average of both wing endpoints. Useful for symmetric gliding where neither wing is biased |
+| **`+4`** | Reverse dihedral (left 4° up, right 4° down) |
+
+```cpp
+// In your sketch, before #include:
+#define ANGULO_DO_PLANAR_SERENO   0   // Center glide position
+
+#include <GralhaAzul.h>
+```
+
+This parameter can also be changed at runtime: `gralha.anguloDoPlanarSereno = 0;`
+
 ## Servo Recommendations
 
 **`CICLO_DO_CORACAO_ALADO` is your servo's max speed rating — the time it takes for 60° travel at your supply voltage.** Set it to the servo's spec (or slightly slower). Actual wingbeat frequency depends on throttle position and cadence modifiers at runtime.
@@ -188,6 +208,8 @@ Define these **before** `#include <GralhaAzul.h>`.
 | Blue Arrow AF D43S-6.0-MG | 0.041s @6V | 1.76 kg·cm | 5.6g | `0.041f` |
 | Blue Arrow D0576HT | 0.056s @7.4V | 4.2 kg·cm | 7.9g | `0.056f` |
 | KST MS320 | 0.08s @8.4V | 4.5 kg·cm | 21g | `0.080f` |
+
+> **Tip:** For complete frequency/amplitude scaling tables for each servo (especially in `MODO_DE_VOO_ALTERNATIVO`), see [SERVO_SCALING_TABLES.md](SERVO_SCALING_TABLES.md).
 
 ## Receiver Setup
 
@@ -227,14 +249,24 @@ PPM input on GPIO 2, up to 8 channels.
 
 ### Alternative Control Mode
 
-Define `MODO_DE_VOO_ALTERNATIVO` before `#include <GralhaAzul.h>` for direct control:
+Define `MODO_DE_VOO_ALTERNATIVO` before `#include <GralhaAzul.h>` for **physics-based direct control**:
 
 ```cpp
 #define MODO_DE_VOO_ALTERNATIVO
+#define CICLO_DO_CORACAO_ALADO 0.070f   // Your servo's actual speed
 #include <GralhaAzul.h>
 ```
 
-In this mode, throttle controls **amplitude directly** and CH9 controls **flapping frequency directly** (unthrottled). Useful for testing or when you prefer manual frequency management over the PI-controlled cadence.
+In this mode, **CH6 sets frequency** and **throttle sets percentage of maximum possible amplitude** at that frequency — constrained by servo physics (velocity = 60° / CICLO).
+
+| Channel | Function | Range |
+|---------|----------|-------|
+| CH3 (Throttle) | Amplitude % of max permitted | 0% → 0°, 100% → physics-limited max |
+| CH6 (Potentiometer) | Flapping frequency | 0 Hz → 30/CICLO Hz (e.g., 0→42.9Hz for CICLO=0.07s) |
+
+**Physics relationship:** Higher frequency → lower max amplitude (servo can't move far fast). At CH6=100%, amplitude max is always **~10°** regardless of servo speed.
+
+> **See [SERVO_SCALING_TABLES.md](SERVO_SCALING_TABLES.md)** for complete frequency/amplitude tables for common servos.
 
 **Default mode channels:**
 - CH3 → modulates both cadence and amplitude via PI
@@ -242,9 +274,9 @@ In this mode, throttle controls **amplitude directly** and CH9 controls **flappi
 - CH9 → yaw differential (asymmetric wing thrust)
 
 **Alternative mode channels:**
-- CH3 → amplitude direct (0→max degrees)
-- CH9 → frequency direct (0→~2.5Hz)
-- CH6 → (unchanged, frequency trim unused in this mode)
+- CH3 → amplitude % of physics max (0→100%)
+- CH6 → frequency direct (0→servo_max_Hz)
+- CH9 → (configurable, typically yaw differential)
 
 PPM: CH1-CH8 only. CH9-CH10 require `#define CANAL_DO_PLANAR_AMPLIADO`.
 

@@ -172,8 +172,13 @@ public:
 #else
   float magnitudeDaBatida = MAGNITUDE_DA_BATIDA_PADRAO;
 #endif
+#ifdef ANGULO_DO_PLANAR_SERENO
+  float anguloDoPlanarSereno = ANGULO_DO_PLANAR_SERENO;
+#else
+  float anguloDoPlanarSereno = ANGULO_DO_PLANAR_SERENO_PADRAO;
+#endif
 
-  /* ── Ecos Prescindíveis — atribuir antes de begin() ──────── */
+  /* ── Ecos Prescindíveis ── */
   decltype(&Serial) ecosPrescindiveis = nullptr; 
 
 
@@ -267,6 +272,7 @@ private:
   /* ── Geometria do Voo ────────────────────────────────────── */
   float anguloDaDancaAlada = 0;
   float cadenciaDoDestinoAlado = 0;
+  float amplitudeMaximaPermitida = 0.0f;  // em MODO_DE_VOO_ALTERNATIVO: amp máx baseada em frequência
   float pulsoDoSoproVital = 0.0;
   float ganhoDoSustentar = 0.0f;
   float alturaDesejadaDoVoo = 0.0f;
@@ -483,7 +489,7 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 inline float GralhaAzul::formaDoBaterDasAsas(float cantoDoVento, float ferocidadeDoBater, float ferocidadeDoRetorno) {
   float ferocidade = (cantoDoVento >= 0.0f) ? ferocidadeDoBater : ferocidadeDoRetorno;
   float equilibrioDoCeu = tanh(ferocidade);
-  if (equilibrioDoCeu < EPSILON_FORMA_BATER_PADRAO) {
+  if (fabs(equilibrioDoCeu) < EPSILON_FORMA_BATER_PADRAO) {
     return cantoDoVento;
   }
   float resultado = tanh(ferocidade * cantoDoVento) / equilibrioDoCeu;
@@ -505,11 +511,42 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
 
   if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS) {
     // A malha de controle — a vontade se torna movimento
-    float intencaoDeCadencia = (vozDoSoproVital - 480.0f) * ((1.0f / (120.0f * cicloDoCoracaoAlado)) +
-                               ((vozDoCompassoDaAlma - 1500.0f) * 0.0000725f));
-    float variacaoDoDestinoAlado = 1.0f * intencaoDeCadencia - 10.0f * cadenciaDoDestinoAlado;
-    cadenciaDoDestinoAlado += variacaoDoDestinoAlado * dt;
+    #ifdef MODO_DE_VOO_ALTERNATIVO
+      // Modo alternativo BIRD-LIKE: CH6 → frequência, throttle → % de amplitude permitida
+      // Física: para freqência F (Hz), período = 1/F. Ida+volta = 2*A/velocidade
+      // → A_max = velocidadeAngular / (2 * F) = 60 / (2 * CICLO * F)
+      float bracosDoRelogio = constrain((vozDaFerocidadeDoLeme - 1000.0f) * 0.001f, 0.0f, 1.0f);
+      
+      // Velocidade angular do servo: 60° / CICLO segundos = °/s
+      float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
+      
+      // Frequência máxima: 10% da capacidade física a amplitude mínima
+      // Capacidade a 1° = 1/(2*1*CICLO/60) = 30/CICLO Hz
+      // 10% disso → frequenciaMaxCH6 = 3/CICLO Hz
+      float frequenciaMaximaCH6_Hz = 3.0f / cicloDoCoracaoAlado;
+      float frequenciaPedida_Hz = bracosDoRelogio * frequenciaMaximaCH6_Hz;  // CH6=100% → proporcional
+      
+      // Amplitude máxima permitida para essa frequência
+      // A_max = velocidade / (2 * frequencia) [graus]
+      // Em CH6=100%: A_max = (60/CICLO) / (2 * 3/CICLO) = 10° (independente de CICLO!)
+      const float FREQ_MINIMA = 0.05f;  // evitar div/0, ~3 RPM mínimo
+      float freqEfetiva = fmax(frequenciaPedida_Hz, FREQ_MINIMA);
+      amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);  // guardado para usar abaixo
+      
+      // Não clampar — amplitude é puramente física
+      if (amplitudeMaximaPermitida < 0.0f) amplitudeMaximaPermitida = 0.0f;
+      
+      cadenciaDoDestinoAlado = frequenciaPedida_Hz * 6.283185307f;  // 2*PI rad/s para o integrador
+    #else
+      // Modo padrão (PI): throttle modula cadência + compasso afecta proporcionalmente
+      float intencaoDeCadencia = (vozDoSoproVital - 480.0f) * ((1.0f / (120.0f * cicloDoCoracaoAlado)) +
+                                 ((vozDaFerocidadeDoLeme - 1500.0f) * 0.0000725f));
+      float variacaoDoDestinoAlado = 1.0f * intencaoDeCadencia - 10.0f * cadenciaDoDestinoAlado;
+      cadenciaDoDestinoAlado += variacaoDoDestinoAlado * dt;
+    #endif
     anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
+    if (fabs(anguloDaDancaAlada) > LIMITE_ANGULAR_DO_GIRO_PADRAO)
+      anguloDaDancaAlada = fmod(anguloDaDancaAlada, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   } else {
     anguloDaDancaAlada = 0;
     cadenciaDoDestinoAlado *= DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO;
@@ -595,26 +632,37 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     limiarElevado = true;
   }
 
+  float amplitudeDoBater = 0.0f;
   if (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
-    float amplitudeDoBater = ((soproEfetivo - LIMIAR_DO_VOO_ATIVO_PADRAO) * magnitudeDaBatida) * (1.0f - (vozDoCompassoDaAlma - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
+    #ifdef MODO_DE_VOO_ALTERNATIVO
+      // Modo alternativo BIRD-LIKE: frequência(CH6) → amplitude_max, throttle → % dessa amplitude
+      // CH9 = rudder ferocity (independente)
+      // Throttle escala de 0 até amplitudeMaximaPermitida (calculada acima pela física do servo)
+      float percentagemSopro = constrain((vozDoSoproVital - 480.0f) * 0.00125f, 0.0f, 1.0f);  // 480→2000 → 0→1
+      amplitudeDoBater = percentagemSopro * amplitudeMaximaPermitida * magnitudeDaBatida;
+    #else
+      // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
+      amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDaFerocidadeDoLeme - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
+    #endif
     float cantoOriginalDaAsa = sin(anguloDaDancaAlada);
     float ferocidadeDoBater = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float ferocidadeDoRetorno = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
-    float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoLeme, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
-    float ferocidadeBaterEsquerda = ferocidadeDoBater + fatorDoLeme;
-    float ferocidadeBaterDireita  = ferocidadeDoBater - fatorDoLeme;
-    float ferocidadeRetornoEsquerda = ferocidadeDoRetorno + fatorDoLeme;
-    float ferocidadeRetornoDireita  = ferocidadeDoRetorno - fatorDoLeme;
+    float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
+    float ferocidadeBaterEsquerda = fmax(ferocidadeDoBater + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
+    float ferocidadeBaterDireita  = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
+    float ferocidadeRetornoEsquerda = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
+    float ferocidadeRetornoDireita  = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float pulsoAsaEsquerda = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda);
     float pulsoAsaDireita = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterDireita, ferocidadeRetornoDireita);
-    float fatorLemeEstelar = ((1500.0f / (float)vozDoLemeEstelar) - 1.0f) * 2.0f + 1.0f;
+    float denominadorLeme = (vozDoLemeEstelar > 0) ? (float)vozDoLemeEstelar : 1500.0f;
+    float fatorLemeEstelar = ((1500.0f / denominadorLeme) - 1.0f) * 2.0f + 1.0f;
     float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;
     float grausAsaDireita  = amplitudeDoBater * pulsoAsaDireita / fatorLemeEstelar;
     anguloPortalEsquerdo = (int)((comandoAletao - grausAsaEsquerda + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
     anguloPortalDireito  = (int)((comandoAletao + grausAsaDireita + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   } else {
-    anguloPortalEsquerdo = (int)((comandoAletao - ANGULO_DO_PLANAR_SERENO_PADRAO + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
-    anguloPortalDireito  = (int)((comandoAletao + ANGULO_DO_PLANAR_SERENO_PADRAO + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalEsquerdo = (int)((comandoAletao - anguloDoPlanarSereno + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalDireito  = (int)((comandoAletao + anguloDoPlanarSereno + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   }
 
   tendaoDaAsaMatutina.write(constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180));
@@ -669,7 +717,15 @@ inline void GralhaAzul::despertarOraculoDaPressao() {
     }
     delay(ATRASO_DE_CALIBRACAO_PADRAO);
   }
-  if (ecosPrescindiveis) ecosPrescindiveis->println("A Gralha sente o chamado do éter!");
+  if (leiturasValidas > 0) {
+    alturaInicialM = somaAltura / (float)leiturasValidas;
+  }
+  if (ecosPrescindiveis) {
+    ecosPrescindiveis->print("A Gralha sente o chamado do éter! (zero: ");
+    ecosPrescindiveis->print(alturaInicialM, 1);
+    ecosPrescindiveis->println("m)");
+  }
+  alturaDoVooSideral = 0.0f;
   ultimaAlturaDoVooSideral = 0.0f;
   ultimoSoproDoOraculo = millis();
   ultimaTemperaturaDoArC = 0.0f;
@@ -715,6 +771,8 @@ inline void GralhaAzul::escutarPressaoDoCeu() {
 //  OS EVENTOS — Quando o Destino Toca a Gralha
 // ============================================================
 inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
+  modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
+  limiarElevado = true;
   if (ecosPrescindiveis) {
     ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se formou — o Firmamento canta!");
     ecosPrescindiveis->print("[PRESAGIO] Sopros no vento após o elo: ");
@@ -723,7 +781,6 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
 }
 
 inline void GralhaAzul::aoRecolherSeAoSilencioDaMata() {
-  estadoPresenteDaAlma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
   limiarElevado = true;
   if (ecosPrescindiveis) ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se rompeu — a Gralha só ouve o silêncio da mata.");
@@ -746,10 +803,10 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
     vozDoSoproVital = crsf->getChannel(3);
     vozDoLemeEstelar = crsf->getChannel(4);
     vozDoDespertar = crsf->getChannel(5);
-    vozDaFerocidadeDoLeme = crsf->getChannel(6);
+    vozDaFerocidadeDoLeme = crsf->getChannel(9);
     vozDaFerocidadeDoBater = crsf->getChannel(7);
     vozDaFerocidadeDoRetorno = crsf->getChannel(8);
-    vozDoCompassoDaAlma = crsf->getChannel(9);
+    vozDoCompassoDaAlma = crsf->getChannel(6);
     vozDoSustentarAltura = crsf->getChannel(10);
     if (ecosPrescindiveis) {
       ecosPrescindiveis->print(F("VOANDO | Modo: "));
@@ -769,10 +826,10 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
     vozDoSoproVital = ppm->getChannel(3);
     vozDoLemeEstelar = ppm->getChannel(4);
     vozDoDespertar = ppm->getChannel(5);
-    vozDaFerocidadeDoLeme = ppm->getChannel(6);
+    vozDaFerocidadeDoLeme = ppm->getChannel(9);
     vozDaFerocidadeDoBater = ppm->getChannel(7);
     vozDaFerocidadeDoRetorno = ppm->getChannel(8);
-    vozDoCompassoDaAlma = ppm->getChannel(9);
+    vozDoCompassoDaAlma = ppm->getChannel(6);
     vozDoSustentarAltura = ppm->getChannel(10);
     if (ecosPrescindiveis) {
       ecosPrescindiveis->print(F("PLANANDO | Modo: "));

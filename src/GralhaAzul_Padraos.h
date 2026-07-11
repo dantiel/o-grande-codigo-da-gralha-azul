@@ -109,4 +109,10 @@
 #define LIMITE_FORMA_BATER_PADRAO              1.0f
 #define MINIMO_DT_SEGUNDOS_PADRAO              0.000001f
 
+/* — Modos de Voo Ocultos — */
+// Descomentar para activar modo alternativo:
+// CH3 (throttle) → amplitude directa
+// CH9 (vozDoCompassoDaAlma) → frequência directa (sem modulação por throttle)
+// #define MODO_DE_VOO_ALTERNATIVO
+
 #endif /* GRALHA_AZUL_PADRAOS_H */

@@ -69,8 +69,21 @@ The UART port itself is `VIA_DO_SOPRO_COSMICO` (default: `Serial1`), overridable
 |---|---|---|
 | `cicloDoCoracaoAlado` | `CICLO_DO_CORACAO_ALADO` | 0.070f |
 | `escalaAngularArticulacao` | `ESCALA_ANGULAR_ARTICULACAO` | 0.04f |
+| `anguloDoPlanarSereno` | `ANGULO_DO_PLANAR_SERENO` | -4 |
 
 `cicloDoCoracaoAlado` is the servo's max speed rating — 60° travel time at supply voltage. Actual frequency emerges from throttle position (`vozDoSoproVital`), cadence modifiers, and other runtime inputs — not from this value alone.
+
+**`anguloDoPlanarSereno`** controls the static wing position when CH5 is in glide (centered) position. This is the **angle to which both wings return** between strokes in gliding flight:
+
+| Value | Meaning | Use Case |
+|-------|---------|----------|
+| **`-4`** (default) | Dihedral glide — left wing at -4°, right at +4° relative to neutral | Standard gliding with slight wingtip elevation |
+| **`0`** | **Symmetric glide** — glide position equals the average of upstroke and downstroke extremes | **Upstroke and downstroke are centered** around glide position; equal travel up and down |
+| **`+4`** | Reverse dihedral — left at +4°, right at -4° | Inverted or non-standard configurations |
+
+**Mathematically:** With `anguloDoPlanarSereno = 0`, if servo neutral is 90° and full stroke amplitude is ±30° (upstroke 120°, downstroke 60°), then glide position = **90°** — exactly centered between 120° and 60°.
+
+This is particularly useful when you want **equal travel authority** in both directions from the glide position, or when the mechanical linkage is set up such that neutral servo position should equal the glide position.
 
 #### Optional Module Disable Flags
 
