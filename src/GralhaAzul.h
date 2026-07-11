@@ -280,10 +280,18 @@ private:
   bool modoSustentarAtivo = false;
   float erroFiltradoSustentar = 0.0f;
 
+  /* ── Transição Suave para Glide ────────────────────────────── */
+  bool emTransicaoParaGlide = false;
+  float anguloGlideEsquerdo = 0.0f;
+  float anguloGlideDireito = 0.0f;
+  uint32_t microsUltimoPasso = 0;
+  float velocidadeAngularPorMicros = 0.0f;  // °/µs = (60/ciclo) / 1e6
+
   /* ── Relógio ─────────────────────────────────────────────── */
   RelogioDasEras relogioDasEras = {0};
 
   /* ── Métodos Privados ────────────────────────────────────── */
+  void tecerTransicaoGlide(float alvoEsquerdo, float alvoDireito);
   float mapearEntreEscalasHarmonicas(float valor, float minOrigem, float maxOrigem, float minDestino, float maxDestino);
   float formaDoBaterDasAsas(float cantoDoVento, float ferocidadeDoBater, float ferocidadeDoRetorno);
   void animarPulsarDoCoracaoAlado();
@@ -473,6 +481,76 @@ inline void GralhaAzul::update() {
 }
 
 // ============================================================
+//  A TRANSIÇÃO SUAVE — Quando as Asas Se Preparam para Planar
+// ============================================================
+inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireito) {
+  // Inicialização: quando entra em glide pela primeira vez ou sai e volta
+  if (!emTransicaoParaGlide) {
+    emTransicaoParaGlide = true;
+    // Começa onde estava (estimativa) ou 0 se primeiro frame
+    anguloGlideEsquerdo = alvoEsquerdo;  // snap inicial — transição começa do próximo frame
+    anguloGlideDireito = alvoDireito;
+    microsUltimoPasso = micros();
+    return;
+  }
+  
+  // Determina ferocidade baseada se asa está acima ou abaixo do glide alvo
+  // Se posicao > alvo (precisa descer) → ferocidadeDoRetorno (downstroke fast)
+  // Se posicao < alvo (precisa subir) → ferocidadeDoBater (upstroke fast)
+  // Nota: servo 0 = -60° (up position), 180 = +60° (down position)
+  // Logo "subir" = mover para menor ângulo = decrescer posicao servo
+  float ferocidadeEsquerdo = (anguloGlideEsquerdo > alvoEsquerdo)
+    ? mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO)
+    : mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
+  float ferocidadeDireito = (anguloGlideDireito > alvoDireito)
+    ? mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO)
+    : mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
+  
+  // Taxa de movimento = ferocidade * velocidadeAngular * delta_micros
+  uint32_t agora = micros();
+  uint32_t deltaMicros = agora - microsUltimoPasso;
+  if (deltaMicros > 100000) deltaMicros = 100000;  // max 100ms safety
+  microsUltimoPasso = agora;
+  
+  // Passo máximo permitido para cada asa
+  float passoMaxEsquerdo = ferocidadeEsquerdo * velocidadeAngularPorMicros * deltaMicros;
+  float passoMaxDireito = ferocidadeDireito * velocidadeAngularPorMicros * deltaMicros;
+  
+  // Calcula erros
+  float erroEsquerdo = alvoEsquerdo - anguloGlideEsquerdo;
+  float erroDireito = alvoDireito - anguloGlideDireito;
+  
+  // Move na direção correta, limitado ao passo máximo
+  if (fabs(erroEsquerdo) <= passoMaxEsquerdo) {
+    anguloGlideEsquerdo = alvoEsquerdo;  // Chegou ao alvo
+  } else {
+    anguloGlideEsquerdo += (erroEsquerdo > 0) ? passoMaxEsquerdo : -passoMaxEsquerdo;
+  }
+  
+  if (fabs(erroDireito) <= passoMaxDireito) {
+    anguloGlideDireito = alvoDireito;  // Chegou ao alvo
+  } else {
+    anguloGlideDireito += (erroDireito > 0) ? passoMaxDireito : -passoMaxDireito;
+  }
+  
+  // Debug: reportar progresso (~2Hz)
+  if (ecosPrescindiveis && (agora % 500000 < deltaMicros)) {
+    ecosPrescindiveis->print("[GLIDE] Transição: esq=");
+    ecosPrescindiveis->print(anguloGlideEsquerdo);
+    ecosPrescindiveis->print(" dir=");
+    ecosPrescindiveis->print(anguloGlideDireito);
+    ecosPrescindiveis->print(" alvos=");
+    ecosPrescindiveis->print(alvoEsquerdo);
+    ecosPrescindiveis->print("/");
+    ecosPrescindiveis->print(alvoDireito);
+    ecosPrescindiveis->print(" feroc=");
+    ecosPrescindiveis->print(ferocidadeEsquerdo);
+    ecosPrescindiveis->print("/");
+    ecosPrescindiveis->println(ferocidadeDireito);
+  }
+}
+
+// ============================================================
 //  A HARMONIA DAS ESCALAS — Transmutação de Valores
 // ============================================================
 inline float GralhaAzul::mapearEntreEscalasHarmonicas(
@@ -519,6 +597,8 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       
       // Velocidade angular do servo: 60° / CICLO segundos = °/s
       float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
+      // Velocidade em °/µs para transição suave (usada em tecerTransicaoGlide)
+      velocidadeAngularPorMicros = velocidadeAngularServo / 1e6f;
       
       // Frequência máxima: 10% da capacidade física a amplitude mínima
       // Capacidade a 1° = 1/(2*1*CICLO/60) = 30/CICLO Hz
@@ -634,6 +714,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
 
   float amplitudeDoBater = 0.0f;
   if (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
+    // Sai do modo glide: reseta transição suave para futura entrada suave
+    emTransicaoParaGlide = false;
     #ifdef MODO_DE_VOO_ALTERNATIVO
       // Modo alternativo BIRD-LIKE: frequência(CH6) → amplitude_max, throttle → % dessa amplitude
       // CH9 = rudder ferocity (independente)
@@ -661,8 +743,17 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     anguloPortalEsquerdo = (int)((comandoAletao - grausAsaEsquerda + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
     anguloPortalDireito  = (int)((comandoAletao + grausAsaDireita + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   } else {
-    anguloPortalEsquerdo = (int)((comandoAletao - anguloDoPlanarSereno + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
-    anguloPortalDireito  = (int)((comandoAletao + anguloDoPlanarSereno + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    // ── Modo Glide com Transição Suave ─────────────────────
+    // Alvo em graus (mundo real, antes de converter para servo)
+    float alvoEsquerdoGraus = comandoAletao - anguloDoPlanarSereno - comandoProfundor;
+    float alvoDireitoGraus = comandoAletao + anguloDoPlanarSereno + comandoProfundor;
+    
+    // Processa a transição suave
+    tecerTransicaoGlide(alvoEsquerdoGraus, alvoDireitoGraus);
+    
+    // Converte posição suave em graus para posição servo
+    anguloPortalEsquerdo = (int)((anguloGlideEsquerdo + ORIGEM_ASA_MATUTINA_PADRAO) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalDireito  = (int)((anguloGlideDireito + ORIGEM_ASA_VESPERTINA_PADRAO) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   }
 
   tendaoDaAsaMatutina.write(constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180));
