@@ -218,12 +218,33 @@ PPM input on GPIO 2, up to 8 channels.
 | CH2 | Elevator (right stick V) | Pitch |
 | CH3 | Throttle (left stick V) | Wingbeat intensity |
 | CH4 | Rudder (left stick H) | Yaw / steering |
-| CH5 | Switch | Glide toggle |
-| CH6 | Potentiometer | Rhythm |
+| CH5 | Switch | Glide toggle (arm/disarm) |
+| CH6 | Potentiometer | Flapping frequency trim |
 | CH7 | Potentiometer | Downstroke ferocity |
 | CH8 | Potentiometer | Upstroke ferocity |
-| CH9 | Potentiometer | Rudder differential |
+| CH9 | Potentiometer | Yaw aggressiveness / rudder differential |
 | CH10 | Potentiometer (gain) | Altitude hold gain |
+
+### Alternative Control Mode
+
+Define `MODO_DE_VOO_ALTERNATIVO` before `#include <GralhaAzul.h>` for direct control:
+
+```cpp
+#define MODO_DE_VOO_ALTERNATIVO
+#include <GralhaAzul.h>
+```
+
+In this mode, throttle controls **amplitude directly** and CH9 controls **flapping frequency directly** (unthrottled). Useful for testing or when you prefer manual frequency management over the PI-controlled cadence.
+
+**Default mode channels:**
+- CH3 → modulates both cadence and amplitude via PI
+- CH6 → frequency trim (additive to throttle-derived cadence)
+- CH9 → yaw differential (asymmetric wing thrust)
+
+**Alternative mode channels:**
+- CH3 → amplitude direct (0→max degrees)
+- CH9 → frequency direct (0→~2.5Hz)
+- CH6 → (unchanged, frequency trim unused in this mode)
 
 PPM: CH1-CH8 only. CH9-CH10 require `#define CANAL_DO_PLANAR_AMPLIADO`.
 

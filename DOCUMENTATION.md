@@ -127,10 +127,10 @@ Called every loop iteration. Executes in this order:
 | 3 | `vozDoSoproVital` | Throttle |
 | 4 | `vozDoLemeEstelar` | Yaw |
 | 5 | `vozDoDespertar` | Arm (>1500 = active) |
-| 6 | `vozDaFerocidadeDoLeme` | Yaw aggressiveness |
+| 6 | `vozDoCompassoDaAlma` | Flapping frequency trim |
 | 7 | `vozDaFerocidadeDoBater` | Downstroke aggressiveness |
 | 8 | `vozDaFerocidadeDoRetorno` | Upstroke aggressiveness |
-| 9 | `vozDoCompassoDaAlma` | Flapping frequency trim |
+| 9 | `vozDaFerocidadeDoLeme` | Yaw aggressiveness |
 | 10 | `vozDoSustentarAltura` | Altitude hold gain |
 
 All channels expect 1000–2000µs range, centered at 1500.
@@ -187,7 +187,37 @@ leftServo      = (roll − leftDegrees  + originLeft  − pitch) × finalMultipl
 rightServo     = (roll + rightDegrees + originRight + pitch) × finalMultiplier
 ```
 
-Yaw differential: ferocidadeDoLeme adds to left wing's downstroke and right wing's upstroke, subtracts from the opposite — producing asymmetric thrust.
+Yaw differential: ferocidadeDoLeme (CH9) adds to left wing's downstroke and right wing's upstroke, subtracts from the opposite — producing asymmetric thrust.
+
+## Alternative Flight Mode
+
+Define `MODO_DE_VOO_ALTERNATIVO` **before** `#include <GralhaAzul.h>` for direct throttle↔amplitude and CH9↔frequency control.
+
+### Channel Mapping (Alternative Mode)
+
+| Channel | Function |
+|---|---|
+| CH3 (throttle) | Amplitude direct (0→max degrees) |
+| CH9 (`vozDaFerocidadeDoLeme`) | Flapping frequency direct (0→~2.5Hz) |
+
+### Algorithm Changes
+
+**Default mode:**
+```
+targetCadence = (throttle - 480) * (1/(120 * cycleTime) + (CH9 - 1500) * 0.0000725)
+cadence += (targetCadence - 10 * cadence) * dt
+variacao = 1.0 * intencao - 10.0 * cadencia
+amplitude = (throttle - threshold) * scale * (1 - (CH9 - 1500) * modulation)
+```
+
+**Alternative mode:**
+```
+cadencia = (vozDaFerocidadeDoLeme - 1500) * 2.5f / 1000.0f  // CH9 → Hz direct
+variacao = 1.0 * intencao  // No feedback term
+amplitude = (throttle - 1000) * 0.04f  // Direct mapping
+```
+
+The alternative mode bypasses the PI-controlled cadence and throttle-modulated amplitude for simpler, more direct control — useful for testing or when the pilot prefers manual frequency management.
 
 ## Altitude Hold
 

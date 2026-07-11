@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v1.29.2
+- Added `MODO_DE_VOO_ALTERNATIVO` — alternative flight control mode
+  - CH3 (throttle) → amplitude direct
+  - CH9 (vozDaFerocidadeDoLeme) → flapping frequency direct (0→~2.5Hz)
+  - Bypasses PI-controlled cadence and throttle-modulated amplitude
+  - For testing or manual frequency management preference
+- Fixed CH6/CH9 swap for documentation consistency (v1.29.0)
+  - CH6 now controls flapping frequency trim (vozDoCompassoDaAlma)
+  - CH9 now controls yaw aggressiveness / rudder differential (vozDaFerocidadeDoLeme)
+- Combined 8 fixes from v1.29.0-v1.29.1: barometer calibration, div/0 guard, state restore, failsafe, fabs() waveform, fmax() ferocity, fmod() angle
+
 ## v1.28.8
 - Pure poetic naming: all technical acronyms transmuted
   - GUARDIAO_DOS_VENTOS_SIDERAIS (was RECEPTOR_CRSF)
