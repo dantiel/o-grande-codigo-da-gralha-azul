@@ -593,7 +593,7 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       // Modo alternativo BIRD-LIKE: CH6 → frequência, throttle → % de amplitude permitida
       // Física: para freqência F (Hz), período = 1/F. Ida+volta = 2*A/velocidade
       // → A_max = velocidadeAngular / (2 * F) = 60 / (2 * CICLO * F)
-      float bracosDoRelogio = constrain((vozDaFerocidadeDoLeme - 1000.0f) * 0.001f, 0.0f, 1.0f);
+      float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
       // Velocidade angular do servo: 60° / CICLO segundos = °/s
       float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
