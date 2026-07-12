@@ -282,8 +282,8 @@ private:
 
   /* ── Transição Suave para Glide ────────────────────────────── */
   bool emTransicaoParaGlide = false;
-  float anguloGlideEsquerdo = 0.0f;
-  float anguloGlideDireito = 0.0f;
+  float anguloGlideEsquerdo = INFINITY;  // INFINITY = não inicializado
+  float anguloGlideDireito = INFINITY;
   uint32_t microsUltimoPasso = 0;
   float velocidadeAngularPorMicros = 0.0f;  // °/µs = (60/ciclo) / 1e6
 
@@ -497,6 +497,12 @@ inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireit
   // Determina ferocidade baseada se asa está acima ou abaixo do glide alvo
   // Se posicao > alvo (precisa descer) → ferocidadeDoRetorno (downstroke fast)
   // Se posicao < alvo (precisa subir) → ferocidadeDoBater (upstroke fast)
+  // Inicialização na primeira transição: captura posição actual
+  if (anguloGlideEsquerdo == INFINITY || anguloGlideDireito == INFINITY) {
+    anguloGlideEsquerdo = asasDaManha.read() - ORIGEM_DOS_SERVOS;
+    anguloGlideDireito = asasDaVespertina.read() - ORIGEM_DOS_SERVOS;
+  }
+  
   // Nota: servo 0 = -60° (up position), 180 = +60° (down position)
   // Logo "subir" = mover para menor ângulo = decrescer posicao servo
   float ferocidadeEsquerdo = (anguloGlideEsquerdo > alvoEsquerdo)
@@ -716,6 +722,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   if (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     // Sai do modo glide: reseta transição suave para futura entrada suave
     emTransicaoParaGlide = false;
+    anguloGlideEsquerdo = INFINITY;  // Força recaptura na próxima entrada
+    anguloGlideDireito = INFINITY;
     #ifdef MODO_DE_VOO_ALTERNATIVO
       // Modo alternativo BIRD-LIKE: frequência(CH6) → amplitude_max, throttle → % dessa amplitude
       // CH9 = rudder ferocity (independente)
