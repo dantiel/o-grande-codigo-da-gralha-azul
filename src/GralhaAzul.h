@@ -1,6 +1,7 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.11
-  * Diagnóstico servo: [SERVO] mostra portal, novo, diff, e se escreveu.
+  * O Grande Código da Gralha Azul — v1.30.12
+  * Deadband ±5 (±3→±5). Se o glitch persiste, o problema é externo à pipeline.
+  * Mantém debug [SERVO] para diagnóstico.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -775,19 +776,18 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
 
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
-  // Banda morta ±3: absorve jitter de precisão do soft-float RP2040.
-  // Em certos alinhamentos de canal, o erro acumulado de sin()+tanh()
-  // e 3 multiplicações produz oscilação de ±3 passos. Movimentos reais
-  // (≥4 passos) passam sem impedimento.
+  // Banda morta ±5: último recurso contra jitter soft-float RP2040.
+  // Se a oscilação persistir com este limiar, a origem é externa
+  // (biblioteca Servo RP2040, CRSF, ou interferência eléctrica).
   int diffEsq = novoEsquerdo - ultimoServoEsquerdo;
   int diffDir = novoDireito - ultimoServoDireito;
   bool escreveuEsq = false, escreveuDir = false;
-  if (abs(diffEsq) > 3) {
+  if (abs(diffEsq) > 5) {
     tendaoDaAsaMatutina.write(novoEsquerdo);
     ultimoServoEsquerdo = novoEsquerdo;
     escreveuEsq = true;
   }
-  if (abs(diffDir) > 3) {
+  if (abs(diffDir) > 5) {
     tendaoDaAsaVespertina.write(novoDireito);
     ultimoServoDireito = novoDireito;
     escreveuDir = true;
