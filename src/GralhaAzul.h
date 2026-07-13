@@ -1,6 +1,6 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.8
-  v1.30.7
+  * O Grande Código da Gralha Azul — v1.30.9
+  * Fusão suave das ferocidades — o bater e o retorno dançam sem fronteira.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -565,10 +565,20 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 //  A FORMA DO BATER — A Geometria do Movimento Alado
 // ============================================================
 inline float GralhaAzul::formaDoBaterDasAsas(float cantoDoVento, float ferocidadeDoBater, float ferocidadeDoRetorno) {
-  // Limiar assimétrico (-0.01f) evita oscilação soft-float no cruzamento
-  // de zero quando ferocidadeDoBater != ferocidadeDoRetorno (CH7 ≠ CH8).
-  // RP2040 sin() pode devolver ±ε em vez de 0, alternando a ferocidade.
-  float ferocidade = (cantoDoVento > -0.01f) ? ferocidadeDoBater : ferocidadeDoRetorno;
+  // Zona de blend linear (±0.1 rad) em torno do cruzamento de zero.
+  // Elimina a oscilação soft-float quando ferocidadeDoBater ≠ ferocidadeDoRetorno
+  // (CH7 ≠ CH8). Sem fronteira discreta, o sin() do RP2040 pode devolver ±ε
+  // sem alternar a ferocidade — o blend interpola continuamente.
+  float ferocidade;
+  if (cantoDoVento >= 0.1f) {
+    ferocidade = ferocidadeDoBater;
+  } else if (cantoDoVento <= -0.1f) {
+    ferocidade = ferocidadeDoRetorno;
+  } else {
+    // Interpolação linear: t=0 em -0.1 (retorno puro), t=1 em +0.1 (bater puro)
+    float t = (cantoDoVento + 0.1f) * 5.0f;  // mapeia [-0.1, 0.1] → [0, 1]
+    ferocidade = ferocidadeDoRetorno + (ferocidadeDoBater - ferocidadeDoRetorno) * t;
+  }
   float equilibrioDoCeu = tanh(ferocidade);
   if (fabs(equilibrioDoCeu) < EPSILON_FORMA_BATER_PADRAO) {
     return cantoDoVento;
