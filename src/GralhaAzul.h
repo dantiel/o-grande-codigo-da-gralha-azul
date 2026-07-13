@@ -1,6 +1,6 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.10
-  * Diagnóstico expandido + banda morta ±3 — o véu do soft-float recua.
+  * O Grande Código da Gralha Azul — v1.30.11
+  * Diagnóstico servo: [SERVO] mostra portal, novo, diff, e se escreveu.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -775,17 +775,44 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
 
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
-  // Banda morta ±2: absorve jitter de precisão do soft-float RP2040.
+  // Banda morta ±3: absorve jitter de precisão do soft-float RP2040.
   // Em certos alinhamentos de canal, o erro acumulado de sin()+tanh()
-  // e 3 multiplicações produz oscilação de ±2 passos. Movimentos reais
-  // (≥3 passos) passam sem impedimento.
-  if (abs(novoEsquerdo - ultimoServoEsquerdo) > 3) {
+  // e 3 multiplicações produz oscilação de ±3 passos. Movimentos reais
+  // (≥4 passos) passam sem impedimento.
+  int diffEsq = novoEsquerdo - ultimoServoEsquerdo;
+  int diffDir = novoDireito - ultimoServoDireito;
+  bool escreveuEsq = false, escreveuDir = false;
+  if (abs(diffEsq) > 3) {
     tendaoDaAsaMatutina.write(novoEsquerdo);
     ultimoServoEsquerdo = novoEsquerdo;
+    escreveuEsq = true;
   }
-  if (abs(novoDireito - ultimoServoDireito) > 3) {
+  if (abs(diffDir) > 3) {
     tendaoDaAsaVespertina.write(novoDireito);
     ultimoServoDireito = novoDireito;
+    escreveuDir = true;
+  }
+  // Debug servo: flag para detectar oscilação na fronteira do deadband
+  if (ecosPrescindiveis && (escreveuEsq || escreveuDir || abs(diffEsq) >= 2 || abs(diffDir) >= 2)) {
+    ecosPrescindiveis->print(F("[SERVO] E:"));
+    ecosPrescindiveis->print(novoEsquerdo);
+    ecosPrescindiveis->print(escreveuEsq ? F("→") : F("✗"));
+    ecosPrescindiveis->print(F("("));
+    ecosPrescindiveis->print(ultimoServoEsquerdo);
+    ecosPrescindiveis->print(F(") d"));
+    ecosPrescindiveis->print(diffEsq);
+    ecosPrescindiveis->print(F(" | D:"));
+    ecosPrescindiveis->print(novoDireito);
+    ecosPrescindiveis->print(escreveuDir ? F("→") : F("✗"));
+    ecosPrescindiveis->print(F("("));
+    ecosPrescindiveis->print(ultimoServoDireito);
+    ecosPrescindiveis->print(F(") d"));
+    ecosPrescindiveis->print(diffDir);
+    ecosPrescindiveis->print(F(" | portalE="));
+    ecosPrescindiveis->print(anguloPortalEsquerdo);
+    ecosPrescindiveis->print(F(" portalD="));
+    ecosPrescindiveis->print(anguloPortalDireito);
+    ecosPrescindiveis->println();
   }
 }
 
