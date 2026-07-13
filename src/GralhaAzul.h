@@ -1,8 +1,9 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.19
-  * v1.30.19: Guardião — primeiro frame aceite incondicionalmente para
-  * inicializar referências. v1.30.18 rejeitava o primeiro frame (deltas
-  * contra defaults 1500/1000 excediam 100µs) causando lockout permanente
+  //  O Grande Código da Gralha Azul — v1.30.20
+  * v1.30.20: Guardião — rejeição por canal, não por frame. Um canal que
+  * excede o delta congela só esse canal; os outros 9 voam livremente.
+  * Elimina o lockout total que ocorria quando um stick legítimo excedia
+  * 100µs/frame (ex: leme rápido) e congelava todos os canais.
   * — todos os frames subsequentes também rejeitados, servos imóveis.
   * Guardião reinicializa quando o elo cai e volta.
   * o modelo de voo com valores errados, causando shaking+freeze em
@@ -1012,60 +1013,62 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
     int cru9 = crsf->getChannel(9);
     int cru10 = crsf->getChannel(10);
 
-    // Guardião contra Fantasmas: rejeita frames com saltos impossíveis.
-    // CH5 (arm) usa delta alargado (switch 1000↔2000 é legítimo).
+    // Guardião contra Fantasmas: rejeição por canal, não por frame.
+    // Cada canal tem o seu próprio delta máximo. Se um canal excede,
+    // só esse canal congela — os outros 9 continuam a actualizar.
     // O primeiro frame após link-up inicializa as referências sem verificação.
     if (!guardiaoInicializado) {
       guardiaoInicializado = true;
+      guardiaoVoz1 = cru1; guardiaoVoz2 = cru2; guardiaoVoz3 = cru3;
+      guardiaoVoz4 = cru4; guardiaoVoz5 = cru5; guardiaoVoz6 = cru6;
+      guardiaoVoz7 = cru7; guardiaoVoz8 = cru8; guardiaoVoz9 = cru9;
+      guardiaoVoz10 = cru10;
+      vozDoAletao = cru1; vozDoProfundor = cru2; vozDoSoproVital = cru3;
+      vozDoLemeEstelar = cru4; vozDoDespertar = cru5; vozDoCompassoDaAlma = cru6;
+      vozDaFerocidadeDoBater = cru7; vozDaFerocidadeDoRetorno = cru8;
+      vozDaFerocidadeDoLeme = cru9; vozDoSustentarAltura = cru10;
       if (ecosPrescindiveis) {
         ecosPrescindiveis->println(F("[GUARDIAO] Inicializado com o primeiro sopro dos ventos."));
       }
-    } else if (abs(cru1 - guardiaoVoz1) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru2 - guardiaoVoz2) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru3 - guardiaoVoz3) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru4 - guardiaoVoz4) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru5 - guardiaoVoz5) > DELTA_MAXIMO_DO_GUARDIAO_ARM ||
-        abs(cru6 - guardiaoVoz6) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru7 - guardiaoVoz7) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru8 - guardiaoVoz8) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru9 - guardiaoVoz9) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru10 - guardiaoVoz10) > DELTA_MAXIMO_DO_GUARDIAO) {
-      if (ecosPrescindiveis) {
-        ecosPrescindiveis->print(F("[GUARDIAO] Frame rejeitado — delta excessivo: "));
-        ecosPrescindiveis->print(cru1); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru2); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru3); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru4); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru5); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru6); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru7); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru8); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->print(cru9); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->println(cru10);
-      }
-      return;
+      // Sem return — o primeiro frame também voa.
     }
-    guardiaoVoz1 = cru1;
-    guardiaoVoz2 = cru2;
-    guardiaoVoz3 = cru3;
-    guardiaoVoz4 = cru4;
-    guardiaoVoz5 = cru5;
-    guardiaoVoz6 = cru6;
-    guardiaoVoz7 = cru7;
-    guardiaoVoz8 = cru8;
-    guardiaoVoz9 = cru9;
-    guardiaoVoz10 = cru10;
 
-    vozDoAletao = cru1;
-    vozDoProfundor = cru2;
-    vozDoSoproVital = cru3;
-    vozDoLemeEstelar = cru4;
-    vozDoDespertar = cru5;
-    vozDoCompassoDaAlma = cru6;
-    vozDaFerocidadeDoBater = cru7;
-    vozDaFerocidadeDoRetorno = cru8;
-    vozDaFerocidadeDoLeme = cru9;
-    vozDoSustentarAltura = cru10;
+    // ── Verificação por canal ──────────────────────────────
+    bool assombrado = false;
+
+    auto verificarCanal = [&](int cru, int& guardiao, int& voz, int deltaMax,
+                               int canal, const char* nome) {
+      if (abs(cru - guardiao) > deltaMax) {
+        if (ecosPrescindiveis) {
+          ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
+          ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
+          ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(guardiao);
+          ecosPrescindiveis->print(F("→")); ecosPrescindiveis->print(cru);
+          ecosPrescindiveis->print(F(" (Δ")); ecosPrescindiveis->print(abs(cru - guardiao));
+          ecosPrescindiveis->println(F(") RETIDO"));
+        }
+        assombrado = true;
+        // Não actualiza guardiao nem voz — mantém valor anterior
+      } else {
+        guardiao = cru;
+        voz = cru;
+      }
+    };
+
+    verificarCanal(cru1, guardiaoVoz1, vozDoAletao, DELTA_MAXIMO_DO_GUARDIAO, 1, "Aletao");
+    verificarCanal(cru2, guardiaoVoz2, vozDoProfundor, DELTA_MAXIMO_DO_GUARDIAO, 2, "Profundor");
+    verificarCanal(cru3, guardiaoVoz3, vozDoSoproVital, DELTA_MAXIMO_DO_GUARDIAO, 3, "Sopro");
+    verificarCanal(cru4, guardiaoVoz4, vozDoLemeEstelar, DELTA_MAXIMO_DO_GUARDIAO, 4, "Leme");
+    verificarCanal(cru5, guardiaoVoz5, vozDoDespertar, DELTA_MAXIMO_DO_GUARDIAO_ARM, 5, "Arm");
+    verificarCanal(cru6, guardiaoVoz6, vozDoCompassoDaAlma, DELTA_MAXIMO_DO_GUARDIAO, 6, "Compasso");
+    verificarCanal(cru7, guardiaoVoz7, vozDaFerocidadeDoBater, DELTA_MAXIMO_DO_GUARDIAO, 7, "FeroBater");
+    verificarCanal(cru8, guardiaoVoz8, vozDaFerocidadeDoRetorno, DELTA_MAXIMO_DO_GUARDIAO, 8, "FeroRetorno");
+    verificarCanal(cru9, guardiaoVoz9, vozDaFerocidadeDoLeme, DELTA_MAXIMO_DO_GUARDIAO, 9, "FeroLeme");
+    verificarCanal(cru10, guardiaoVoz10, vozDoSustentarAltura, DELTA_MAXIMO_DO_GUARDIAO, 10, "Sustentar");
+
+    if (assombrado && ecosPrescindiveis) {
+      ecosPrescindiveis->println(F("[GUARDIAO] Frame parcialmente retido (canais assombrados congelados)."));
+    }
     if (ecosPrescindiveis) {
       ecosPrescindiveis->print(F("VOANDO | Arm:"));
       ecosPrescindiveis->print(estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS ? F("SIM") : F("NAO"));
