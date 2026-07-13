@@ -1,5 +1,5 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.15
+  //  O Grande Código da Gralha Azul — v1.30.16
   * EMA (α=0.5) + write-on-change com cadência máxima 50Hz (20ms intervalo
   * mínimo entre escritas). O flap varia a cada frame, write-on-change puro
   * escrevia a ~200Hz — inútil (servo PWM só actualiza a 50Hz) e causava
@@ -791,32 +791,39 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
 
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
-  // Filtro EMA: suaviza jitter sem banda morta.
-  // EMA low-pass linear (α=0.5) — absorve jitter ±1 sem degraus.
-  // Write-on-change com cadência máxima de 50Hz (20ms entre escritas):
-  // o servo PWM só actualiza a 50Hz, escrever mais rápido é inútil
-  // e pode causar glitches no PIO do RP2040.
-  const float ALPHA_EMA = 0.5f;
+  // Filtro EMA sincronizado com cadência de 50Hz.
+  // v1.30.15 dessincronizava EMA (200Hz) das escritas (50Hz),
+  // causando saltos de 10–52 passos entre writes consecutivos —
+  // o servo recebia valores "fantasma" do EMA de há 15ms atrás.
+  // Agora: EMA e write correm ambos a 50Hz. O raw é capturado
+  // no momento exacto da escrita, eliminando a perseguição atrasada.
+  const float ALPHA_EMA = 0.3f;
   const uint32_t INTERVALO_MIN_US = 20000;  // 20ms = 50Hz
-  emaServoEsquerdo = ALPHA_EMA * novoEsquerdo + (1.0f - ALPHA_EMA) * emaServoEsquerdo;
-  emaServoDireito  = ALPHA_EMA * novoDireito  + (1.0f - ALPHA_EMA) * emaServoDireito;
+  uint32_t agoraUs = micros();
+  bool tickE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);
+  bool tickD = (agoraUs - ultimoMicrosEscritaDireito >= INTERVALO_MIN_US);
+  bool escreveuE = false;
+  bool escreveuD = false;
   int escreveEsq = (int)lround(emaServoEsquerdo);
   int escreveDir = (int)lround(emaServoDireito);
-  uint32_t agoraUs = micros();
-  bool valorMudouE = (escreveEsq != ultimoEscritoEsquerdo);
-  bool valorMudouD = (escreveDir != ultimoEscritoDireito);
-  bool cadenciaOkE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);
-  bool cadenciaOkD = (agoraUs - ultimoMicrosEscritaDireito >= INTERVALO_MIN_US);
-  bool escreveuE = (valorMudouE && cadenciaOkE);
-  bool escreveuD = (valorMudouD && cadenciaOkD);
-  if (escreveuE) {
-    tendaoDaAsaMatutina.write(escreveEsq);
-    ultimoEscritoEsquerdo = escreveEsq;
+  if (tickE) {
+    emaServoEsquerdo = ALPHA_EMA * novoEsquerdo + (1.0f - ALPHA_EMA) * emaServoEsquerdo;
+    escreveEsq = (int)lround(emaServoEsquerdo);
+    if (escreveEsq != ultimoEscritoEsquerdo) {
+      tendaoDaAsaMatutina.write(escreveEsq);
+      ultimoEscritoEsquerdo = escreveEsq;
+      escreveuE = true;
+    }
     ultimoMicrosEscritaEsquerdo = agoraUs;
   }
-  if (escreveuD) {
-    tendaoDaAsaVespertina.write(escreveDir);
-    ultimoEscritoDireito = escreveDir;
+  if (tickD) {
+    emaServoDireito = ALPHA_EMA * novoDireito + (1.0f - ALPHA_EMA) * emaServoDireito;
+    escreveDir = (int)lround(emaServoDireito);
+    if (escreveDir != ultimoEscritoDireito) {
+      tendaoDaAsaVespertina.write(escreveDir);
+      ultimoEscritoDireito = escreveDir;
+      escreveuD = true;
+    }
     ultimoMicrosEscritaDireito = agoraUs;
   }
   // Debug servo: mostra raw, EMA, write status
