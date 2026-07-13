@@ -1,8 +1,8 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.21
-  * v1.30.21: Guardião — persistência temporal de 2 frames. Um único frame
-  * anómalo é fantasma (bloqueado); o mesmo delta sustentado 2 frames
-  * consecutivos é stick legítimo (confirmado). Elimina falsos positivos
+  //  O Grande Código da Gralha Azul — v1.30.22
+  * v1.30.22: Guardião — detecção de simultaneidade. ≥4 canais anómalos
+  * no mesmo frame = fantasma colectivo (rejeitado). 1-3 canais = persistência
+  * de 2 frames. Ghosts em pares consecutivos já não enganam o Guardião.
   * em movimentos rápidos sem sacrificar a rejeição de ghost frames.
   * 100µs/frame (ex: leme rápido) e congelava todos os canais.
   * — todos os frames subsequentes também rejeitados, servos imóveis.
@@ -1042,67 +1042,107 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
       // Sem return — o primeiro frame também voa.
     }
 
-    // ── Verificação por canal ──────────────────────────────
-    bool assombrado = false;
+    // ── Detecção de simultaneidade ──────────────────────────
+    // Fantasmas eléctricos corrompem muitos canais ao mesmo tempo.
+    // Sticks reais: no máximo 3 eixos mudam simultaneamente.
+    // Se ≥4 canais excedem delta no mesmo frame → fantasma colectivo.
+    static constexpr int LIMIAR_SIMULTANEIDADE_DO_GUARDIAO = 4;
 
-    auto verificarCanal = [&](int cru, int& guardiao, int& voz, int deltaMax,
-                               int canal, const char* nome) {
-      int idx = canal - 1;
-      int delta = abs(cru - guardiao);
+    // Primeira passagem: contar canais anómalos
+    int canaisAnomalos = 0;
+    int deltaCanal[10];
+    int deltas[10];
+    deltas[0] = abs(cru1 - guardiaoVoz1);
+    deltas[1] = abs(cru2 - guardiaoVoz2);
+    deltas[2] = abs(cru3 - guardiaoVoz3);
+    deltas[3] = abs(cru4 - guardiaoVoz4);
+    deltas[4] = abs(cru5 - guardiaoVoz5);
+    deltas[5] = abs(cru6 - guardiaoVoz6);
+    deltas[6] = abs(cru7 - guardiaoVoz7);
+    deltas[7] = abs(cru8 - guardiaoVoz8);
+    deltas[8] = abs(cru9 - guardiaoVoz9);
+    deltas[9] = abs(cru10 - guardiaoVoz10);
 
-      if (delta <= deltaMax) {
-        // Dentro do limite — movimento normal ou quietude
-        voz = cru;
-        guardiao = cru;
-        guardiaoPersistencia[idx] = 0;
-      } else if (guardiaoPersistencia[idx] == 0) {
-        // Primeiro frame anómalo: congela canal, armazena candidato
-        guardiaoCandidato[idx] = cru;
-        guardiaoPersistencia[idx] = 1;
-        assombrado = true;
-        if (ecosPrescindiveis) {
-          ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
-          ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
-          ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(guardiao);
-          ecosPrescindiveis->print(F("→")); ecosPrescindiveis->print(cru);
-          ecosPrescindiveis->print(F(" (Δ")); ecosPrescindiveis->print(delta);
-          ecosPrescindiveis->println(F(") aguarda confirmacao"));
-        }
-      } else if (abs(cru - guardiaoCandidato[idx]) <= DELTA_PERSISTENCIA_DO_GUARDIAO) {
-        // Segundo frame anómalo consistente com o candidato → stick legítimo
-        voz = cru;
-        guardiao = cru;
-        guardiaoPersistencia[idx] = 0;
-        if (ecosPrescindiveis) {
-          ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
-          ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
-          ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(cru);
-          ecosPrescindiveis->println(F(" confirmado (stick legitimo)"));
-        }
-      } else {
-        // Anómalo inconsistente: troca de fantasma, mantém congelado
-        guardiaoCandidato[idx] = cru;
-        guardiaoPersistencia[idx] = 1;
-        assombrado = true;
-        if (ecosPrescindiveis) {
-          ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
-          ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
-          ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(cru);
-          ecosPrescindiveis->println(F(" inconsistente, novo candidato"));
-        }
-      }
+    int deltaMaxCanal[10] = {
+      DELTA_MAXIMO_DO_GUARDIAO, DELTA_MAXIMO_DO_GUARDIAO,
+      DELTA_MAXIMO_DO_GUARDIAO, DELTA_MAXIMO_DO_GUARDIAO,
+      DELTA_MAXIMO_DO_GUARDIAO_ARM, DELTA_MAXIMO_DO_GUARDIAO,
+      DELTA_MAXIMO_DO_GUARDIAO, DELTA_MAXIMO_DO_GUARDIAO,
+      DELTA_MAXIMO_DO_GUARDIAO, DELTA_MAXIMO_DO_GUARDIAO
     };
 
-    verificarCanal(cru1, guardiaoVoz1, vozDoAletao, DELTA_MAXIMO_DO_GUARDIAO, 1, "Aletao");
-    verificarCanal(cru2, guardiaoVoz2, vozDoProfundor, DELTA_MAXIMO_DO_GUARDIAO, 2, "Profundor");
-    verificarCanal(cru3, guardiaoVoz3, vozDoSoproVital, DELTA_MAXIMO_DO_GUARDIAO, 3, "Sopro");
-    verificarCanal(cru4, guardiaoVoz4, vozDoLemeEstelar, DELTA_MAXIMO_DO_GUARDIAO, 4, "Leme");
-    verificarCanal(cru5, guardiaoVoz5, vozDoDespertar, DELTA_MAXIMO_DO_GUARDIAO_ARM, 5, "Arm");
-    verificarCanal(cru6, guardiaoVoz6, vozDoCompassoDaAlma, DELTA_MAXIMO_DO_GUARDIAO, 6, "Compasso");
-    verificarCanal(cru7, guardiaoVoz7, vozDaFerocidadeDoBater, DELTA_MAXIMO_DO_GUARDIAO, 7, "FeroBater");
-    verificarCanal(cru8, guardiaoVoz8, vozDaFerocidadeDoRetorno, DELTA_MAXIMO_DO_GUARDIAO, 8, "FeroRetorno");
-    verificarCanal(cru9, guardiaoVoz9, vozDaFerocidadeDoLeme, DELTA_MAXIMO_DO_GUARDIAO, 9, "FeroLeme");
-    verificarCanal(cru10, guardiaoVoz10, vozDoSustentarAltura, DELTA_MAXIMO_DO_GUARDIAO, 10, "Sustentar");
+    for (int i = 0; i < 10; i++) {
+      if (deltas[i] > deltaMaxCanal[i]) canaisAnomalos++;
+    }
+
+    bool assombrado = false;
+
+    if (canaisAnomalos >= LIMIAR_SIMULTANEIDADE_DO_GUARDIAO) {
+      // ── Fantasma colectivo: rejeitar frame inteiro ──────
+      assombrado = true;
+      for (int i = 0; i < 10; i++) { guardiaoPersistencia[i] = 0; }
+      if (ecosPrescindiveis) {
+        ecosPrescindiveis->print(F("[GUARDIAO] 👻 Fantasma colectivo: "));
+        ecosPrescindiveis->print(canaisAnomalos);
+        ecosPrescindiveis->println(F(" canais anómalos → frame rejeitado"));
+      }
+    } else {
+      // ── Persistência por canal (1-3 canais) ─────────────
+      auto verificarCanal = [&](int cru, int& guardiao, int& voz, int deltaMax,
+                                 int canal, const char* nome) {
+        int idx = canal - 1;
+        int delta = abs(cru - guardiao);
+
+        if (delta <= deltaMax) {
+          voz = cru;
+          guardiao = cru;
+          guardiaoPersistencia[idx] = 0;
+        } else if (guardiaoPersistencia[idx] == 0) {
+          guardiaoCandidato[idx] = cru;
+          guardiaoPersistencia[idx] = 1;
+          assombrado = true;
+          if (ecosPrescindiveis) {
+            ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
+            ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
+            ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(guardiao);
+            ecosPrescindiveis->print(F("→")); ecosPrescindiveis->print(cru);
+            ecosPrescindiveis->print(F(" (Δ")); ecosPrescindiveis->print(delta);
+            ecosPrescindiveis->println(F(") aguarda confirmacao"));
+          }
+        } else if (abs(cru - guardiaoCandidato[idx]) <= DELTA_PERSISTENCIA_DO_GUARDIAO) {
+          voz = cru;
+          guardiao = cru;
+          guardiaoPersistencia[idx] = 0;
+          if (ecosPrescindiveis) {
+            ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
+            ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
+            ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(cru);
+            ecosPrescindiveis->println(F(" confirmado (stick legitimo)"));
+          }
+        } else {
+          guardiaoCandidato[idx] = cru;
+          guardiaoPersistencia[idx] = 1;
+          assombrado = true;
+          if (ecosPrescindiveis) {
+            ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
+            ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
+            ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(cru);
+            ecosPrescindiveis->println(F(" inconsistente, novo candidato"));
+          }
+        }
+      };
+
+      verificarCanal(cru1, guardiaoVoz1, vozDoAletao, DELTA_MAXIMO_DO_GUARDIAO, 1, "Aletao");
+      verificarCanal(cru2, guardiaoVoz2, vozDoProfundor, DELTA_MAXIMO_DO_GUARDIAO, 2, "Profundor");
+      verificarCanal(cru3, guardiaoVoz3, vozDoSoproVital, DELTA_MAXIMO_DO_GUARDIAO, 3, "Sopro");
+      verificarCanal(cru4, guardiaoVoz4, vozDoLemeEstelar, DELTA_MAXIMO_DO_GUARDIAO, 4, "Leme");
+      verificarCanal(cru5, guardiaoVoz5, vozDoDespertar, DELTA_MAXIMO_DO_GUARDIAO_ARM, 5, "Arm");
+      verificarCanal(cru6, guardiaoVoz6, vozDoCompassoDaAlma, DELTA_MAXIMO_DO_GUARDIAO, 6, "Compasso");
+      verificarCanal(cru7, guardiaoVoz7, vozDaFerocidadeDoBater, DELTA_MAXIMO_DO_GUARDIAO, 7, "FeroBater");
+      verificarCanal(cru8, guardiaoVoz8, vozDaFerocidadeDoRetorno, DELTA_MAXIMO_DO_GUARDIAO, 8, "FeroRetorno");
+      verificarCanal(cru9, guardiaoVoz9, vozDaFerocidadeDoLeme, DELTA_MAXIMO_DO_GUARDIAO, 9, "FeroLeme");
+      verificarCanal(cru10, guardiaoVoz10, vozDoSustentarAltura, DELTA_MAXIMO_DO_GUARDIAO, 10, "Sustentar");
+    }
 
     if (assombrado && ecosPrescindiveis) {
       ecosPrescindiveis->println(F("[GUARDIAO] Frame parcialmente retido (canais assombrados congelados)."));
