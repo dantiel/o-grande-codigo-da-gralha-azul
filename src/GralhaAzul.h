@@ -1,6 +1,6 @@
 /*
   O Grande Código da Gralha Azul
-  v1.30.5
+  v1.30.6
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -488,20 +488,11 @@ inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireit
   // Inicialização: quando entra em glide pela primeira vez ou sai e volta
   if (!emTransicaoParaGlide) {
     emTransicaoParaGlide = true;
-    // Começa onde estava (estimativa) ou 0 se primeiro frame
-    anguloGlideEsquerdo = alvoEsquerdo;  // snap inicial — transição começa do próximo frame
-    anguloGlideDireito = alvoDireito;
-    microsUltimoPasso = micros();
-    return;
-  }
-  
-  // Determina ferocidade baseada se asa está acima ou abaixo do glide alvo
-  // Se posicao > alvo (precisa descer) → ferocidadeDoRetorno (downstroke fast)
-  // Se posicao < alvo (precisa subir) → ferocidadeDoBater (upstroke fast)
-  // Inicialização na primeira transição: captura posição actual
-  if (anguloGlideEsquerdo == INFINITY || anguloGlideDireito == INFINITY) {
+    // Captura a posição actual das asas — evita salto brusco no primeiro frame
     anguloGlideEsquerdo = tendaoDaAsaMatutina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
     anguloGlideDireito = tendaoDaAsaVespertina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
+    microsUltimoPasso = micros();
+    return;
   }
   
   // Nota: servo 0 = -60° (up position), 180 = +60° (down position)
@@ -598,17 +589,17 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
   relogioDasEras.ultima_pulsacao_do_sopro_alado = agora;
 
   if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS) {
+    // Velocidade angular do servo (comum a ambos os modos)
+    // 60° / CICLO segundos = °/s → °/µs para a transição suave do glide
+    float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
+    velocidadeAngularPorMicros = velocidadeAngularServo / 1e6f;
+
     // A malha de controle — a vontade se torna movimento
     #ifdef MODO_DE_VOO_ALTERNATIVO
       // Modo alternativo BIRD-LIKE: CH6 → frequência, throttle → % de amplitude permitida
       // Física: para freqência F (Hz), período = 1/F. Ida+volta = 2*A/velocidade
       // → A_max = velocidadeAngular / (2 * F) = 60 / (2 * CICLO * F)
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
-      
-      // Velocidade angular do servo: 60° / CICLO segundos = °/s
-      float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
-      // Velocidade em °/µs para transição suave (usada em tecerTransicaoGlide)
-      velocidadeAngularPorMicros = velocidadeAngularServo / 1e6f;
       
       // Frequência máxima: 10% da capacidade física a amplitude mínima
       // Capacidade a 1° = 1/(2*1*CICLO/60) = 30/CICLO Hz
