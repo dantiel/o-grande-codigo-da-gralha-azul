@@ -1,8 +1,9 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.20
-  * v1.30.20: Guardião — rejeição por canal, não por frame. Um canal que
-  * excede o delta congela só esse canal; os outros 9 voam livremente.
-  * Elimina o lockout total que ocorria quando um stick legítimo excedia
+  //  O Grande Código da Gralha Azul — v1.30.21
+  * v1.30.21: Guardião — persistência temporal de 2 frames. Um único frame
+  * anómalo é fantasma (bloqueado); o mesmo delta sustentado 2 frames
+  * consecutivos é stick legítimo (confirmado). Elimina falsos positivos
+  * em movimentos rápidos sem sacrificar a rejeição de ghost frames.
   * 100µs/frame (ex: leme rápido) e congelava todos os canais.
   * — todos os frames subsequentes também rejeitados, servos imóveis.
   * Guardião reinicializa quando o elo cai e volta.
@@ -286,6 +287,12 @@ private:
   int guardiaoVoz8 = 1500;
   int guardiaoVoz9 = 1500;
   int guardiaoVoz10 = 1500;
+
+  // Persistência temporal: 2 frames consecutivos com delta anómalo
+  // confirmam stick legítimo. 1 frame isolado = fantasma (bloqueado).
+  int guardiaoCandidato[10] = {0};
+  uint8_t guardiaoPersistencia[10] = {0};
+  static constexpr int DELTA_PERSISTENCIA_DO_GUARDIAO = 200;
 
   /* ── Telemetria ──────────────────────────────────────────── */
   unsigned long ultimo_sopro_sideral = 0;
@@ -987,6 +994,7 @@ inline void GralhaAzul::aoRecolherSeAoSilencioDaMata() {
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
   limiarElevado = true;
   guardiaoInicializado = false; // re-inicializar o Guardião quando o elo voltar
+  for (int i = 0; i < 10; i++) { guardiaoPersistencia[i] = 0; }
   if (ecosPrescindiveis) ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se rompeu — a Gralha só ouve o silêncio da mata.");
 }
 
@@ -1023,6 +1031,7 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
       guardiaoVoz4 = cru4; guardiaoVoz5 = cru5; guardiaoVoz6 = cru6;
       guardiaoVoz7 = cru7; guardiaoVoz8 = cru8; guardiaoVoz9 = cru9;
       guardiaoVoz10 = cru10;
+      for (int i = 0; i < 10; i++) { guardiaoPersistencia[i] = 0; }
       vozDoAletao = cru1; vozDoProfundor = cru2; vozDoSoproVital = cru3;
       vozDoLemeEstelar = cru4; vozDoDespertar = cru5; vozDoCompassoDaAlma = cru6;
       vozDaFerocidadeDoBater = cru7; vozDaFerocidadeDoRetorno = cru8;
@@ -1038,20 +1047,49 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
 
     auto verificarCanal = [&](int cru, int& guardiao, int& voz, int deltaMax,
                                int canal, const char* nome) {
-      if (abs(cru - guardiao) > deltaMax) {
+      int idx = canal - 1;
+      int delta = abs(cru - guardiao);
+
+      if (delta <= deltaMax) {
+        // Dentro do limite — movimento normal ou quietude
+        voz = cru;
+        guardiao = cru;
+        guardiaoPersistencia[idx] = 0;
+      } else if (guardiaoPersistencia[idx] == 0) {
+        // Primeiro frame anómalo: congela canal, armazena candidato
+        guardiaoCandidato[idx] = cru;
+        guardiaoPersistencia[idx] = 1;
+        assombrado = true;
         if (ecosPrescindiveis) {
           ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
           ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
           ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(guardiao);
           ecosPrescindiveis->print(F("→")); ecosPrescindiveis->print(cru);
-          ecosPrescindiveis->print(F(" (Δ")); ecosPrescindiveis->print(abs(cru - guardiao));
-          ecosPrescindiveis->println(F(") RETIDO"));
+          ecosPrescindiveis->print(F(" (Δ")); ecosPrescindiveis->print(delta);
+          ecosPrescindiveis->println(F(") aguarda confirmacao"));
         }
-        assombrado = true;
-        // Não actualiza guardiao nem voz — mantém valor anterior
-      } else {
-        guardiao = cru;
+      } else if (abs(cru - guardiaoCandidato[idx]) <= DELTA_PERSISTENCIA_DO_GUARDIAO) {
+        // Segundo frame anómalo consistente com o candidato → stick legítimo
         voz = cru;
+        guardiao = cru;
+        guardiaoPersistencia[idx] = 0;
+        if (ecosPrescindiveis) {
+          ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
+          ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
+          ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(cru);
+          ecosPrescindiveis->println(F(" confirmado (stick legitimo)"));
+        }
+      } else {
+        // Anómalo inconsistente: troca de fantasma, mantém congelado
+        guardiaoCandidato[idx] = cru;
+        guardiaoPersistencia[idx] = 1;
+        assombrado = true;
+        if (ecosPrescindiveis) {
+          ecosPrescindiveis->print(F("[GUARDIAO] CH")); ecosPrescindiveis->print(canal);
+          ecosPrescindiveis->print(F(" ")); ecosPrescindiveis->print(nome);
+          ecosPrescindiveis->print(F(": ")); ecosPrescindiveis->print(cru);
+          ecosPrescindiveis->println(F(" inconsistente, novo candidato"));
+        }
       }
     };
 
