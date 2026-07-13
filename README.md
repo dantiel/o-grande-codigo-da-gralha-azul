@@ -173,7 +173,11 @@ These can be overridden with `#define` **before** `#include <GralhaAzul.h>`:
 
 ### Guardião dos Ventos Siderais (CRSF Frame Integrity)
 
-When `GUARDIAO_DOS_VENTOS_SIDERAIS` is defined (CRSF mode), the Guardião automatically filters ghost frames caused by servo EMI on the CRSF UART bus. No configuration needed — it's always active with CRSF.
+When `GUARDIAO_DOS_VENTOS_SIDERAIS` is defined (CRSF mode), the Guardião automatically filters **ghost frames** — corrupted CRSF frames that pass CRC-8 validation (1/256 false positive rate) and would otherwise manifest as random servo jitter, wing shaking, or momentary freeze.
+
+**Why ghost frames exist:** High-current servos share the same electrical bus as the CRSF UART receiver on the RP2040. Servo current pulses induce EMI that corrupts individual CRSF frames — the CRC-8 catches most, but ~0.4% slip through. On a craft with 4+ servos drawing several amps at 50Hz update rate, this translates to multiple ghost frames per second. The Guardião is **essential** for this class of aircraft.
+
+No configuration needed — it's always active with CRSF.
 
 **How it works:**
 
