@@ -1,9 +1,8 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.22
-  * v1.30.22: Guardião — detecção de simultaneidade. ≥4 canais anómalos
-  * no mesmo frame = fantasma colectivo (rejeitado). 1-3 canais = persistência
-  * de 2 frames. Ghosts em pares consecutivos já não enganam o Guardião.
-  * em movimentos rápidos sem sacrificar a rejeição de ghost frames.
+  //  O Grande Código da Gralha Azul — v1.30.23
+  * v1.30.23: Reset do ângulo de batida ao entrar em glide. O animarPulsar
+  * agora verifica modoPresenteDoEspirito — em glide, anguloDaDancaAlada=0
+  * e cadencia decai. Ao retomar o bater, o ciclo recomeça do meio-curso.
   * 100µs/frame (ex: leme rápido) e congelava todos os canais.
   * — todos os frames subsequentes também rejeitados, servos imóveis.
   * Guardião reinicializa quando o elo cai e volta.
@@ -640,7 +639,7 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
   if (dt > DT_MAXIMO_DO_SONHO_PADRAO) dt = DT_MAXIMO_DO_SONHO_PADRAO;
   relogioDasEras.ultima_pulsacao_do_sopro_alado = agora;
 
-  if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS) {
+  if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS && modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     // Velocidade angular do servo (comum a ambos os modos)
     // 60° / CICLO segundos = °/s → °/µs para a transição suave do glide
     float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
