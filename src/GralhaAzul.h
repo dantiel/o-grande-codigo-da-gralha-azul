@@ -1,8 +1,9 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.13
-  * EMA filter (α=0.5) substitui deadband. Low-pass linear: todos os frames
-  * escrevem, sem degraus. Suaviza jitter ±1 sem bloquear movimento real.
-  * Debug [SERVO] mostra raw→EMA→escrito.
+  * O Grande Código da Gralha Azul — v1.30.14
+  * EMA filter (α=0.5) + write-on-change: suaviza em float, só escreve
+  * ao servo quando o valor arredondado muda. Elimina escritas redundantes
+  * que causam glitches PIO no RP2040 (~14 writes/s em vez de 200/s).
+  * Debug [SERVO] mostra raw→EMA→escrito (→ escreveu, ✗ reteve).
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -222,6 +223,8 @@ private:
   Servo tendaoDaAsaVespertina;
   float emaServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
   float emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
+  int ultimoEscritoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
+  int ultimoEscritoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
 
   /* ── A Chama Azul ────────────────────────────────────────── */
   #if GRALHA_TEM_CHAMA_AZUL
@@ -699,10 +702,14 @@ inline void GralhaAzul::sustentarAltura() {
 // ============================================================
 inline void GralhaAzul::manifestarOVooNosVentos() {
   if (estadoPresenteDaAlma != EM_DANCA_COM_OS_VENTOS) {
-    tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
-    tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
+    if (ultimoEscritoEsquerdo != OFFSET_ANGULAR_NEUTRO_PADRAO)
+      tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
+    if (ultimoEscritoDireito != OFFSET_ANGULAR_NEUTRO_PADRAO)
+      tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
     emaServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
     emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
+    ultimoEscritoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
+    ultimoEscritoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
     return;
   }
   float comandoAletao = (vozDoAletao - 1500.0f) * escalaAngularArticulacao;
@@ -786,21 +793,29 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   emaServoDireito  = ALPHA_EMA * novoDireito  + (1.0f - ALPHA_EMA) * emaServoDireito;
   int escreveEsq = (int)lround(emaServoEsquerdo);
   int escreveDir = (int)lround(emaServoDireito);
-  tendaoDaAsaMatutina.write(escreveEsq);
-  tendaoDaAsaVespertina.write(escreveDir);
-  // Debug servo: mostra raw, EMA, e o valor escrito
+  bool escreveuE = (escreveEsq != ultimoEscritoEsquerdo);
+  bool escreveuD = (escreveDir != ultimoEscritoDireito);
+  if (escreveuE) {
+    tendaoDaAsaMatutina.write(escreveEsq);
+    ultimoEscritoEsquerdo = escreveEsq;
+  }
+  if (escreveuD) {
+    tendaoDaAsaVespertina.write(escreveDir);
+    ultimoEscritoDireito = escreveDir;
+  }
+  // Debug servo: mostra raw, EMA, write status
   if (ecosPrescindiveis) {
     ecosPrescindiveis->print(F("[SERVO] rawE="));
     ecosPrescindiveis->print(novoEsquerdo);
     ecosPrescindiveis->print(F(" emaE="));
     ecosPrescindiveis->print(emaServoEsquerdo, 1);
-    ecosPrescindiveis->print(F("→"));
+    ecosPrescindiveis->print(escreveuE ? F("→") : F("✗"));
     ecosPrescindiveis->print(escreveEsq);
     ecosPrescindiveis->print(F(" | rawD="));
     ecosPrescindiveis->print(novoDireito);
     ecosPrescindiveis->print(F(" emaD="));
     ecosPrescindiveis->print(emaServoDireito, 1);
-    ecosPrescindiveis->print(F("→"));
+    ecosPrescindiveis->print(escreveuD ? F("→") : F("✗"));
     ecosPrescindiveis->print(escreveDir);
     ecosPrescindiveis->print(F(" | portalE="));
     ecosPrescindiveis->print(anguloPortalEsquerdo);
