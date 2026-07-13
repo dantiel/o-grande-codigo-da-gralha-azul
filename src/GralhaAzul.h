@@ -1,8 +1,10 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.27
+  //  O Grande Código da Gralha Azul — v1.30.28
+  * v1.30.28: jaCruzouLimiarDeVoo impede que o glide no arranque active
+  *   a histerese. Asas batem ao passar 1040 mesmo que o throttle tenha
+  *   estado abaixo disso ao armar. Só após a primeira transição flap→glide
+  *   é que a histerese centrada (±50) entra em efeito.
   * v1.30.27: limiarElevado = false no arranque e no failsafe.
-  *   Ao armar, entra em flap mal o throttle passa 1040 (não 1090).
-  *   A histerese centrada só se aplica após a primeira transição flap→glide.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -246,6 +248,7 @@ private:
   EstadoDaAlmaAlada estadoPresenteDaAlma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
   ModoDoEspiritoAlado modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
   bool limiarElevado = false;
+  bool jaCruzouLimiarDeVoo = false;
   bool oraculoRespira = false;
 
   /* ── Vozes do Céu ────────────────────────────────────────── */
@@ -760,6 +763,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
 
   if (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
     limiarElevado = false;
+    jaCruzouLimiarDeVoo = true;
   }
   int limiarAtual = limiarElevado
     ? (LIMIAR_DO_VOO_ATIVO_PADRAO + 50)
@@ -769,7 +773,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     modoPresenteDoEspirito = (soproEfetivo > limiarAtual)
         ? EM_RITMO_DE_BATIDA_DAS_ASAS
         : EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
-    if (modoPresenteDoEspirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
+    if (modoPresenteDoEspirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO && jaCruzouLimiarDeVoo) {
       limiarElevado = true;
     }
   } else {
@@ -985,6 +989,8 @@ inline void GralhaAzul::escutarPressaoDoCeu() {
 inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
   limiarElevado = false;
+  jaCruzouLimiarDeVoo = false;
+  guardiaoInicializado = false;
   if (ecosPrescindiveis) {
     ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se formou — o Firmamento canta!");
     ecosPrescindiveis->print("[PRESAGIO] Sopros no vento após o elo: ");
