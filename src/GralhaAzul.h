@@ -1,6 +1,6 @@
 /*
   O Grande Código da Gralha Azul
-  v1.30.3
+  v1.30.4
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -24,6 +24,7 @@
 #include <Arduino.h>
 #include <new>
 #include "GralhaAzul_Padraos.h"
+#include <cmath>
 
 /* ═══════════════════════════════════════════════════════════════
    A PONTE ARCANA — Tradução dos #define do Sketch
@@ -748,8 +749,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     float fatorLemeEstelar = ((1500.0f / denominadorLeme) - 1.0f) * 2.0f + 1.0f;
     float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;
     float grausAsaDireita  = amplitudeDoBater * pulsoAsaDireita / fatorLemeEstelar;
-    anguloPortalEsquerdo = (int)((comandoAletao - grausAsaEsquerda + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
-    anguloPortalDireito  = (int)((comandoAletao + grausAsaDireita + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalEsquerdo = (int)lround((comandoAletao - grausAsaEsquerda + ORIGEM_ASA_MATUTINA_PADRAO - comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalDireito  = (int)lround((comandoAletao + grausAsaDireita + ORIGEM_ASA_VESPERTINA_PADRAO + comandoProfundor) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   } else {
     // ── Modo Glide com Transição Suave ─────────────────────
     // Alvo em graus (mundo real, antes de converter para servo)
@@ -760,8 +761,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     tecerTransicaoGlide(alvoEsquerdoGraus, alvoDireitoGraus);
     
     // Converte posição suave em graus para posição servo
-    anguloPortalEsquerdo = (int)((anguloGlideEsquerdo + ORIGEM_ASA_MATUTINA_PADRAO) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
-    anguloPortalDireito  = (int)((anguloGlideDireito + ORIGEM_ASA_VESPERTINA_PADRAO) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalEsquerdo = (int)lround((anguloGlideEsquerdo + ORIGEM_ASA_MATUTINA_PADRAO) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
+    anguloPortalDireito  = (int)lround((anguloGlideDireito + ORIGEM_ASA_VESPERTINA_PADRAO) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   }
 
   tendaoDaAsaMatutina.write(constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180));
