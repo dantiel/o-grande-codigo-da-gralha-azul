@@ -1,8 +1,10 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.18
-  * Guardião contra Fantasmas Eléctricos (todos os canais): v1.30.17 só
-  * verificava CH1-4 — canais 5-10 (arm, compasso, ferocidade) passavam
-  * despercebidos. Ghost frames que corrompiam CH6/CH7/CH8 alimentavam
+  //  O Grande Código da Gralha Azul — v1.30.19
+  * v1.30.19: Guardião — primeiro frame aceite incondicionalmente para
+  * inicializar referências. v1.30.18 rejeitava o primeiro frame (deltas
+  * contra defaults 1500/1000 excediam 100µs) causando lockout permanente
+  * — todos os frames subsequentes também rejeitados, servos imóveis.
+  * Guardião reinicializa quando o elo cai e volta.
   * o modelo de voo com valores errados, causando shaking+freeze em
   * combinações específicas de canais. Agora o Guardião cobre CH1-10.
   * CH5 (arm) usa delta alargado 500µs (switch 1000↔2000 é legítimo).
@@ -268,8 +270,11 @@ private:
   // Um stick físico não pode mover >100µs em 4ms — se moveu,
   // é um glitch eléctrico do recetor e o frame é rejeitado.
   // CH5 (arm) pode saltar 1000↔2000 legitimamente.
+  // O primeiro frame após link-up é aceite incondicionalmente
+  // para inicializar as referências do Guardião.
   static constexpr int DELTA_MAXIMO_DO_GUARDIAO = 100;
   static constexpr int DELTA_MAXIMO_DO_GUARDIAO_ARM = 500;
+  bool guardiaoInicializado = false;
   int guardiaoVoz1 = 1500;
   int guardiaoVoz2 = 1500;
   int guardiaoVoz3 = 1000;
@@ -980,6 +985,7 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
 inline void GralhaAzul::aoRecolherSeAoSilencioDaMata() {
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
   limiarElevado = true;
+  guardiaoInicializado = false; // re-inicializar o Guardião quando o elo voltar
   if (ecosPrescindiveis) ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se rompeu — a Gralha só ouve o silêncio da mata.");
 }
 
@@ -1008,7 +1014,13 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
 
     // Guardião contra Fantasmas: rejeita frames com saltos impossíveis.
     // CH5 (arm) usa delta alargado (switch 1000↔2000 é legítimo).
-    if (abs(cru1 - guardiaoVoz1) > DELTA_MAXIMO_DO_GUARDIAO ||
+    // O primeiro frame após link-up inicializa as referências sem verificação.
+    if (!guardiaoInicializado) {
+      guardiaoInicializado = true;
+      if (ecosPrescindiveis) {
+        ecosPrescindiveis->println(F("[GUARDIAO] Inicializado com o primeiro sopro dos ventos."));
+      }
+    } else if (abs(cru1 - guardiaoVoz1) > DELTA_MAXIMO_DO_GUARDIAO ||
         abs(cru2 - guardiaoVoz2) > DELTA_MAXIMO_DO_GUARDIAO ||
         abs(cru3 - guardiaoVoz3) > DELTA_MAXIMO_DO_GUARDIAO ||
         abs(cru4 - guardiaoVoz4) > DELTA_MAXIMO_DO_GUARDIAO ||
