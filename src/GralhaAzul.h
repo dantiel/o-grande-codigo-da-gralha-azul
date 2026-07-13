@@ -1,7 +1,8 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.12
-  * Deadband ±5 (±3→±5). Se o glitch persiste, o problema é externo à pipeline.
-  * Mantém debug [SERVO] para diagnóstico.
+  * O Grande Código da Gralha Azul — v1.30.13
+  * EMA filter (α=0.5) substitui deadband. Low-pass linear: todos os frames
+  * escrevem, sem degraus. Suaviza jitter ±1 sem bloquear movimento real.
+  * Debug [SERVO] mostra raw→EMA→escrito.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -219,8 +220,8 @@ private:
   /* ── Tendões das Asas ────────────────────────────────────── */
   Servo tendaoDaAsaMatutina;
   Servo tendaoDaAsaVespertina;
-  int ultimoServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
-  int ultimoServoDireito = OFFSET_ANGULAR_NEUTRO_PADRAO;
+  float emaServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
+  float emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
 
   /* ── A Chama Azul ────────────────────────────────────────── */
   #if GRALHA_TEM_CHAMA_AZUL
@@ -700,8 +701,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   if (estadoPresenteDaAlma != EM_DANCA_COM_OS_VENTOS) {
     tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
     tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
-    ultimoServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    ultimoServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
+    emaServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
+    emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
     return;
   }
   float comandoAletao = (vozDoAletao - 1500.0f) * escalaAngularArticulacao;
@@ -776,38 +777,31 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
 
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
-  // Banda morta ±5: último recurso contra jitter soft-float RP2040.
-  // Se a oscilação persistir com este limiar, a origem é externa
-  // (biblioteca Servo RP2040, CRSF, ou interferência eléctrica).
-  int diffEsq = novoEsquerdo - ultimoServoEsquerdo;
-  int diffDir = novoDireito - ultimoServoDireito;
-  bool escreveuEsq = false, escreveuDir = false;
-  if (abs(diffEsq) > 5) {
-    tendaoDaAsaMatutina.write(novoEsquerdo);
-    ultimoServoEsquerdo = novoEsquerdo;
-    escreveuEsq = true;
-  }
-  if (abs(diffDir) > 5) {
-    tendaoDaAsaVespertina.write(novoDireito);
-    ultimoServoDireito = novoDireito;
-    escreveuDir = true;
-  }
-  // Debug servo: flag para detectar oscilação na fronteira do deadband
-  if (ecosPrescindiveis && (escreveuEsq || escreveuDir || abs(diffEsq) >= 2 || abs(diffDir) >= 2)) {
-    ecosPrescindiveis->print(F("[SERVO] E:"));
+  // Filtro EMA: suaviza jitter sem banda morta.
+  // Todos os frames escrevem — o EMA é um low-pass linear que absorve
+  // oscilações de ±1 passo sem criar degraus. Alpha=0.5: ~3 frames para
+  // convergir, latência imperceptível no flap.
+  const float ALPHA_EMA = 0.5f;
+  emaServoEsquerdo = ALPHA_EMA * novoEsquerdo + (1.0f - ALPHA_EMA) * emaServoEsquerdo;
+  emaServoDireito  = ALPHA_EMA * novoDireito  + (1.0f - ALPHA_EMA) * emaServoDireito;
+  int escreveEsq = (int)lround(emaServoEsquerdo);
+  int escreveDir = (int)lround(emaServoDireito);
+  tendaoDaAsaMatutina.write(escreveEsq);
+  tendaoDaAsaVespertina.write(escreveDir);
+  // Debug servo: mostra raw, EMA, e o valor escrito
+  if (ecosPrescindiveis) {
+    ecosPrescindiveis->print(F("[SERVO] rawE="));
     ecosPrescindiveis->print(novoEsquerdo);
-    ecosPrescindiveis->print(escreveuEsq ? F("→") : F("✗"));
-    ecosPrescindiveis->print(F("("));
-    ecosPrescindiveis->print(ultimoServoEsquerdo);
-    ecosPrescindiveis->print(F(") d"));
-    ecosPrescindiveis->print(diffEsq);
-    ecosPrescindiveis->print(F(" | D:"));
+    ecosPrescindiveis->print(F(" emaE="));
+    ecosPrescindiveis->print(emaServoEsquerdo, 1);
+    ecosPrescindiveis->print(F("→"));
+    ecosPrescindiveis->print(escreveEsq);
+    ecosPrescindiveis->print(F(" | rawD="));
     ecosPrescindiveis->print(novoDireito);
-    ecosPrescindiveis->print(escreveuDir ? F("→") : F("✗"));
-    ecosPrescindiveis->print(F("("));
-    ecosPrescindiveis->print(ultimoServoDireito);
-    ecosPrescindiveis->print(F(") d"));
-    ecosPrescindiveis->print(diffDir);
+    ecosPrescindiveis->print(F(" emaD="));
+    ecosPrescindiveis->print(emaServoDireito, 1);
+    ecosPrescindiveis->print(F("→"));
+    ecosPrescindiveis->print(escreveDir);
     ecosPrescindiveis->print(F(" | portalE="));
     ecosPrescindiveis->print(anguloPortalEsquerdo);
     ecosPrescindiveis->print(F(" portalD="));
