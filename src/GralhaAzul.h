@@ -1,6 +1,6 @@
 /*
   O Grande Código da Gralha Azul
-  v1.28.8
+  v1.30.3
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -499,8 +499,8 @@ inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireit
   // Se posicao < alvo (precisa subir) → ferocidadeDoBater (upstroke fast)
   // Inicialização na primeira transição: captura posição actual
   if (anguloGlideEsquerdo == INFINITY || anguloGlideDireito == INFINITY) {
-    anguloGlideEsquerdo = asasDaManha.read() - ORIGEM_DOS_SERVOS;
-    anguloGlideDireito = asasDaVespertina.read() - ORIGEM_DOS_SERVOS;
+    anguloGlideEsquerdo = tendaoDaAsaMatutina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
+    anguloGlideDireito = tendaoDaAsaVespertina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
   }
   
   // Nota: servo 0 = -60° (up position), 180 = +60° (down position)
