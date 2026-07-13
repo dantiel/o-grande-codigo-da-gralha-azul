@@ -1,5 +1,5 @@
 /*
-  O Grande Código da Gralha Azul
+  * O Grande Código da Gralha Azul — v1.30.8
   v1.30.7
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
@@ -765,13 +765,15 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
 
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
-  // Banda morta ±1: absorve jitter de precisão do soft-float RP2040
-  // sem afectar movimentos reais (mínimo 2 passos de servo)
-  if (abs(novoEsquerdo - ultimoServoEsquerdo) > 1) {
+  // Banda morta ±2: absorve jitter de precisão do soft-float RP2040.
+  // Em certos alinhamentos de canal, o erro acumulado de sin()+tanh()
+  // e 3 multiplicações produz oscilação de ±2 passos. Movimentos reais
+  // (≥3 passos) passam sem impedimento.
+  if (abs(novoEsquerdo - ultimoServoEsquerdo) > 2) {
     tendaoDaAsaMatutina.write(novoEsquerdo);
     ultimoServoEsquerdo = novoEsquerdo;
   }
-  if (abs(novoDireito - ultimoServoDireito) > 1) {
+  if (abs(novoDireito - ultimoServoDireito) > 2) {
     tendaoDaAsaVespertina.write(novoDireito);
     ultimoServoDireito = novoDireito;
   }
