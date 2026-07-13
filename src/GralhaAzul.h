@@ -838,7 +838,6 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     ecosPrescindiveis->print(F(" portalD="));
     ecosPrescindiveis->println();
   }
-  }
 }
 
 // ============================================================
