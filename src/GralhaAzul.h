@@ -1,10 +1,10 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.16
-  * EMA (α=0.5) + write-on-change com cadência máxima 50Hz (20ms intervalo
-  * mínimo entre escritas). O flap varia a cada frame, write-on-change puro
-  * escrevia a ~200Hz — inútil (servo PWM só actualiza a 50Hz) e causava
-  * glitches PIO no RP2040. Agora: máximo 50 writes/s por servo.
-  * Debug [SERVO] mostra raw→EMA→escrito (→ escreveu, ✗ reteve).
+  //  O Grande Código da Gralha Azul — v1.30.17
+  * Guardião contra Fantasmas Eléctricos: rejeita frames CRSF cujos canais
+  * saltem >100µs num só frame (4ms). Recetores CRSF/ELRS geram frames com
+  * valores errados mas CRC válido quando os servos puxam pulsos de corrente.
+  * Stick físico é incapaz de mover >100µs em 4ms → glitch eléctrico detetado
+  * e frame rejeitado. Debug [GUARDIAO] mostra frames bloqueados.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -261,6 +261,16 @@ private:
   int vozDaFerocidadeDoRetorno = 1000;
   int vozDaFerocidadeDoLeme = 1000;
   int vozDoSustentarAltura = 1000;
+
+  /* ── Guardião contra Fantasmas Eléctricos ────────────────── */
+  // CRSF corre a ~250Hz (4ms entre frames).
+  // Um stick físico não pode mover >100µs em 4ms — se moveu,
+  // é um glitch eléctrico do recetor e o frame é rejeitado.
+  static constexpr int DELTA_MAXIMO_DO_GUARDIAO = 100;
+  int guardiaoVoz1 = 1500;
+  int guardiaoVoz2 = 1500;
+  int guardiaoVoz3 = 1000;
+  int guardiaoVoz4 = 1500;
 
   /* ── Telemetria ──────────────────────────────────────────── */
   unsigned long ultimo_sopro_sideral = 0;
@@ -976,10 +986,34 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
       ecosPrescindiveis->print(" Voz3="); ecosPrescindiveis->print(crsf->getChannel(3));
       ecosPrescindiveis->print(" Voz4="); ecosPrescindiveis->println(crsf->getChannel(4));
     }
-    vozDoAletao = crsf->getChannel(1);
-    vozDoProfundor = crsf->getChannel(2);
-    vozDoSoproVital = crsf->getChannel(3);
-    vozDoLemeEstelar = crsf->getChannel(4);
+    int cru1 = crsf->getChannel(1);
+    int cru2 = crsf->getChannel(2);
+    int cru3 = crsf->getChannel(3);
+    int cru4 = crsf->getChannel(4);
+
+    // Guardião contra Fantasmas: rejeita frames com saltos impossíveis
+    if (abs(cru1 - guardiaoVoz1) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru2 - guardiaoVoz2) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru3 - guardiaoVoz3) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru4 - guardiaoVoz4) > DELTA_MAXIMO_DO_GUARDIAO) {
+      if (ecosPrescindiveis) {
+        ecosPrescindiveis->print(F("[GUARDIAO] Frame rejeitado — delta excessivo: "));
+        ecosPrescindiveis->print(cru1); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->print(cru2); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->print(cru3); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->println(cru4);
+      }
+      return;
+    }
+    guardiaoVoz1 = cru1;
+    guardiaoVoz2 = cru2;
+    guardiaoVoz3 = cru3;
+    guardiaoVoz4 = cru4;
+
+    vozDoAletao = cru1;
+    vozDoProfundor = cru2;
+    vozDoSoproVital = cru3;
+    vozDoLemeEstelar = cru4;
     vozDoDespertar = crsf->getChannel(5);
     vozDaFerocidadeDoLeme = crsf->getChannel(9);
     vozDaFerocidadeDoBater = crsf->getChannel(7);
