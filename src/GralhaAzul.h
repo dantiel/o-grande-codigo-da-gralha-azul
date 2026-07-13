@@ -1,8 +1,8 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.24
-  * v1.30.24: Reset do ângulo de batida no glide — só em modo normal.
-  * No modo alternativo (MODO_DE_VOO_ALTERNATIVO), o ângulo continua
-  * a avançar com cadência decrescente para manter continuidade de fase
+  //  O Grande Código da Gralha Azul — v1.30.25
+  * v1.30.25: Decaimento configurável do ângulo no glide (modo normal)
+  * em vez de snap a zero. LIMIAR_DO_VOO_ATIVO_PADRAO agora sobrescritível
+  * via #define no sketch. Ambos usam guardas #ifndef.
   * ao retomar o bater.
   * — todos os frames subsequentes também rejeitados, servos imóveis.
   * Guardião reinicializa quando o elo cai e volta.
@@ -687,7 +687,8 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       if (fabs(anguloDaDancaAlada) > LIMITE_ANGULAR_DO_GIRO_PADRAO)
         anguloDaDancaAlada = fmod(anguloDaDancaAlada, LIMITE_ANGULAR_DO_GIRO_PADRAO);
     #else
-      anguloDaDancaAlada = 0;
+      anguloDaDancaAlada *= DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO;
+      if (fabs(anguloDaDancaAlada) < EPSILON_CADENCIA_ZERO_PADRAO) anguloDaDancaAlada = 0;
     #endif
     cadenciaDoDestinoAlado *= DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO;
     if (fabs(cadenciaDoDestinoAlado) < EPSILON_CADENCIA_ZERO_PADRAO) cadenciaDoDestinoAlado = 0;

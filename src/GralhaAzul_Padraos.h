@@ -25,7 +25,9 @@
 
 /* — Geometria do Voo — */
 #define CICLO_DO_CORACAO_ALADO_PADRAO          0.070f
+#ifndef LIMIAR_DO_VOO_ATIVO_PADRAO
 #define LIMIAR_DO_VOO_ATIVO_PADRAO             1040
+#endif
 #define ANGULO_DO_PLANAR_SERENO_PADRAO         -4
 
 /* — Escalas de Movimento — */
@@ -46,7 +48,9 @@
 /* — Compasso e Cadência — */
 #define MODULACAO_DO_COMPASSO_PADRAO           0.0003f
 #define ACELERACAO_DO_COMPASSO_PADRAO          8.0f
+#ifndef DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO
 #define DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO 0.90f
+#endif
 #define EPSILON_CADENCIA_ZERO_PADRAO           0.001f
 
 /* — Altitude Hold — */
