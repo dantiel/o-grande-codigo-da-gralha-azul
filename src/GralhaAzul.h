@@ -1,9 +1,9 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.23
-  * v1.30.23: Reset do ângulo de batida ao entrar em glide. O animarPulsar
-  * agora verifica modoPresenteDoEspirito — em glide, anguloDaDancaAlada=0
-  * e cadencia decai. Ao retomar o bater, o ciclo recomeça do meio-curso.
-  * 100µs/frame (ex: leme rápido) e congelava todos os canais.
+  //  O Grande Código da Gralha Azul — v1.30.24
+  * v1.30.24: Reset do ângulo de batida no glide — só em modo normal.
+  * No modo alternativo (MODO_DE_VOO_ALTERNATIVO), o ângulo continua
+  * a avançar com cadência decrescente para manter continuidade de fase
+  * ao retomar o bater.
   * — todos os frames subsequentes também rejeitados, servos imóveis.
   * Guardião reinicializa quando o elo cai e volta.
   * o modelo de voo com valores errados, causando shaking+freeze em
@@ -680,7 +680,15 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
     if (fabs(anguloDaDancaAlada) > LIMITE_ANGULAR_DO_GIRO_PADRAO)
       anguloDaDancaAlada = fmod(anguloDaDancaAlada, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   } else {
-    anguloDaDancaAlada = 0;
+    #ifdef MODO_DE_VOO_ALTERNATIVO
+      // Modo alternativo: o ângulo continua a avançar com cadência decrescente
+      // para manter continuidade de fase ao retomar o bater
+      anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
+      if (fabs(anguloDaDancaAlada) > LIMITE_ANGULAR_DO_GIRO_PADRAO)
+        anguloDaDancaAlada = fmod(anguloDaDancaAlada, LIMITE_ANGULAR_DO_GIRO_PADRAO);
+    #else
+      anguloDaDancaAlada = 0;
+    #endif
     cadenciaDoDestinoAlado *= DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO;
     if (fabs(cadenciaDoDestinoAlado) < EPSILON_CADENCIA_ZERO_PADRAO) cadenciaDoDestinoAlado = 0;
   }
