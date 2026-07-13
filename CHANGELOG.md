@@ -1,5 +1,69 @@
 # CHANGELOG
 
+## v1.30.26 — Histerese Centrada no Glide
+- **Histerese do limiar de voo activo centrada no valor configurado.**
+  - `LIMIAR_DO_VOO_ATIVO_PADRAO` (1040) como ponto central: abaixo → glide, acima +50 (1090) → flap.
+  - Banda morta de 50 agora equilibrada à volta do limiar, em vez de deslocada para baixo.
+
+## v1.30.25 — Decaimento Configurável no Glide
+- **Decaimento do ângulo no glide** em modo normal: `anguloDaDancaAlada *= DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO` (default `0.90f`) com epsilon-zero.
+  - Substitui snap a zero da v1.30.24 — asas desvanecem suavemente.
+- **`LIMIAR_DO_VOO_ATIVO_PADRAO`** agora com guarda `#ifndef` (default `1040`), sobrescritível no sketch.
+
+## v1.30.24 — Reset de Glide: Modo Normal vs Alternativo
+- **Reset do ângulo no glide apenas em modo normal.**
+  - Normal: `anguloDaDancaAlada = 0` — ciclo recomeça do meio-curso ao retomar o bater.
+  - `MODO_DE_VOO_ALTERNATIVO`: ângulo continua a avançar com cadência decrescente — continuidade de fase.
+
+## v1.30.23 — Reset do Batimento ao Entrar em Glide
+- **Reset do ângulo de batida ao entrar em glide.**
+  - `animarPulsarDoCoracaoAlado()` agora verifica também `modoPresenteDoEspirito`: só avança em `EM_RITMO_DE_BATIDA_DAS_ASAS`.
+  - Em `EM_DESLIZE_ETERNO_E_CONTEMPLATIVO`, ângulo = 0 e cadência decai.
+
+## v1.30.22 — Guardião: Detecção de Simultaneidade
+- **≥4 canais anómalos no mesmo frame → fantasma colectivo** (frame rejeitado).
+  - Ghost frames em pares consecutivos já não enganam a persistência de 2 frames.
+  - 1-3 canais anómalos → verificação de persistência individual (stick multi-eixo legítimo).
+
+## v1.30.21 — Guardião: Persistência Temporal
+- **Confirmação por 2 frames consecutivos.** Um frame anómalo isolado é fantasma (bloqueado); o mesmo delta sustentado 2 frames é stick legítimo (confirmado).
+  - Elimina falsos positivos em movimentos rápidos sem sacrificar rejeição de ghost frames.
+  - Latência de 1 frame (4ms) apenas para movimentos >100µs/frame.
+
+## v1.30.20 — Guardião: Rejeição por Canal
+- **Cada canal verificado independentemente.** v1.30.19 causava lockout total quando um stick legítimo excedia 100µs/frame.
+  - Canal anómalo congela só esse canal — os outros 9 voam.
+
+## v1.30.19 — Guardião: Primeiro Frame Incondicional
+- **Corrige lockout do primeiro frame.** v1.30.18 rejeitava o primeiro frame porque deltas contra defaults (1500/1000) excediam 100µs em canais como CH3=1196, CH6=1860.
+  - Primeiro frame após link-up aceite incondicionalmente para inicializar referências.
+  - `guardiaoInicializado` resetado no failsafe.
+
+## v1.30.18 — Guardião Expandido CH1-10
+- **Todos os 10 canais verificados.** v1.30.17 só verificava CH1-4 — ghost frames que corrompiam CH6/CH7/CH8 passavam.
+  - CH5 (arm) usa delta 500µs (switch legítimo 1000↔2000).
+
+## v1.30.17 — Guardião contra Fantasmas Eléctricos
+- **Filtro de integridade CRSF:** rejeita frames com delta >100µs por canal entre frames consecutivos.
+  - Ghost frames que passam CRC-8 (1/256 falsos positivos) são bloqueados.
+  - Resolve shaking+freeze causado por EMI de servos de alta corrente no barramento CRSF.
+
+## v1.30.16 — EMA Sincronizado 50Hz
+- **Correcção da dessincronização EMA/write** que causava saltos de 10-52 passos entre escritas consecutivas.
+  - EMA e write agora correm ambos a 50Hz, eliminando perseguição atrasada.
+
+## v1.30.15 — EMA + Write-on-Change com Cadência
+- **Filtro EMA (α=0.3) + write-on-change** com intervalo mínimo 20ms entre escritas (máx. 50 writes/s).
+  - Write-on-change puro escrevia ~185-200/s saturado o PIO do RP2040 e causando glitches.
+
+## v1.30.14 — EMA + Write-on-Change
+- Filtro passa-baixo EMA (α=0.5) + write-on-change — elimina escritas redundantes ao servo.
+
+## v1.30.3–13 — Diagnóstico e Afinação
+- Diagnóstico expandido de servos e canais ([CANAL], [SERVO]).
+- Ajuste iterativo de deadband (±1 → ±2 → ±3 → ±5) para absorver oscilação soft-float RP2040.
+- Blend linear (±0.1 rad) substitui switch discreto na ferocidade.
+
 ## v1.29.2
 - Added `MODO_DE_VOO_ALTERNATIVO` — alternative flight control mode
   - CH3 (throttle) → amplitude direct

@@ -166,8 +166,25 @@ These can be overridden with `#define` **before** `#include <GralhaAzul.h>`:
 | `VIA_DOS_ECOS_SOLARES` | `0` | CRSF TX GPIO pin |
 | `FREQUENCIA_DO_SOPRO_COSMICO` | `420000` | CRSF baud rate |
 | `MAGNITUDE_DA_BATIDA` | `0.04f` | Stroke amplitude scale |
+| `DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO` | `0.90f` | Glide decay factor per frame. Lower = faster fade to stop. `0.99` slow, `0.50` instant |
+| `LIMIAR_DO_VOO_ATIVO_PADRAO` | `1040` | Throttle threshold for glide entry (center of 50µs hysteresis band) |
 
-> **All other parameters** (pulse limits, gain values, PID constants, etc.) are in `src/GralhaAzul_Padraos.h` — edit that file directly.
+> **All other parameters** (pulse limits, gain values, PID constants, etc.) are in `src/GralhaAzul_Padraos.h` — edit that file directly. Parameters with `#ifndef` guards (like the two above) can be overridden in your sketch before `#include`.
+
+### Guardião dos Ventos Siderais (CRSF Frame Integrity)
+
+When `GUARDIAO_DOS_VENTOS_SIDERAIS` is defined (CRSF mode), the Guardião automatically filters ghost frames caused by servo EMI on the CRSF UART bus. No configuration needed — it's always active with CRSF.
+
+**How it works:**
+
+| Stage | Mechanism |
+|-------|-----------|
+| 1. Per-channel delta | Frame with any channel Δ >100µs flagged |
+| 2. Simultaneity check | ≥4 channels anomalous in same frame → ghost collective (rejected) |
+| 3. Temporal persistence | 1-3 channels anomalous → requires 2nd consecutive frame within ±200µs to confirm as stick movement |
+| 4. First frame | After link-up or failsafe recovery, first frame accepted unconditionally to initialize references |
+
+A ghost frame (isolated single-frame anomaly) is blocked. A fast stick sweep (sustained across consecutive frames) passes through.
 
 ### Optional Modules
 
@@ -197,6 +214,27 @@ Controls the **static wing position** when CH5 (flight mode) is in glide positio
 ```
 
 This parameter can also be changed at runtime: `gralha.anguloDoPlanarSereno = 0;`
+
+### Glide Behaviour
+
+When throttle drops below `LIMIAR_DO_VOO_ATIVO_PADRAO` (default `1040`), the wings enter glide:
+
+| Mode | Behaviour |
+|------|-----------|
+| **Normal** | Angle resets toward 0 with configurable decay (`DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO`). Wingbeat restarts predictably from mid-stroke. |
+| **`MODO_DE_VOO_ALTERNATIVO`** | Angle continues advancing with decaying cadence — phase continuity preserved when flapping resumes. |
+
+**Hysteresis:** exit glide when throttle rises above `LIMIAR + 50` (default `1090`), preventing oscillation at the boundary.
+
+```cpp
+// Raise glide threshold (enter glide with less throttle reduction):
+#define LIMIAR_DO_VOO_ATIVO_PADRAO  1100
+
+// Gentler fade when entering glide:
+#define DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO  0.95f
+
+#include <GralhaAzul.h>
+```
 
 ## Servo Recommendations
 
