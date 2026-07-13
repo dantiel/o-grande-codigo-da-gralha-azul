@@ -1,14 +1,8 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.26
-  * v1.30.26: Histerese do limiar de voo activo centrada no valor configurado.
-  * LIMIAR_DO_VOO_ATIVO_PADRAO (1040): abaixo disto → glide, acima +50 (1090) → flap.
-  * Antes era 990→glide, 1040→flap — a banda morta de 50 estava deslocada para baixo.
-  * ao retomar o bater.
-  * — todos os frames subsequentes também rejeitados, servos imóveis.
-  * Guardião reinicializa quando o elo cai e volta.
-  * o modelo de voo com valores errados, causando shaking+freeze em
-  * combinações específicas de canais. Agora o Guardião cobre CH1-10.
-  * CH5 (arm) usa delta alargado 500µs (switch 1000↔2000 é legítimo).
+  //  O Grande Código da Gralha Azul — v1.30.27
+  * v1.30.27: limiarElevado = false no arranque e no failsafe.
+  *   Ao armar, entra em flap mal o throttle passa 1040 (não 1090).
+  *   A histerese centrada só se aplica após a primeira transição flap→glide.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -251,7 +245,7 @@ private:
   /* ── Estado Interno ──────────────────────────────────────── */
   EstadoDaAlmaAlada estadoPresenteDaAlma = EM_SONHO_NA_QUIETUDE_DA_FLORESTA;
   ModoDoEspiritoAlado modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
-  bool limiarElevado = true;
+  bool limiarElevado = false;
   bool oraculoRespira = false;
 
   /* ── Vozes do Céu ────────────────────────────────────────── */
@@ -990,7 +984,7 @@ inline void GralhaAzul::escutarPressaoDoCeu() {
 // ============================================================
 inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
-  limiarElevado = true;
+  limiarElevado = false;
   if (ecosPrescindiveis) {
     ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se formou — o Firmamento canta!");
     ecosPrescindiveis->print("[PRESAGIO] Sopros no vento após o elo: ");
@@ -1000,7 +994,7 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
 
 inline void GralhaAzul::aoRecolherSeAoSilencioDaMata() {
   modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
-  limiarElevado = true;
+  limiarElevado = false;
   guardiaoInicializado = false; // re-inicializar o Guardião quando o elo voltar
   for (int i = 0; i < 10; i++) { guardiaoPersistencia[i] = 0; }
   if (ecosPrescindiveis) ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se rompeu — a Gralha só ouve o silêncio da mata.");
