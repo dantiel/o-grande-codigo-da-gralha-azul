@@ -1,8 +1,8 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.25
-  * v1.30.25: Decaimento configurável do ângulo no glide (modo normal)
-  * em vez de snap a zero. LIMIAR_DO_VOO_ATIVO_PADRAO agora sobrescritível
-  * via #define no sketch. Ambos usam guardas #ifndef.
+  //  O Grande Código da Gralha Azul — v1.30.26
+  * v1.30.26: Histerese do limiar de voo activo centrada no valor configurado.
+  * LIMIAR_DO_VOO_ATIVO_PADRAO (1040): abaixo disto → glide, acima +50 (1090) → flap.
+  * Antes era 990→glide, 1040→flap — a banda morta de 50 estava deslocada para baixo.
   * ao retomar o bater.
   * — todos os frames subsequentes também rejeitados, servos imóveis.
   * Guardião reinicializa quando o elo cai e volta.
@@ -768,8 +768,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     limiarElevado = false;
   }
   int limiarAtual = limiarElevado
-    ? LIMIAR_DO_VOO_ATIVO_PADRAO
-    : (LIMIAR_DO_VOO_ATIVO_PADRAO - 50);  // histerese
+    ? (LIMIAR_DO_VOO_ATIVO_PADRAO + 50)
+    : LIMIAR_DO_VOO_ATIVO_PADRAO;  // histerese
 
   if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS) {
     modoPresenteDoEspirito = (soproEfetivo > limiarAtual)
