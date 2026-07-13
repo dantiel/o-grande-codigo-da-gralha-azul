@@ -1,10 +1,11 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.17
-  * Guardião contra Fantasmas Eléctricos: rejeita frames CRSF cujos canais
-  * saltem >100µs num só frame (4ms). Recetores CRSF/ELRS geram frames com
-  * valores errados mas CRC válido quando os servos puxam pulsos de corrente.
-  * Stick físico é incapaz de mover >100µs em 4ms → glitch eléctrico detetado
-  * e frame rejeitado. Debug [GUARDIAO] mostra frames bloqueados.
+  //  O Grande Código da Gralha Azul — v1.30.18
+  * Guardião contra Fantasmas Eléctricos (todos os canais): v1.30.17 só
+  * verificava CH1-4 — canais 5-10 (arm, compasso, ferocidade) passavam
+  * despercebidos. Ghost frames que corrompiam CH6/CH7/CH8 alimentavam
+  * o modelo de voo com valores errados, causando shaking+freeze em
+  * combinações específicas de canais. Agora o Guardião cobre CH1-10.
+  * CH5 (arm) usa delta alargado 500µs (switch 1000↔2000 é legítimo).
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -266,11 +267,19 @@ private:
   // CRSF corre a ~250Hz (4ms entre frames).
   // Um stick físico não pode mover >100µs em 4ms — se moveu,
   // é um glitch eléctrico do recetor e o frame é rejeitado.
+  // CH5 (arm) pode saltar 1000↔2000 legitimamente.
   static constexpr int DELTA_MAXIMO_DO_GUARDIAO = 100;
+  static constexpr int DELTA_MAXIMO_DO_GUARDIAO_ARM = 500;
   int guardiaoVoz1 = 1500;
   int guardiaoVoz2 = 1500;
   int guardiaoVoz3 = 1000;
   int guardiaoVoz4 = 1500;
+  int guardiaoVoz5 = 1000;
+  int guardiaoVoz6 = 1500;
+  int guardiaoVoz7 = 1500;
+  int guardiaoVoz8 = 1500;
+  int guardiaoVoz9 = 1500;
+  int guardiaoVoz10 = 1500;
 
   /* ── Telemetria ──────────────────────────────────────────── */
   unsigned long ultimo_sopro_sideral = 0;
@@ -990,18 +999,37 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
     int cru2 = crsf->getChannel(2);
     int cru3 = crsf->getChannel(3);
     int cru4 = crsf->getChannel(4);
+    int cru5 = crsf->getChannel(5);
+    int cru6 = crsf->getChannel(6);
+    int cru7 = crsf->getChannel(7);
+    int cru8 = crsf->getChannel(8);
+    int cru9 = crsf->getChannel(9);
+    int cru10 = crsf->getChannel(10);
 
-    // Guardião contra Fantasmas: rejeita frames com saltos impossíveis
+    // Guardião contra Fantasmas: rejeita frames com saltos impossíveis.
+    // CH5 (arm) usa delta alargado (switch 1000↔2000 é legítimo).
     if (abs(cru1 - guardiaoVoz1) > DELTA_MAXIMO_DO_GUARDIAO ||
         abs(cru2 - guardiaoVoz2) > DELTA_MAXIMO_DO_GUARDIAO ||
         abs(cru3 - guardiaoVoz3) > DELTA_MAXIMO_DO_GUARDIAO ||
-        abs(cru4 - guardiaoVoz4) > DELTA_MAXIMO_DO_GUARDIAO) {
+        abs(cru4 - guardiaoVoz4) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru5 - guardiaoVoz5) > DELTA_MAXIMO_DO_GUARDIAO_ARM ||
+        abs(cru6 - guardiaoVoz6) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru7 - guardiaoVoz7) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru8 - guardiaoVoz8) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru9 - guardiaoVoz9) > DELTA_MAXIMO_DO_GUARDIAO ||
+        abs(cru10 - guardiaoVoz10) > DELTA_MAXIMO_DO_GUARDIAO) {
       if (ecosPrescindiveis) {
         ecosPrescindiveis->print(F("[GUARDIAO] Frame rejeitado — delta excessivo: "));
         ecosPrescindiveis->print(cru1); ecosPrescindiveis->print(F(","));
         ecosPrescindiveis->print(cru2); ecosPrescindiveis->print(F(","));
         ecosPrescindiveis->print(cru3); ecosPrescindiveis->print(F(","));
-        ecosPrescindiveis->println(cru4);
+        ecosPrescindiveis->print(cru4); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->print(cru5); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->print(cru6); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->print(cru7); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->print(cru8); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->print(cru9); ecosPrescindiveis->print(F(","));
+        ecosPrescindiveis->println(cru10);
       }
       return;
     }
@@ -1009,17 +1037,23 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
     guardiaoVoz2 = cru2;
     guardiaoVoz3 = cru3;
     guardiaoVoz4 = cru4;
+    guardiaoVoz5 = cru5;
+    guardiaoVoz6 = cru6;
+    guardiaoVoz7 = cru7;
+    guardiaoVoz8 = cru8;
+    guardiaoVoz9 = cru9;
+    guardiaoVoz10 = cru10;
 
     vozDoAletao = cru1;
     vozDoProfundor = cru2;
     vozDoSoproVital = cru3;
     vozDoLemeEstelar = cru4;
-    vozDoDespertar = crsf->getChannel(5);
-    vozDaFerocidadeDoLeme = crsf->getChannel(9);
-    vozDaFerocidadeDoBater = crsf->getChannel(7);
-    vozDaFerocidadeDoRetorno = crsf->getChannel(8);
-    vozDoCompassoDaAlma = crsf->getChannel(6);
-    vozDoSustentarAltura = crsf->getChannel(10);
+    vozDoDespertar = cru5;
+    vozDoCompassoDaAlma = cru6;
+    vozDaFerocidadeDoBater = cru7;
+    vozDaFerocidadeDoRetorno = cru8;
+    vozDaFerocidadeDoLeme = cru9;
+    vozDoSustentarAltura = cru10;
     if (ecosPrescindiveis) {
       ecosPrescindiveis->print(F("VOANDO | Arm:"));
       ecosPrescindiveis->print(estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS ? F("SIM") : F("NAO"));
