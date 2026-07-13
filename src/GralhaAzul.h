@@ -1,6 +1,6 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.9
-  * Fusão suave das ferocidades — o bater e o retorno dançam sem fronteira.
+  * O Grande Código da Gralha Azul — v1.30.10
+  * Diagnóstico expandido + banda morta ±3 — o véu do soft-float recua.
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -779,11 +779,11 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   // Em certos alinhamentos de canal, o erro acumulado de sin()+tanh()
   // e 3 multiplicações produz oscilação de ±2 passos. Movimentos reais
   // (≥3 passos) passam sem impedimento.
-  if (abs(novoEsquerdo - ultimoServoEsquerdo) > 2) {
+  if (abs(novoEsquerdo - ultimoServoEsquerdo) > 3) {
     tendaoDaAsaMatutina.write(novoEsquerdo);
     ultimoServoEsquerdo = novoEsquerdo;
   }
-  if (abs(novoDireito - ultimoServoDireito) > 2) {
+  if (abs(novoDireito - ultimoServoDireito) > 3) {
     tendaoDaAsaVespertina.write(novoDireito);
     ultimoServoDireito = novoDireito;
   }
@@ -929,11 +929,14 @@ inline void GralhaAzul::interpretarAsVozesDoFirmamento() {
     vozDoCompassoDaAlma = crsf->getChannel(6);
     vozDoSustentarAltura = crsf->getChannel(10);
     if (ecosPrescindiveis) {
-      ecosPrescindiveis->print(F("VOANDO | Modo: "));
-      ecosPrescindiveis->print(estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS ? F("RITMADO") : F("SONOLENTO"));
+      ecosPrescindiveis->print(F("VOANDO | Arm:"));
+      ecosPrescindiveis->print(estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS ? F("SIM") : F("NAO"));
+      ecosPrescindiveis->print(F(" | Modo:"));
+      ecosPrescindiveis->print(modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS ? F("FLAP") : F("GLIDE"));
       ecosPrescindiveis->print(F(" | SoproV:")); ecosPrescindiveis->print(vozDoSoproVital);
-      ecosPrescindiveis->print(F(" AltVoo:")); ecosPrescindiveis->print(soproVitalDoSustentar, 1);
-      ecosPrescindiveis->print(F(" Batida:")); ecosPrescindiveis->print(anguloDaDancaAlada, 2);
+      ecosPrescindiveis->print(F(" | FerB:")); ecosPrescindiveis->print(vozDaFerocidadeDoBater);
+      ecosPrescindiveis->print(F(" | FerR:")); ecosPrescindiveis->print(vozDaFerocidadeDoRetorno);
+      ecosPrescindiveis->print(F(" | Batida:")); ecosPrescindiveis->print(anguloDaDancaAlada, 2);
       ecosPrescindiveis->println();
     }
   }
