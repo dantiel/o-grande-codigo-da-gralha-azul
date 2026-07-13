@@ -1,6 +1,6 @@
 /*
   O Grande Código da Gralha Azul
-  v1.30.6
+  v1.30.7
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
   e a araucária, árvore da vida, guardava em seu cerne o pinhão — a semente estelar —
@@ -218,6 +218,8 @@ private:
   /* ── Tendões das Asas ────────────────────────────────────── */
   Servo tendaoDaAsaMatutina;
   Servo tendaoDaAsaVespertina;
+  int ultimoServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
+  int ultimoServoDireito = OFFSET_ANGULAR_NEUTRO_PADRAO;
 
   /* ── A Chama Azul ────────────────────────────────────────── */
   #if GRALHA_TEM_CHAMA_AZUL
@@ -687,6 +689,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   if (estadoPresenteDaAlma != EM_DANCA_COM_OS_VENTOS) {
     tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
     tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
+    ultimoServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
+    ultimoServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
     return;
   }
   float comandoAletao = (vozDoAletao - 1500.0f) * escalaAngularArticulacao;
@@ -759,8 +763,18 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     anguloPortalDireito  = (int)lround((anguloGlideDireito + ORIGEM_ASA_VESPERTINA_PADRAO) * MULTIPLICADOR_FINAL_ANGULAR_PADRAO);
   }
 
-  tendaoDaAsaMatutina.write(constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180));
-  tendaoDaAsaVespertina.write(constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180));
+  int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
+  int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
+  // Banda morta ±1: absorve jitter de precisão do soft-float RP2040
+  // sem afectar movimentos reais (mínimo 2 passos de servo)
+  if (abs(novoEsquerdo - ultimoServoEsquerdo) > 1) {
+    tendaoDaAsaMatutina.write(novoEsquerdo);
+    ultimoServoEsquerdo = novoEsquerdo;
+  }
+  if (abs(novoDireito - ultimoServoDireito) > 1) {
+    tendaoDaAsaVespertina.write(novoDireito);
+    ultimoServoDireito = novoDireito;
+  }
 }
 
 // ============================================================
