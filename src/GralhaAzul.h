@@ -1,8 +1,9 @@
 /*
-  * O Grande Código da Gralha Azul — v1.30.14
-  * EMA filter (α=0.5) + write-on-change: suaviza em float, só escreve
-  * ao servo quando o valor arredondado muda. Elimina escritas redundantes
-  * que causam glitches PIO no RP2040 (~14 writes/s em vez de 200/s).
+  * O Grande Código da Gralha Azul — v1.30.15
+  * EMA (α=0.5) + write-on-change com cadência máxima 50Hz (20ms intervalo
+  * mínimo entre escritas). O flap varia a cada frame, write-on-change puro
+  * escrevia a ~200Hz — inútil (servo PWM só actualiza a 50Hz) e causava
+  * glitches PIO no RP2040. Agora: máximo 50 writes/s por servo.
   * Debug [SERVO] mostra raw→EMA→escrito (→ escreveu, ✗ reteve).
 
   Nas eras antigas, quando o aroma dos pinheirais sagrados pairava como prece,
@@ -225,6 +226,8 @@ private:
   float emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
   int ultimoEscritoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
   int ultimoEscritoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
+  uint32_t ultimoMicrosEscritaEsquerdo = 0;
+  uint32_t ultimoMicrosEscritaDireito  = 0;
 
   /* ── A Chama Azul ────────────────────────────────────────── */
   #if GRALHA_TEM_CHAMA_AZUL
@@ -702,10 +705,14 @@ inline void GralhaAzul::sustentarAltura() {
 // ============================================================
 inline void GralhaAzul::manifestarOVooNosVentos() {
   if (estadoPresenteDaAlma != EM_DANCA_COM_OS_VENTOS) {
-    if (ultimoEscritoEsquerdo != OFFSET_ANGULAR_NEUTRO_PADRAO)
+    if (ultimoEscritoEsquerdo != OFFSET_ANGULAR_NEUTRO_PADRAO) {
       tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
-    if (ultimoEscritoDireito != OFFSET_ANGULAR_NEUTRO_PADRAO)
+      ultimoMicrosEscritaEsquerdo = micros();
+    }
+    if (ultimoEscritoDireito != OFFSET_ANGULAR_NEUTRO_PADRAO) {
       tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
+      ultimoMicrosEscritaDireito = micros();
+    }
     emaServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
     emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
     ultimoEscritoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
@@ -785,23 +792,32 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   // Filtro EMA: suaviza jitter sem banda morta.
-  // Todos os frames escrevem — o EMA é um low-pass linear que absorve
-  // oscilações de ±1 passo sem criar degraus. Alpha=0.5: ~3 frames para
-  // convergir, latência imperceptível no flap.
+  // EMA low-pass linear (α=0.5) — absorve jitter ±1 sem degraus.
+  // Write-on-change com cadência máxima de 50Hz (20ms entre escritas):
+  // o servo PWM só actualiza a 50Hz, escrever mais rápido é inútil
+  // e pode causar glitches no PIO do RP2040.
   const float ALPHA_EMA = 0.5f;
+  const uint32_t INTERVALO_MIN_US = 20000;  // 20ms = 50Hz
   emaServoEsquerdo = ALPHA_EMA * novoEsquerdo + (1.0f - ALPHA_EMA) * emaServoEsquerdo;
   emaServoDireito  = ALPHA_EMA * novoDireito  + (1.0f - ALPHA_EMA) * emaServoDireito;
   int escreveEsq = (int)lround(emaServoEsquerdo);
   int escreveDir = (int)lround(emaServoDireito);
-  bool escreveuE = (escreveEsq != ultimoEscritoEsquerdo);
-  bool escreveuD = (escreveDir != ultimoEscritoDireito);
+  uint32_t agoraUs = micros();
+  bool valorMudouE = (escreveEsq != ultimoEscritoEsquerdo);
+  bool valorMudouD = (escreveDir != ultimoEscritoDireito);
+  bool cadenciaOkE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);
+  bool cadenciaOkD = (agoraUs - ultimoMicrosEscritaDireito >= INTERVALO_MIN_US);
+  bool escreveuE = (valorMudouE && cadenciaOkE);
+  bool escreveuD = (valorMudouD && cadenciaOkD);
   if (escreveuE) {
     tendaoDaAsaMatutina.write(escreveEsq);
     ultimoEscritoEsquerdo = escreveEsq;
+    ultimoMicrosEscritaEsquerdo = agoraUs;
   }
   if (escreveuD) {
     tendaoDaAsaVespertina.write(escreveDir);
     ultimoEscritoDireito = escreveDir;
+    ultimoMicrosEscritaDireito = agoraUs;
   }
   // Debug servo: mostra raw, EMA, write status
   if (ecosPrescindiveis) {
@@ -820,8 +836,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     ecosPrescindiveis->print(F(" | portalE="));
     ecosPrescindiveis->print(anguloPortalEsquerdo);
     ecosPrescindiveis->print(F(" portalD="));
-    ecosPrescindiveis->print(anguloPortalDireito);
     ecosPrescindiveis->println();
+  }
   }
 }
 
