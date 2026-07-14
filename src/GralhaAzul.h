@@ -1,5 +1,9 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.28
+  //  O Grande Código da Gralha Azul — v1.30.29
+  * v1.30.29: velocidadeAngularPorMicros movida para fora do bloco flap
+  *   em respirarAlmaAlada(). Era calculada só EM_RITMO_DE_BATIDA_DAS_ASAS,
+  *   ficando a 0.0f no arranque (EM_DESLIZE_ETERNO_E_CONTEMPLATIVO).
+  *   tecerTransicaoGlide() via passoMax=0 → asas imóveis. Agora comum.
   * v1.30.28: jaCruzouLimiarDeVoo impede que o glide no arranque active
   *   a histerese. Asas batem ao passar 1040 mesmo que o throttle tenha
   *   estado abaixo disso ao armar. Só após a primeira transição flap→glide
@@ -636,11 +640,12 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
   if (dt > DT_MAXIMO_DO_SONHO_PADRAO) dt = DT_MAXIMO_DO_SONHO_PADRAO;
   relogioDasEras.ultima_pulsacao_do_sopro_alado = agora;
 
+  // Velocidade angular do servo (comum a ambos os modos)
+  // 60° / CICLO segundos = °/s → °/µs para a transição suave do glide
+  float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
+  velocidadeAngularPorMicros = velocidadeAngularServo / 1e6f;
+
   if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS && modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
-    // Velocidade angular do servo (comum a ambos os modos)
-    // 60° / CICLO segundos = °/s → °/µs para a transição suave do glide
-    float velocidadeAngularServo = 60.0f / cicloDoCoracaoAlado;
-    velocidadeAngularPorMicros = velocidadeAngularServo / 1e6f;
 
     // A malha de controle — a vontade se torna movimento
     #ifdef MODO_DE_VOO_ALTERNATIVO
