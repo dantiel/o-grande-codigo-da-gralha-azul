@@ -340,7 +340,7 @@ private:
   /* ── Métodos Privados ────────────────────────────────────── */
   void tecerTransicaoGlide(float alvoEsquerdo, float alvoDireito);
   float mapearEntreEscalasHarmonicas(float valor, float minOrigem, float maxOrigem, float minDestino, float maxDestino);
-  float formaDoBaterDasAsas(float cantoDoVento, float ferocidadeDoBater, float ferocidadeDoRetorno);
+  float formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno);
   void animarPulsarDoCoracaoAlado();
   void sustentarAltura();
   void manifestarOVooNosVentos();
@@ -608,42 +608,56 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 // ============================================================
 //  A FORMA DO BATER — A Geometria do Movimento Alado
 // ============================================================
-inline float GralhaAzul::formaDoBaterDasAsas(float cantoDoVento, float ferocidadeDoBater, float ferocidadeDoRetorno) {
-  // Zona de blend linear (±0.1 rad) em torno do cruzamento de zero.
-  // Elimina a oscilação soft-float quando ferocidadeDoBater ≠ ferocidadeDoRetorno
-  // (CH7 ≠ CH8). Sem fronteira discreta, o sin() do RP2040 pode devolver ±ε
-  // sem alternar a ferocidade — o blend interpola continuamente.
+inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno) {
+  // ── Phase Warp Model: o pico avança com a ferocidade ─────
+  // O tanh aguçava a inclinação mas mantinha o pico no centro
+  // geométrico da meia-onda. No voo real, músculos mais potentes
+  // contraem-se mais cedo: o pico desloca-se para a frente e a
+  // asa passa mais tempo no extremo. Cada meia-onda é deformada
+  // temporalmente: t → t^α onde α = 1/(1 + f·K).
+  //   f=1: α=0.67 → pico a ~67% (ligeiro avanço)
+  //   f=4: α=0.33 → pico a ~33% (substancial)
+  //   f=8: α=0.20 → pico a ~20% (quase imediato)
+  //   f→∞: α→0   → pico instantâneo = onda quadrada (limite natural)
+  //
+  // Como a fase (anguloDaDancaAlada) é monotónica — não oscila
+  // como sin(θ) — a detecção de meia-onda é imune ao jitter
+  // soft-float que afligia o blend ±0.1 da v1.30.5–v1.30.30.
+
+  // Normaliza ângulo para [0, 2π)
+  float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
+  if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
+
+  // Meia-onda positiva [0, π) vs negativa [π, 2π)
+  const float PI = 3.14159265358979f;
+  bool meiaOndaPositiva = (theta < PI);
+
+  // Fase normalizada dentro da meia-onda: t ∈ [0, 1]
+  float t;
   float ferocidade;
-  if (cantoDoVento >= 0.1f) {
+  if (meiaOndaPositiva) {
+    t = theta / PI;
     ferocidade = ferocidadeDoBater;
-  } else if (cantoDoVento <= -0.1f) {
-    ferocidade = ferocidadeDoRetorno;
   } else {
-    // Interpolação linear: t=0 em -0.1 (retorno puro), t=1 em +0.1 (bater puro)
-    float t = (cantoDoVento + 0.1f) * 5.0f;  // mapeia [-0.1, 0.1] → [0, 1]
-    ferocidade = ferocidadeDoRetorno + (ferocidadeDoBater - ferocidadeDoRetorno) * t;
+    t = (theta - PI) / PI;
+    ferocidade = ferocidadeDoRetorno;
   }
 
   // ── Onda quadrada pura (Kazu-kaku mode) ──────────────────
-  // Ferocidade ≥ 90% → bypass do tanh, sinal binário directo.
-  // Funde o algoritmo binário do Dr. Kazu com o seno do Dantiel:
-  // o relógio interno (anguloDaDancaAlada) define o momento das
-  // transições UP↔DOWN, mas a forma é quadrada — o servo salta
-  // entre as posições extremas, como no código do Kazu-kaku.
+  // A warp natural converge para isto, mas powf(ε, ~0.11) é
+  // desperdício — o corte binário é idêntico e mais rápido.
   if (ferocidade >= LIMIAR_DA_FEROCIDADE_QUADRADA_PADRAO) {
-    if (cantoDoVento > 0.0f) return 1.0f;
-    if (cantoDoVento < 0.0f) return -1.0f;
-    return 0.0f;
+    return meiaOndaPositiva ? 1.0f : -1.0f;
   }
 
-  float equilibrioDoCeu = tanh(ferocidade);
-  if (fabs(equilibrioDoCeu) < EPSILON_FORMA_BATER_PADRAO) {
-    return cantoDoVento;
-  }
-  float resultado = tanh(ferocidade * cantoDoVento) / equilibrioDoCeu;
-  if (resultado > LIMITE_FORMA_BATER_PADRAO) resultado = LIMITE_FORMA_BATER_PADRAO;
-  if (resultado < -LIMITE_FORMA_BATER_PADRAO) resultado = -LIMITE_FORMA_BATER_PADRAO;
-  return resultado;
+  // ── Power Warp ──────────────────────────────────────────
+  // α mínimo = 1/(1+8·0.5) = 0.2 → powf(0, 0.2) = 0, seguro.
+  float alpha = 1.0f / (1.0f + ferocidade * FASE_WARP_K_PADRAO);
+  float tWarped = powf(t, alpha);
+
+  // Reconstrói seno: sin(t'·π) para positiva, -sin(t'·π) para negativa
+  float resultado = sinf(tWarped * PI);
+  return meiaOndaPositiva ? resultado : -resultado;
 }
 
 // ============================================================
@@ -819,7 +833,6 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
       // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
       amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDaFerocidadeDoLeme - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
     #endif
-    float cantoOriginalDaAsa = sin(anguloDaDancaAlada);
     float ferocidadeDoBater = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float ferocidadeDoRetorno = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
@@ -827,8 +840,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     float ferocidadeBaterDireita  = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float ferocidadeRetornoEsquerda = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float ferocidadeRetornoDireita  = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float pulsoAsaEsquerda = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda);
-    float pulsoAsaDireita = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterDireita, ferocidadeRetornoDireita);
+    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda);
+    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterDireita, ferocidadeRetornoDireita);
     float denominadorLeme = (vozDoLemeEstelar > 0) ? (float)vozDoLemeEstelar : 1500.0f;
     float fatorLemeEstelar = ((1500.0f / denominadorLeme) - 1.0f) * 2.0f + 1.0f;
     float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;

@@ -43,6 +43,9 @@
 #ifndef LIMIAR_DA_FEROCIDADE_QUADRADA_PADRAO
 #define LIMIAR_DA_FEROCIDADE_QUADRADA_PADRAO   (FEROCIDADE_MAXIMA_PADRAO * 0.9f)
 #endif
+#ifndef FASE_WARP_K_PADRAO
+#define FASE_WARP_K_PADRAO                     0.5f
+#endif
 
 /* — Diferencial do Leme — */
 #define DIFERENCIAL_LEME_MIN_PADRAO            -4.0f
