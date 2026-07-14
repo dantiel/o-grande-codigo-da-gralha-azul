@@ -1,5 +1,9 @@
 /*
-  //  O Grande Código da Gralha Azul — v1.30.29
+  //  O Grande Código da Gralha Azul — v1.30.30
+  * v1.30.30: formaDoBaterDasAsas(): ferocidade >= 90% (CH7/CH8 ≥ 1900)
+  *   → onda quadrada pura (sign do seno), sem tanh. Merge do algoritmo
+  *   Kazu-kaku com o Dantiel. MODO_DE_VOO_ALTERNATIVO: removido
+  *   *magnitudeDaBatida espúrio que reduzia amplitude a 4%.
   * v1.30.29: velocidadeAngularPorMicros movida para fora do bloco flap
   *   em respirarAlmaAlada(). Era calculada só EM_RITMO_DE_BATIDA_DAS_ASAS,
   *   ficando a 0.0f no arranque (EM_DESLIZE_ETERNO_E_CONTEMPLATIVO).
@@ -619,6 +623,19 @@ inline float GralhaAzul::formaDoBaterDasAsas(float cantoDoVento, float ferocidad
     float t = (cantoDoVento + 0.1f) * 5.0f;  // mapeia [-0.1, 0.1] → [0, 1]
     ferocidade = ferocidadeDoRetorno + (ferocidadeDoBater - ferocidadeDoRetorno) * t;
   }
+
+  // ── Onda quadrada pura (Kazu-kaku mode) ──────────────────
+  // Ferocidade ≥ 90% → bypass do tanh, sinal binário directo.
+  // Funde o algoritmo binário do Dr. Kazu com o seno do Dantiel:
+  // o relógio interno (anguloDaDancaAlada) define o momento das
+  // transições UP↔DOWN, mas a forma é quadrada — o servo salta
+  // entre as posições extremas, como no código do Kazu-kaku.
+  if (ferocidade >= LIMIAR_DA_FEROCIDADE_QUADRADA_PADRAO) {
+    if (cantoDoVento > 0.0f) return 1.0f;
+    if (cantoDoVento < 0.0f) return -1.0f;
+    return 0.0f;
+  }
+
   float equilibrioDoCeu = tanh(ferocidade);
   if (fabs(equilibrioDoCeu) < EPSILON_FORMA_BATER_PADRAO) {
     return cantoDoVento;
@@ -797,7 +814,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
       // CH9 = rudder ferocity (independente)
       // Throttle escala de 0 até amplitudeMaximaPermitida (calculada acima pela física do servo)
       float percentagemSopro = constrain((vozDoSoproVital - 480.0f) * 0.00125f, 0.0f, 1.0f);  // 480→2000 → 0→1
-      amplitudeDoBater = percentagemSopro * amplitudeMaximaPermitida * magnitudeDaBatida;
+      amplitudeDoBater = percentagemSopro * amplitudeMaximaPermitida;
     #else
       // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
       amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDaFerocidadeDoLeme - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
