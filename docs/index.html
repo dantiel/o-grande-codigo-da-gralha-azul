@@ -1,0 +1,591 @@
+
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Simulador da Gralha Azul — Phase Warp v1.31.1</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #f0883e;
+    --danger: #f85149;
+    --green: #3fb950;
+    --purple: #a371f7;
+    --wing: #f0c060;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; padding: 20px;
+  }
+  .container {
+    max-width: 1100px; width: 100%;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  header {
+    text-align: center; padding: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  header h1 { font-size: 1.4rem; color: var(--accent); }
+  header .subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  .panels {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) { .panels { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+  }
+  .panel h2 { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  canvas { display: block; width: 100%; border-radius: 4px; }
+  #servo-canvas { background: #0a0e14; }
+  #graph-canvas { background: #0a0e14; }
+  .controls {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
+  .control-group label {
+    font-size: 0.75rem; color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+  .control-group label span.val { color: var(--accent); font-weight: 600; }
+  .control-group input[type=range] {
+    width: 100%; accent-color: var(--accent);
+  }
+  .control-row {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .control-row input[type=number] {
+    width: 72px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 6px; font-size: 0.8rem; text-align: center;
+  }
+  .mode-toggle {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .mode-toggle button {
+    padding: 4px 12px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+    border-radius: 4px; cursor: pointer; font-size: 0.75rem;
+  }
+  .mode-toggle button.active {
+    background: var(--accent); color: #000; border-color: var(--accent);
+  }
+  .info-bar {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    font-size: 0.72rem; color: var(--muted);
+  }
+  .info-bar span { color: var(--text); font-weight: 600; }
+  footer {
+    text-align: center; font-size: 0.7rem; color: var(--muted);
+    padding: 8px;
+  }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🐦‍⬛ O Simulador da Gralha Azul</h1>
+    <div class="subtitle">Phase Warp Model v1.31.1 — O pico avança com a ferocidade</div>
+  </header>
+
+  <div class="panels">
+    <div class="panel">
+      <h2>🔭 Vista Frontal — Servos &amp; Vara de Carbono</h2>
+      <canvas id="servo-canvas" width="400" height="400"></canvas>
+    </div>
+    <div class="panel">
+      <h2>📈 Ondas Internas — sin(θ) vs formaDoBater</h2>
+      <canvas id="graph-canvas" width="660" height="300"></canvas>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>CH7 · Ferocidade do Bater <span class="val" id="val-ch7">4.0</span></label>
+      <input type="range" id="ch7" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH8 · Ferocidade do Retorno <span class="val" id="val-ch8">4.0</span></label>
+      <input type="range" id="ch8" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH3 · Sopro Vital (Throttle) <span class="val" id="val-ch3">1280</span></label>
+      <input type="range" id="ch3" min="480" max="2000" value="1280" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH9 · Compasso (Rudder) <span class="val" id="val-ch9">1500</span></label>
+      <input type="range" id="ch9" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label>Ciclo do Coração Alado (ms)</label>
+      <div class="control-row">
+        <input type="number" id="ciclo" value="70" min="30" max="200" step="1">
+        <span style="font-size:0.7rem;color:var(--muted)">servo °/s</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>Modo de Voo</label>
+      <div class="mode-toggle">
+        <button id="btn-normal" class="active">Normal (PI)</button>
+        <button id="btn-alt">Alternativo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-bar">
+    <div>Ângulo da Dança: <span id="info-angulo">0.00</span> rad</div>
+    <div>Cadência: <span id="info-cadencia">0.00</span> rad/s</div>
+    <div>Frequência: <span id="info-freq">0.00</span> Hz</div>
+    <div>Amplitude: <span id="info-amp">0.0</span>°</div>
+    <div>Pulso Asa: <span id="info-pulso">0.00</span></div>
+    <div>α warp: <span id="info-alpha">0.50</span></div>
+  </div>
+
+  <footer>
+    <a href="https://github.com/your-repo/o-grande-codigo-da-gralha-azul">O Grande Código da Gralha Azul</a>
+    — Phase Warp Model · branch <code>feature/phase-warp-ferocity</code>
+  </footer>
+</div>
+
+<script>
+// =========================================================================
+//  O GRANDE CÓDIGO DA GRALHA AZUL — Waveform Logic (portado para JS)
+//  Espelha GralhaAzul.h v1.31.1 — Phase Warp Model
+// =========================================================================
+
+const TWO_PI = 2 * Math.PI;
+const PI = Math.PI;
+
+// Constantes do Phase Warp
+const FEROCIDADE_MINIMA  = 0.0;
+const FEROCIDADE_MAXIMA  = 8.0;
+const FASE_WARP_K        = 0.5;
+const LIMIAR_FEROCIDADE_QUADRADA = FEROCIDADE_MAXIMA * 0.9; // 7.2
+
+// Constantes do modo Normal
+const MAGNITUDE_DA_BATIDA          = 0.04;
+const MODULACAO_DO_COMPASSO        = 0.0003;
+const LIMIAR_DO_VOO_ATIVO          = 1040;
+const ACELERACAO_DO_COMPASSO       = 8.0;
+
+// Constantes do modo Alternativo
+const FREQ_MINIMA_ALT = 0.05;
+
+let modoAlternativo = false;
+
+// ── Mapeamento linear RC → valores internos ──
+function mapearRC(x, outMin, outMax) {
+  return ((x - 1000.0) / 1000.0) * (outMax - outMin) + outMin;
+}
+
+// ── FORMA DO BATER DAS ASAS ────────────────────────────────────────────
+//  Porte directo de GralhaAzul.h:formaDoBaterDasAsas()
+//  anguloDoCiclo: fase bruta em radianos (anguloDaDancaAlada)
+//  ferocidadeDoBater, ferocidadeDoRetorno: [0, 8]
+function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
+  // Normaliza para [0, 2π)
+  let theta = anguloDoCiclo % TWO_PI;
+  if (theta < 0) theta += TWO_PI;
+
+  const meiaOndaPositiva = (theta < PI);
+
+  // Fase normalizada dentro da meia-onda: t ∈ [0, 1]
+  let t, ferocidade;
+  if (meiaOndaPositiva) {
+    t = theta / PI;
+    ferocidade = fBater;
+  } else {
+    t = (theta - PI) / PI;
+    ferocidade = fRetorno;
+  }
+
+  // Guard: ferocidade mínima
+  if (ferocidade < FEROCIDADE_MINIMA) ferocidade = FEROCIDADE_MINIMA;
+
+  // ── Onda quadrada pura (Kazu-kaku mode) ──
+  if (ferocidade >= LIMIAR_FEROCIDADE_QUADRADA) {
+    return meiaOndaPositiva ? 1.0 : -1.0;
+  }
+
+  // ── Power Warp: t → t^α ──
+  const alpha = 1.0 / (1.0 + ferocidade * FASE_WARP_K);
+  const tWarped = Math.pow(t, alpha);
+  const resultado = Math.sin(tWarped * PI);
+
+  return meiaOndaPositiva ? resultado : -resultado;
+}
+
+// ── Estado Dinâmico ────────────────────────────────────────────────────
+let anguloDaDancaAlada = 0.0;
+let cadenciaDoDestinoAlado = 0.0;
+
+function resetState() {
+  anguloDaDancaAlada = 0.0;
+  cadenciaDoDestinoAlado = 0.0;
+}
+
+// ── Actualiza a fase (equivale a animarPulsarDoCoracaoAlado) ──────────
+function actualizarFase(dt, throttle, compasso, cicloMs) {
+  const velocidadeAngularServo = 60.0 / (cicloMs * 0.001); // °/s
+
+  if (modoAlternativo) {
+    // Modo Alternativo BIRD-LIKE
+    // CH9 (compasso) → frequência directa
+    // CH3 (throttle) → % de amplitude máxima permitida pela física do servo
+    const bracosDoRelogio = Math.max(0, Math.min(1, (compasso - 1000.0) * 0.001));
+    const frequenciaMaxCH6_Hz = 3.0 / (cicloMs * 0.001);
+    const frequenciaPedida_Hz = bracosDoRelogio * frequenciaMaxCH6_Hz;
+    const freqEfetiva = Math.max(frequenciaPedida_Hz, FREQ_MINIMA_ALT);
+
+    cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
+
+    // amplitudeMaximaPermitida (para informação)
+    const ampMax = Math.max(0, velocidadeAngularServo / (2.0 * freqEfetiva));
+    const percentagemSopro = Math.max(0, Math.min(1, (throttle - 480.0) * 0.00125));
+    const amplitudeDoBater = percentagemSopro * ampMax;
+
+    anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
+    if (Math.abs(anguloDaDancaAlada) > TWO_PI)
+      anguloDaDancaAlada %= TWO_PI;
+
+    return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado };
+
+  } else {
+    // Modo Normal (PI)
+    // throttle → cadência alvo; compasso modula proporcionalmente
+    const intencaoDeCadencia = (throttle - 480.0) *
+      ((1.0 / (120.0 * cicloMs * 0.001)) + ((compasso - 1500.0) * 0.0000725));
+
+    if (throttle > LIMIAR_DO_VOO_ATIVO) {
+      // Em voo: persegue a cadência alvo (dinâmica de 1ª ordem)
+      const variacao = 1.0 * intencaoDeCadencia - 10.0 * cadenciaDoDestinoAlado;
+      cadenciaDoDestinoAlado += variacao * dt;
+    } else {
+      // Em glide/parado: decaimento
+      cadenciaDoDestinoAlado *= 0.90;
+      if (Math.abs(cadenciaDoDestinoAlado) < 0.001) cadenciaDoDestinoAlado = 0;
+    }
+
+    anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
+    if (Math.abs(anguloDaDancaAlada) > TWO_PI)
+      anguloDaDancaAlada %= TWO_PI;
+
+    // Amplitude (modo normal)
+    const soproEfetivo = Math.max(throttle, LIMIAR_DO_VOO_ATIVO);
+    const amplitudeDoBater = ((soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA) *
+      (1.0 - (compasso - 1500.0) * MODULACAO_DO_COMPASSO);
+
+    return {
+      amplitudeDoBater: Math.max(0, amplitudeDoBater),
+      cadencia: cadenciaDoDestinoAlado
+    };
+  }
+}
+
+// =========================================================================
+//  VISUALIZAÇÃO — Servos + Vara de Carbono
+// =========================================================================
+const servoCtx = document.getElementById('servo-canvas').getContext('2d');
+
+function drawServos(pulsoAsa, amplitudeGraus) {
+  const W = 400, H = 400;
+  servoCtx.clearRect(0, 0, W, H);
+
+  // Parâmetros do desenho
+  const cx = W / 2, cy = H * 0.55;
+  const fuselagemW = 28, fuselagemH = 120;
+  const pivotOffsetX = 20;
+  const armLen = 70;
+  const wingLen = 140;
+  const maxAngle = 50 * (Math.PI / 180); // 50° visual máximo
+
+  // Ângulo visual (positivo = para cima)
+  const visualAngle = pulsoAsa * maxAngle;
+
+  // Posições dos pivots
+  const leftPivotX  = cx - pivotOffsetX;
+  const rightPivotX = cx + pivotOffsetX;
+  const pivotY = cy;
+
+  // Posições das pontas dos braços
+  const leftTipX  = leftPivotX  - armLen * Math.cos(visualAngle);
+  const leftTipY  = pivotY      - armLen * Math.sin(visualAngle);
+  const rightTipX = rightPivotX + armLen * Math.cos(visualAngle);
+  const rightTipY = pivotY      - armLen * Math.sin(visualAngle);
+
+  // ── Fuselagem ──
+  servoCtx.fillStyle = '#2a3040';
+  servoCtx.strokeStyle = '#4a5568';
+  servoCtx.lineWidth = 1.5;
+  roundRect(servoCtx, cx - fuselagemW/2, cy - fuselagemH/2, fuselagemW, fuselagemH, 6);
+  servoCtx.fill();
+  servoCtx.stroke();
+
+  // ── Pivots dos servos ──
+  [leftPivotX, rightPivotX].forEach(px => {
+    servoCtx.beginPath();
+    servoCtx.arc(px, pivotY, 5, 0, TWO_PI);
+    servoCtx.fillStyle = '#5865f2';
+    servoCtx.fill();
+    servoCtx.strokeStyle = '#8899ff';
+    servoCtx.lineWidth = 1;
+    servoCtx.stroke();
+  });
+
+  // ── Braços dos servos ──
+  servoCtx.strokeStyle = '#c0c8e0';
+  servoCtx.lineWidth = 4;
+  servoCtx.lineCap = 'round';
+  servoCtx.beginPath();
+  servoCtx.moveTo(leftPivotX, pivotY);
+  servoCtx.lineTo(leftTipX, leftTipY);
+  servoCtx.stroke();
+  servoCtx.beginPath();
+  servoCtx.moveTo(rightPivotX, pivotY);
+  servoCtx.lineTo(rightTipX, rightTipY);
+  servoCtx.stroke();
+
+  // ── Asas (extensões dos braços) ──
+  servoCtx.strokeStyle = 'rgba(240,192,96,0.5)';
+  servoCtx.lineWidth = 2;
+  const leftWingTipX  = leftPivotX  - (armLen + wingLen) * Math.cos(visualAngle);
+  const leftWingTipY  = pivotY      - (armLen + wingLen) * Math.sin(visualAngle);
+  const rightWingTipX = rightPivotX + (armLen + wingLen) * Math.cos(visualAngle);
+  const rightWingTipY = pivotY      - (armLen + wingLen) * Math.sin(visualAngle);
+  servoCtx.beginPath();
+  servoCtx.moveTo(leftTipX, leftTipY);
+  servoCtx.lineTo(leftWingTipX, leftWingTipY);
+  servoCtx.stroke();
+  servoCtx.beginPath();
+  servoCtx.moveTo(rightTipX, rightTipY);
+  servoCtx.lineTo(rightWingTipX, rightWingTipY);
+  servoCtx.stroke();
+
+  // ── Vara de carbono (liga as pontas dos braços) ──
+  servoCtx.strokeStyle = '#f0883e';
+  servoCtx.lineWidth = 2.5;
+  servoCtx.setLineDash([6, 4]);
+  servoCtx.beginPath();
+  servoCtx.moveTo(leftTipX, leftTipY);
+  servoCtx.lineTo(rightTipX, rightTipY);
+  servoCtx.stroke();
+  servoCtx.setLineDash([]);
+
+  // ── Marcação de ângulo ──
+  servoCtx.fillStyle = '#8b949e';
+  servoCtx.font = '11px monospace';
+  servoCtx.textAlign = 'center';
+  const angLabel = (pulsoAsa * amplitudeGraus).toFixed(1) + '°';
+  servoCtx.fillText(angLabel, cx, cy - fuselagemH/2 - 20);
+
+  // Linha de referência horizontal
+  servoCtx.strokeStyle = 'rgba(139,148,158,0.3)';
+  servoCtx.lineWidth = 0.5;
+  servoCtx.setLineDash([4, 8]);
+  servoCtx.beginPath();
+  servoCtx.moveTo(cx - 180, pivotY);
+  servoCtx.lineTo(cx + 180, pivotY);
+  servoCtx.stroke();
+  servoCtx.setLineDash([]);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+// =========================================================================
+//  GRÁFICO — Osciloscópio das Ondas Internas
+// =========================================================================
+const graphCtx = document.getElementById('graph-canvas').getContext('2d');
+const HISTORY_LEN = 200; // pontos (~3s a 60fps)
+const history = { sin: [], warp: [] };
+
+function pushHistory(sinVal, warpVal) {
+  history.sin.push(sinVal);
+  history.warp.push(warpVal);
+  if (history.sin.length > HISTORY_LEN) history.sin.shift();
+  if (history.warp.length > HISTORY_LEN) history.warp.shift();
+}
+
+function drawGraph() {
+  const W = 660, H = 300;
+  graphCtx.clearRect(0, 0, W, H);
+
+  const margin = { top: 20, right: 40, bottom: 25, left: 45 };
+  const pw = W - margin.left - margin.right;
+  const ph = H - margin.top - margin.bottom;
+  const midY = margin.top + ph / 2;
+  const ampY = ph / 2; // amplitude de ±1 mapeia para ±ampY pixels
+
+  // Grelha
+  graphCtx.strokeStyle = '#1a2030';
+  graphCtx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = margin.top + (ph * i) / 4;
+    graphCtx.beginPath();
+    graphCtx.moveTo(margin.left, y);
+    graphCtx.lineTo(W - margin.right, y);
+    graphCtx.stroke();
+  }
+  // Linha zero
+  graphCtx.strokeStyle = '#30363d';
+  graphCtx.lineWidth = 1;
+  graphCtx.beginPath();
+  graphCtx.moveTo(margin.left, midY);
+  graphCtx.lineTo(W - margin.right, midY);
+  graphCtx.stroke();
+
+  // Rótulos
+  graphCtx.fillStyle = '#484f58';
+  graphCtx.font = '10px monospace';
+  graphCtx.textAlign = 'right';
+  graphCtx.fillText('+1', margin.left - 6, midY - ampY);
+  graphCtx.fillText('0', margin.left - 6, midY + 4);
+  graphCtx.fillText('−1', margin.left - 6, midY + ampY + 3);
+
+  // Dados
+  if (history.sin.length < 2) return;
+
+  const n = history.sin.length;
+  const xScale = pw / (n - 1);
+
+  function drawTrace(data, color, alpha) {
+    graphCtx.strokeStyle = color;
+    graphCtx.lineWidth = 1.5;
+    graphCtx.globalAlpha = alpha;
+    graphCtx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = margin.left + i * xScale;
+      const y = midY - data[i] * ampY;
+      if (i === 0) graphCtx.moveTo(x, y);
+      else graphCtx.lineTo(x, y);
+    }
+    graphCtx.stroke();
+    graphCtx.globalAlpha = 1;
+  }
+
+  drawTrace(history.sin, '#58a6ff', 0.5);   // sin(θ) — azul, translúcido
+  drawTrace(history.warp, '#f0883e', 1.0);   // formaDoBater — laranja
+
+  // Legenda
+  graphCtx.font = '10px -apple-system, sans-serif';
+  graphCtx.textAlign = 'left';
+
+  graphCtx.fillStyle = '#58a6ff';
+  graphCtx.fillRect(W - margin.right - 200, margin.top + 2, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('sin(θ) — canto do vento', W - margin.right - 184, margin.top + 7);
+
+  graphCtx.fillStyle = '#f0883e';
+  graphCtx.fillRect(W - margin.right - 200, margin.top + 14, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('formaDoBaterDasAsas — phase warp', W - margin.right - 184, margin.top + 19);
+}
+
+// =========================================================================
+//  LOOP PRINCIPAL
+// =========================================================================
+let lastTime = null;
+
+function loop(timestamp) {
+  if (lastTime === null) lastTime = timestamp;
+  let dt = (timestamp - lastTime) * 0.001; // segundos
+  if (dt <= 0) dt = 0.001;
+  if (dt > 0.1) dt = 0.1; // clamp (equivale a DT_MAXIMO_DO_SONHO)
+  lastTime = timestamp;
+
+  // Lê valores dos sliders
+  const ch7 = parseInt(document.getElementById('ch7').value); // ferocidade bater
+  const ch8 = parseInt(document.getElementById('ch8').value); // ferocidade retorno
+  const ch3 = parseInt(document.getElementById('ch3').value); // throttle
+  const ch9 = parseInt(document.getElementById('ch9').value); // compasso
+  const cicloMs = parseFloat(document.getElementById('ciclo').value);
+
+  const fBater  = mapearRC(ch7, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
+  const fRetorno = mapearRC(ch8, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
+
+  // Actualiza a fase
+  const { amplitudeDoBater, cadencia } = actualizarFase(dt, ch3, ch9, cicloMs);
+
+  // Calcula a forma de onda
+  const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
+  const cantoDoVento = Math.sin(anguloDaDancaAlada);
+
+  // Armazena para o gráfico
+  pushHistory(cantoDoVento, pulsoAsa);
+
+  // Desenha
+  drawServos(pulsoAsa, amplitudeDoBater);
+  drawGraph();
+
+  // Calcula alpha actual para display
+  const ferocidadeAtual = (Math.sin(anguloDaDancaAlada) >= 0) ? fBater : fRetorno;
+  const ferocidadeClamp = Math.max(ferocidadeAtual, 0);
+  const alpha = ferocidadeClamp >= LIMIAR_FEROCIDADE_QUADRADA
+    ? 0 : (1.0 / (1.0 + ferocidadeClamp * FASE_WARP_K));
+
+  // Actualiza info bar
+  document.getElementById('info-angulo').textContent = anguloDaDancaAlada.toFixed(2);
+  document.getElementById('info-cadencia').textContent = cadencia.toFixed(2);
+  document.getElementById('info-freq').textContent = (cadencia / TWO_PI).toFixed(2);
+  document.getElementById('info-amp').textContent = (amplitudeDoBater || 0).toFixed(1);
+  document.getElementById('info-pulso').textContent = pulsoAsa.toFixed(3);
+  document.getElementById('info-alpha').textContent = alpha.toFixed(3);
+
+  // Actualiza labels dos sliders
+  document.getElementById('val-ch7').textContent = fBater.toFixed(1);
+  document.getElementById('val-ch8').textContent = fRetorno.toFixed(1);
+  document.getElementById('val-ch3').textContent = ch3 + ' µs';
+  document.getElementById('val-ch9').textContent = ch9 + ' µs';
+
+  requestAnimationFrame(loop);
+}
+
+// ── Toggle de modo ──
+document.getElementById('btn-normal').addEventListener('click', () => {
+  modoAlternativo = false;
+  document.getElementById('btn-normal').classList.add('active');
+  document.getElementById('btn-alt').classList.remove('active');
+  resetState();
+});
+document.getElementById('btn-alt').addEventListener('click', () => {
+  modoAlternativo = true;
+  document.getElementById('btn-normal').classList.remove('active');
+  document.getElementById('btn-alt').classList.add('active');
+  resetState();
+});
+
+// ── Arranque ──
+resetState();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
