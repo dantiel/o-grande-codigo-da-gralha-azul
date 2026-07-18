@@ -350,8 +350,8 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     if (Math.abs(anguloDaDancaAlada) > TWO_PI)
       anguloDaDancaAlada %= TWO_PI;
 
-    // CH9 → amplitude differential (alinhado com CH4: 1000=esq+50%, 2000=dir+50%)
-    const fatorLeme = (1500.0 - ch9) / 500.0; // 1000→+1 (esq), 2000→−1 (dir)
+    // CH9 → ferocidade do leme (diferencial nos CH7/CH8 entre asas, ±4)
+    const fatorLeme = (1500.0 - ch9) / 125.0; // 1000→+4 (esq mais quadrada), 2000→−4 (dir)
     return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado, fatorLeme };
 
   } else {
@@ -819,12 +819,17 @@ function loop(timestamp) {
   let audioLF = fatorLemeEstelar, audioRF = 1.0 / fatorLemeEstelar;
 
   if (modoAlternativo) {
-    // Alt mode: CH9 → amplitude differential (ferocity not applicable)
-    const altDiff = 1.0 + fl * 0.5;  // [0.5, 1.5]
-    comandoEsquerdo = pulsoAsa * ampGraus * altDiff * fatorLemeEstelar;
-    comandoDireito  = pulsoAsa * ampGraus * (2.0 - altDiff) / fatorLemeEstelar;
-    audioLF = fatorLemeEstelar * altDiff;
-    audioRF = (2.0 - altDiff) / fatorLemeEstelar;
+    // Alt mode: CH9 → ferocity differential (mesma mecânica que normal mode)
+    const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
+    const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
+    const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
+    const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
+    const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
+    const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
+    comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
+    comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
+    audioLF = fatorLemeEstelar * (1.0 + fl * 0.125);
+    audioRF = (1.0 - fl * 0.125) / fatorLemeEstelar;
   } else {
     // Normal mode: ferocity differential between wings
     const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
@@ -888,9 +893,7 @@ function loop(timestamp) {
   document.getElementById('val-ch6').textContent = modoAlternativo
     ? (cadencia / TWO_PI).toFixed(2) + ' Hz'
     : (fatorCompasso >= 0 ? '+' : '') + fatorCompasso.toFixed(2) + '×';
-  document.getElementById('val-ch9').textContent = modoAlternativo
-    ? (fl >= 0 ? '+' : '') + (fl * 50).toFixed(0) + '%'
-    : ((fl || 0) >= 0 ? '+' : '') + (fl || 0).toFixed(1);
+  document.getElementById('val-ch9').textContent = (fl >= 0 ? '+' : '') + fl.toFixed(1);
 
   requestAnimationFrame(loop);
 }
