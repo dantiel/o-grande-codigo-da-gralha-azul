@@ -309,7 +309,7 @@ function drawServos(pulsoAsa, amplitudeGraus) {
   const pivotOffsetX = 20;
   const armLen = 70;
   const wingLen = 140;
-  const maxAngle = 50 * (Math.PI / 180); // 50° visual máximo
+  const maxAngle = (amplitudeGraus || 50) * (Math.PI / 180);
 
   // Ângulo visual (positivo = para cima)
   const visualAngle = pulsoAsa * maxAngle;
