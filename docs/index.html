@@ -87,6 +87,9 @@
   .mode-toggle button.active {
     background: var(--accent); color: #000; border-color: var(--accent);
   }
+  .mode-toggle button.muted {
+    background: var(--danger); color: #fff; border-color: var(--danger);
+  }
   .info-bar {
     display: flex; gap: 20px; flex-wrap: wrap;
     font-size: 0.72rem; color: var(--muted);
@@ -146,6 +149,7 @@
       <div class="mode-toggle">
         <button id="btn-normal" class="active">Normal (PI)</button>
         <button id="btn-alt">Alternativo</button>
+        <button id="btn-sound" style="margin-left:8px">🔇 Som</button>
       </div>
     </div>
   </div>
@@ -505,6 +509,97 @@ function drawGraph() {
 }
 
 // =========================================================================
+//  SOM — Sonificação da Forma de Onda
+// =========================================================================
+const BUFFER_SIZE = 256; // amostras por ciclo
+let audioCtx = null;
+let audioSource = null;
+let audioGain = null;
+let audioBuf = null;
+let somAtivo = false;
+let ultimaFerocidadeBuf = null; // para detectar mudanças na forma de onda
+
+function iniciarAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioGain = audioCtx.createGain();
+  audioGain.gain.value = 0;
+  audioGain.connect(audioCtx.destination);
+  audioBuf = audioCtx.createBuffer(1, BUFFER_SIZE, audioCtx.sampleRate);
+  reconstruirBuffer();
+  iniciarFonte();
+}
+
+function reconstruirBuffer() {
+  if (!audioBuf) return;
+  const data = audioBuf.getChannelData(0);
+  const fBater  = mapearRC(parseInt(document.getElementById('ch7').value), FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
+  const fRetorno = mapearRC(parseInt(document.getElementById('ch8').value), FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
+
+  for (let i = 0; i < BUFFER_SIZE; i++) {
+    // Amostra um ciclo completo [0, 2π)
+    const theta = (i / BUFFER_SIZE) * TWO_PI;
+    data[i] = formaDoBaterDasAsas(theta, fBater, fRetorno);
+  }
+}
+
+function iniciarFonte() {
+  if (audioSource) {
+    try { audioSource.stop(); } catch(e) {}
+    audioSource.disconnect();
+  }
+  audioSource = audioCtx.createBufferSource();
+  audioSource.buffer = audioBuf;
+  audioSource.loop = true;
+  audioSource.loopStart = 0;
+  audioSource.loopEnd = BUFFER_SIZE / audioCtx.sampleRate; // 1 ciclo
+  audioSource.connect(audioGain);
+  audioSource.start(0);
+}
+
+function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
+  if (!audioCtx || !somAtivo) return;
+
+  // Reconstrói buffer se a ferocidade mudou (forma de onda → timbre)
+  const chaveBuf = fBater.toFixed(2) + '|' + fRetorno.toFixed(2);
+  if (chaveBuf !== ultimaFerocidadeBuf) {
+    ultimaFerocidadeBuf = chaveBuf;
+    reconstruirBuffer();
+    iniciarFonte(); // reinicia com novo buffer
+  }
+
+  // Frequência: cadencia (rad/s) → Hz
+  const freq = cadencia / TWO_PI;
+  if (freq > 0.001 && audioSource) {
+    audioSource.playbackRate.value = freq;
+  }
+
+  // Volume: amplitude graus mapeada para [0, 1]
+  // sqrt já aplicado em actualizarFase; mapeamos 0..~50° → 0..0.8
+  const vol = Math.min(0.8, (amplitudeDoBater || 0) / 60);
+  audioGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.05);
+}
+
+// ── Botão de som ──
+document.getElementById('btn-sound').addEventListener('click', () => {
+  if (!audioCtx) iniciarAudio();
+  somAtivo = !somAtivo;
+  const btn = document.getElementById('btn-sound');
+  if (somAtivo) {
+    btn.textContent = '🔊 Som';
+    btn.classList.remove('muted');
+    if (!audioSource) iniciarFonte();
+    // Pequeno fade-in imediato
+    audioGain.gain.setTargetAtTime(0.3, audioCtx.currentTime, 0.02);
+    ultimaFerocidadeBuf = null; // força reconstrução
+  } else {
+    btn.textContent = '🔇 Som';
+    btn.classList.add('muted');
+    audioGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.02);
+  }
+});
+
+// =========================================================================
 //  LOOP PRINCIPAL
 // =========================================================================
 let lastTime = null;
@@ -539,6 +634,9 @@ function loop(timestamp) {
   // Desenha
   drawServos(pulsoAsa, amplitudeDoBater);
   drawGraph();
+
+  // Actualiza som
+  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia);
 
   // Calcula pesos e fracção de dwell para display
   const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
