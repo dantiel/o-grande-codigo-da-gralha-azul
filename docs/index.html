@@ -214,6 +214,8 @@ const ACELERACAO_DO_COMPASSO       = 8.0;
 
 // Constantes do modo Alternativo
 const FREQ_MINIMA_ALT = 0.05;
+const FREQ_MAXIMA_ALT_HZ = 10.0;      // frequência máxima realista de asa
+const AMPLITUDE_MAXIMA_SERVO = 55.0;  // limite físico do servo com margem de segurança
 
 let modoAlternativo = false;
 let linkMode = 'independent'; // 'independent' | 'synced' | 'mirrored'
@@ -276,17 +278,16 @@ function actualizarFase(dt, throttle, compasso, cicloMs) {
 
   if (modoAlternativo) {
     // Modo Alternativo BIRD-LIKE
-    // CH9 (compasso) → frequência directa
-    // CH3 (throttle) → % de amplitude máxima permitida pela física do servo
+    // CH9 (compasso) → frequência directa (0–10 Hz)
+    // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
     const bracosDoRelogio = Math.max(0, Math.min(1, (compasso - 1000.0) * 0.001));
-    const frequenciaMaxCH6_Hz = 3.0 / (cicloMs * 0.001);
-    const frequenciaPedida_Hz = bracosDoRelogio * frequenciaMaxCH6_Hz;
+    const frequenciaPedida_Hz = bracosDoRelogio * FREQ_MAXIMA_ALT_HZ;
     const freqEfetiva = Math.max(frequenciaPedida_Hz, FREQ_MINIMA_ALT);
 
     cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
 
-    // amplitude máxima permitida (com ceiling físico de 60°)
-    const ampMax = Math.min(60, Math.max(0, velocidadeAngularServo / (2.0 * freqEfetiva)));
+    // amplitude máxima permitida pela física do servo
+    const ampMax = Math.min(AMPLITUDE_MAXIMA_SERVO, Math.max(0, velocidadeAngularServo / (2.0 * freqEfetiva)));
     const percentagemSopro = Math.max(0, Math.min(1, (throttle - 480.0) * 0.00125));
     const amplitudeDoBater = Math.sqrt(percentagemSopro) * ampMax;
 
@@ -316,10 +317,11 @@ function actualizarFase(dt, throttle, compasso, cicloMs) {
     if (Math.abs(anguloDaDancaAlada) > TWO_PI)
       anguloDaDancaAlada %= TWO_PI;
 
-    // Amplitude (modo normal)
+    // Amplitude (modo normal) — com ceiling físico do servo
     const soproEfetivo = Math.max(throttle, LIMIAR_DO_VOO_ATIVO);
-    const amplitudeDoBater = ((soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA) *
-      (1.0 - (compasso - 1500.0) * MODULACAO_DO_COMPASSO);
+    const amplitudeDoBater = Math.min(AMPLITUDE_MAXIMA_SERVO,
+      ((soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA) *
+      (1.0 - (compasso - 1500.0) * MODULACAO_DO_COMPASSO));
 
     return {
       amplitudeDoBater: Math.max(0, amplitudeDoBater),
@@ -343,7 +345,7 @@ function drawServos(servoAngleEsq, servoAngleDir, amplitudeGraus) {
   const pivotOffsetX = 20;
   const armLen = 70;
   const wingLen = 140;
-  const maxAngle = (amplitudeGraus || 50) * (Math.PI / 180);
+  const maxAngle = (amplitudeGraus || AMPLITUDE_MAXIMA_SERVO) * (Math.PI / 180);
 
   // Ângulos visuais (positivo = para cima) — já limitados pela física do servo
   const leftAngle  = servoAngleEsq * (Math.PI / 180);
@@ -459,11 +461,11 @@ const HISTORY_LEN = 200;
 const history = []; // [{sin, warp, amp}]
 
 function pushHistory(sinVal, warpVal, amp) {
-  history.push({ sin: sinVal, warp: warpVal, amp: amp || 50 });
+  history.push({ sin: sinVal, warp: warpVal, amp: amp || AMPLITUDE_MAXIMA_SERVO });
   if (history.length > HISTORY_LEN) history.shift();
 }
 
-let ultimaAmplitudeGraus = 50;
+let ultimaAmplitudeGraus = AMPLITUDE_MAXIMA_SERVO;
 
 function drawGraph() {
   const W = 660, H = 300;
@@ -473,7 +475,7 @@ function drawGraph() {
   const pw = W - margin.left - margin.right;
   const ph = H - margin.top - margin.bottom;
   const midY = margin.top + ph / 2;
-  const AMP_REF = 50; // referência fixa para escala
+  const AMP_REF = AMPLITUDE_MAXIMA_SERVO; // referência fixa para escala
   const ampY = ph / 2; // escala cheia sempre
 
   // Grelha
@@ -627,7 +629,7 @@ function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
 
   // Volume: throttle→amplitude, atenuação suave para ferocidade alta
   const ferocidadeMedia = (fBater + fRetorno) * 0.5;
-  const volBase = Math.min(1.0, (amplitudeDoBater || 0) / 50);
+  const volBase = Math.min(1.0, (amplitudeDoBater || 0) / AMPLITUDE_MAXIMA_SERVO);
   audioTargetAmp = volBase / (1.0 + ferocidadeMedia * 0.12);
   if (audioGain) {
     audioGain.gain.setTargetAtTime(somAtivo ? 0.95 : 0, audioCtx.currentTime, 0.03);
@@ -686,7 +688,7 @@ function loop(timestamp) {
   const velocidadeAngularServo = 60.0 / (cicloMs * 0.001);
   const passoMax = velocidadeAngularServo * dt; // °/frame
 
-  const comandoAsa = pulsoAsa * (amplitudeDoBater || 50); // ângulo comandado em °
+  const comandoAsa = pulsoAsa * (amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO); // ângulo comandado em °
 
   // Cada servo persegue o comando com velocidade limitada (esquerdo = inverso, direito = directo)
   const deltaEsq = comandoAsa - servoAngleEsquerdo;
@@ -696,10 +698,10 @@ function loop(timestamp) {
   servoAngleDireito  += Math.max(-passoMax, Math.min(passoMax, deltaDir));
 
   // Armazena para o gráfico (com amplitude individual — traços encolhem com throttle ao longo do tempo)
-  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || 50);
+  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO);
 
   // Desenha com os ângulos limitados pela física do servo
-  ultimaAmplitudeGraus = amplitudeDoBater || 50;
+  ultimaAmplitudeGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
   drawServos(servoAngleEsquerdo, servoAngleDireito, amplitudeDoBater);
   drawGraph();
 
