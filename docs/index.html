@@ -168,6 +168,10 @@
     <div class="control-group">
       <label>CH9 · Ferocidade do Leme <span class="val" id="val-ch9">1500</span></label>
       <input type="range" id="ch9" min="1000" max="2000" value="1500" step="1">
+      <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;margin-top:2px;cursor:pointer">
+        <input type="checkbox" id="cb-couple-rudder" style="accent-color:var(--accent);width:14px;height:14px">
+        🔗 Acoplar CH9→CH4
+      </label>
     </div>
     <div class="control-group">
       <label>Ciclo do Coração Alado (ms)</label>
@@ -226,6 +230,8 @@ const FREQ_MAXIMA_ALT_HZ = 10.0;      // frequência máxima realista de asa
 const AMPLITUDE_MAXIMA_SERVO = 55.0;  // limite físico do servo com margem de segurança
 
 let modoAlternativo = false;
+let coupleRudder = false;
+let coupleGuard = false; // evita loops ao acoplar CH9↔CH4
 let linkMode = 'independent'; // 'independent' | 'synced' | 'mirrored'
 let linkGuard = false; // evita loops infinitos ao actualizar sliders
 
@@ -344,7 +350,10 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     if (Math.abs(anguloDaDancaAlada) > TWO_PI)
       anguloDaDancaAlada %= TWO_PI;
 
-    return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado };
+    // CH9 → amplitude differential factor (alt mode has no ferocity, so
+    //   ferocity rudder shifts amplitude between left/right wings instead)
+    const fatorLeme = (ch9 - 1500.0) / 500.0; // [-1, +1]
+    return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado, fatorLeme };
 
   } else {
     // Modo Normal (PI)
@@ -793,20 +802,32 @@ function loop(timestamp) {
 
   // ── CH6+CH9 → fatorLeme já combinado em actualizarFase ──
   const fl = fatorLeme || 0;
-  const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
-  const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
-  const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
-  const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
 
-  // Calcula forma de onda — separada esq/dir se houver diferencial
+  // Forma de onda base (sem diferencial)
   const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
-  const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
-  const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
-
-  // Aplica diferencial do leme (CH4) directamente — como no C++
   const ampGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
-  const comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
-  const comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
+
+  let comandoEsquerdo, comandoDireito;
+  let audioLF = fatorLemeEstelar, audioRF = 1.0 / fatorLemeEstelar;
+
+  if (modoAlternativo && fl !== 0) {
+    // Alt mode: CH9 → amplitude differential (ferocity not applicable)
+    const altDiff = 1.0 + fl * 0.5;  // [0.5, 1.5]
+    comandoEsquerdo = pulsoAsa * ampGraus * altDiff * fatorLemeEstelar;
+    comandoDireito  = pulsoAsa * ampGraus * (2.0 - altDiff) / fatorLemeEstelar;
+    audioLF = fatorLemeEstelar * altDiff;
+    audioRF = (2.0 - altDiff) / fatorLemeEstelar;
+  } else {
+    // Normal mode: ferocity differential between wings
+    const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
+    const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
+    const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
+    const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
+    const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
+    const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
+    comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
+    comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
+  }
 
   // Cada servo persegue o seu comando com velocidade limitada
   const deltaEsq = comandoEsquerdo - servoAngleEsquerdo;
@@ -830,8 +851,8 @@ function loop(timestamp) {
   drawServos(servoAngleEsquerdo, servoAngleDireito, amplitudeDoBater);
   drawGraph();
 
-  // Actualiza som (estéreo: diferencial esquerda/direita via fatorLemeEstelar)
-  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, fatorLemeEstelar, 1.0/fatorLemeEstelar, cicloMs, velocidadeAsa);
+  // Actualiza som (estéreo: diferencial esquerda/direita via CH4 + CH9 combinados)
+  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, audioLF, audioRF, cicloMs, velocidadeAsa);
 
   // Calcula pesos e fracção de dwell para display
   const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
@@ -859,7 +880,9 @@ function loop(timestamp) {
   document.getElementById('val-ch6').textContent = modoAlternativo
     ? (cadencia / TWO_PI).toFixed(2) + ' Hz'
     : ((fatorLeme || 0) >= 0 ? '+' : '') + (fatorLeme || 0).toFixed(1);
-  document.getElementById('val-ch9').textContent = ch9 + ' µs';
+  document.getElementById('val-ch9').textContent = modoAlternativo
+    ? '±' + (Math.abs(fl) * 50).toFixed(0) + '%'
+    : ch9 + ' µs';
 
   requestAnimationFrame(loop);
 }
@@ -931,6 +954,34 @@ document.getElementById('ch8').addEventListener('input', () => {
     linkGuard = true;
     document.getElementById('ch7').value = 3000 - val;
     linkGuard = false;
+  }
+});
+
+// ── Acoplar CH9 ↔ CH4 ──
+document.getElementById('cb-couple-rudder').addEventListener('change', () => {
+  coupleRudder = document.getElementById('cb-couple-rudder').checked;
+  if (coupleRudder) {
+    // Ao activar, CH4 segue CH9 imediatamente
+    const ch9 = parseInt(document.getElementById('ch9').value);
+    document.getElementById('ch4').value = ch9;
+  }
+});
+
+document.getElementById('ch9').addEventListener('input', () => {
+  if (coupleGuard) return;
+  if (coupleRudder) {
+    coupleGuard = true;
+    document.getElementById('ch4').value = document.getElementById('ch9').value;
+    coupleGuard = false;
+  }
+});
+
+document.getElementById('ch4').addEventListener('input', () => {
+  if (coupleGuard) return;
+  if (coupleRudder) {
+    coupleGuard = true;
+    document.getElementById('ch9').value = document.getElementById('ch4').value;
+    coupleGuard = false;
   }
 });
 
