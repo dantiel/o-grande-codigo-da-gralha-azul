@@ -348,10 +348,8 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
 
   } else {
     // Modo Normal (PI)
-    // throttle → cadência alvo; CH9 (ferocidade do leme) modula cadência
-    // CH6 → diferencial de ferocidade esq/dir (como no C++: fatorDoLeme)
-    const intencaoDeCadencia = (throttle - 1000.0) *
-      ((1.0 / (120.0 * cicloMs * 0.001)) + ((ch9 - 1500.0) * 0.0000725));
+    // throttle → cadência alvo; CH6 → diferencial ferocidade; CH9 → shift adicional
+    const intencaoDeCadencia = (throttle - 1000.0) / (120.0 * cicloMs * 0.001);
 
     if (throttle > LIMIAR_DO_VOO_ATIVO) {
       // Em voo: persegue a cadência alvo (dinâmica de 1ª ordem)
@@ -368,15 +366,13 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
       anguloDaDancaAlada %= TWO_PI;
 
     // Amplitude (modo normal) — com ceiling físico do servo
-    // CH9 (ferocidade do leme) modula amplitude: centro=1500 sem efeito
     const soproEfetivo = Math.max(throttle, LIMIAR_DO_VOO_ATIVO);
     const amplitudeDoBater = Math.min(AMPLITUDE_MAXIMA_SERVO,
-      ((soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA) *
-      (1.0 - (ch9 - 1500.0) * MODULACAO_DO_COMPASSO));
+      (soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA);
 
-    // CH6 → Diferencial de Ferocidade: desloca fBater/fRetorno entre asas
-    // Centro 1500 = sem diferencial; extremos 1000/2000 = ±4.0 de shift
-    const fatorLeme = (ch6 - 1500.0) / 125.0;  // [-4.0, +4.0] como no C++
+    // CH6 → Diferencial de Ferocidade base (fatorDoLeme no C++)
+    // CH9 → ajuste independente (Ferocidade do Leme): 1500=sem efeito, ±4 shift
+    const fatorLeme = (ch6 - 1500.0) / 125.0 + (ch9 - 1500.0) / 125.0;
 
     return {
       amplitudeDoBater: Math.max(0, amplitudeDoBater),
@@ -612,7 +608,6 @@ function drawGraph() {
   // Direita trace (servo real, com leme)
   graphCtx.strokeStyle = '#f3f';
   graphCtx.lineWidth = 1.8;
-  graphCtx.setLineDash([8, 4]);
   graphCtx.beginPath();
   for (let i = 0; i < n; i++) {
     const x = margin.left + i * xScale;
@@ -621,7 +616,6 @@ function drawGraph() {
     else graphCtx.lineTo(x, y);
   }
   graphCtx.stroke();
-  graphCtx.setLineDash([]);
 
   // Legenda
   graphCtx.font = '10px -apple-system, sans-serif';
@@ -797,12 +791,8 @@ function loop(timestamp) {
   const denom = (ch4 > 0) ? ch4 : 1500;
   const fatorLemeEstelar = ((1500.0 / denom) - 1.0) * 2.0 + 1.0;
 
-  // ── Ferocidade do Leme (CH9) → escala a diferencial de ferocidade (CH6) ──
-  // Centro 1500 = 50%, 1000 = 0% (sem diferencial), 2000 = 100% (força máxima)
-  const ferocityRudderMix = (ch9 - 1000) / 1000;  // [0, 1]
-
-  // CH6 (fatorLeme) escalado por CH9
-  const fl = (fatorLeme || 0) * ferocityRudderMix;
+  // ── CH6+CH9 → fatorLeme já combinado em actualizarFase ──
+  const fl = fatorLeme || 0;
   const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
   const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
   const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
