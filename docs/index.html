@@ -64,7 +64,10 @@
     font-size: 0.75rem; color: var(--muted);
     display: flex; justify-content: space-between;
   }
-  .control-group label span.val { color: var(--accent); font-weight: 600; }
+  .control-group label span.val {
+    color: var(--accent); font-weight: 600;
+    display: inline-block; min-width: 42px; text-align: right;
+  }
   .control-group input[type=range] {
     width: 100%; accent-color: var(--accent);
   }
@@ -94,7 +97,11 @@
     display: flex; gap: 20px; flex-wrap: wrap;
     font-size: 0.72rem; color: var(--muted);
   }
-  .info-bar span { color: var(--text); font-weight: 600; }
+  .info-bar > div { white-space: nowrap; }
+  .info-bar span {
+    color: var(--text); font-weight: 600;
+    display: inline-block; min-width: 54px; text-align: right;
+  }
   footer {
     text-align: center; font-size: 0.7rem; color: var(--muted);
     padding: 8px;
@@ -423,17 +430,15 @@ function roundRect(ctx, x, y, w, h, r) {
 //  GRÁFICO — Osciloscópio das Ondas Internas
 // =========================================================================
 const graphCtx = document.getElementById('graph-canvas').getContext('2d');
-const HISTORY_LEN = 200; // pontos (~3s a 60fps)
-const history = { sin: [], warp: [] };
+const HISTORY_LEN = 200;
+const history = []; // [{sin, warp, amp}]
 
-function pushHistory(sinVal, warpVal) {
-  history.sin.push(sinVal);
-  history.warp.push(warpVal);
-  if (history.sin.length > HISTORY_LEN) history.sin.shift();
-  if (history.warp.length > HISTORY_LEN) history.warp.shift();
+function pushHistory(sinVal, warpVal, amp) {
+  history.push({ sin: sinVal, warp: warpVal, amp: amp || 50 });
+  if (history.length > HISTORY_LEN) history.shift();
 }
 
-let ultimaAmplitudeGraus = 50; // amplitude actual para escala do gráfico
+let ultimaAmplitudeGraus = 50;
 
 function drawGraph() {
   const W = 660, H = 300;
@@ -443,8 +448,8 @@ function drawGraph() {
   const pw = W - margin.left - margin.right;
   const ph = H - margin.top - margin.bottom;
   const midY = margin.top + ph / 2;
-  const fatorEscala = Math.max(0.05, ultimaAmplitudeGraus / 50); // 50° = escala cheia
-  const ampY = (ph / 2) * fatorEscala; // amplitude visual segue throttle
+  const AMP_REF = 50; // referência fixa para escala
+  const ampY = ph / 2; // escala cheia sempre
 
   // Grelha
   graphCtx.strokeStyle = '#1a2030';
@@ -473,28 +478,40 @@ function drawGraph() {
   graphCtx.fillText('−1', margin.left - 6, midY + ampY + 3);
 
   // Dados
-  if (history.sin.length < 2) return;
+  if (history.length < 2) return;
 
-  const n = history.sin.length;
+  const n = history.length;
   const xScale = pw / (n - 1);
 
-  function drawTrace(data, color, alpha) {
-    graphCtx.strokeStyle = color;
-    graphCtx.lineWidth = 1.5;
-    graphCtx.globalAlpha = alpha;
-    graphCtx.beginPath();
-    for (let i = 0; i < n; i++) {
-      const x = margin.left + i * xScale;
-      const y = midY - data[i] * ampY;
-      if (i === 0) graphCtx.moveTo(x, y);
-      else graphCtx.lineTo(x, y);
-    }
-    graphCtx.stroke();
-    graphCtx.globalAlpha = 1;
+  // cos(θ) trace — amplitude-corrected per sample
+  graphCtx.strokeStyle = '#58a6ff';
+  graphCtx.lineWidth = 1.5;
+  graphCtx.globalAlpha = 0.5;
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const scale = Math.max(0.05, history[i].amp / AMP_REF);
+    const y = midY - history[i].sin * ampY * scale;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
   }
+  graphCtx.stroke();
+  graphCtx.globalAlpha = 1;
 
-  drawTrace(history.sin, '#58a6ff', 0.5);   // cos(θ) — azul, translúcido
-  drawTrace(history.warp, '#f0883e', 1.0);   // formaDoBater — laranja
+  // formaDoBater trace
+  graphCtx.strokeStyle = '#f0883e';
+  graphCtx.lineWidth = 1.5;
+  graphCtx.globalAlpha = 1;
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const scale = Math.max(0.05, history[i].amp / AMP_REF);
+    const y = midY - history[i].warp * ampY * scale;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+  graphCtx.globalAlpha = 1;
 
   // Legenda
   graphCtx.font = '10px -apple-system, sans-serif';
@@ -512,122 +529,77 @@ function drawGraph() {
 }
 
 // =========================================================================
-//  SOM — Sonificação da Forma de Onda
+//  SOM — ScriptProcessorNode: síntese directa com envelope rítmico
 // =========================================================================
-const BUFFER_SIZE = 256; // amostras por ciclo
+const BUFFER_SIZE_PROC = 2048; // amostras por buffer de áudio (não usado directamente)
 let audioCtx = null;
 let audioGain = null;
-let audioBuf = null;
+let procNode = null;
 let somAtivo = false;
-let ultimaFerocidadeBuf = null;
 
-// Crossfade: duas fontes + gains independentes
-let fonteA = null, gainA = null;
-let fonteB = null, gainB = null;
-let fonteAtiva = 'A'; // qual está audível neste momento
-const CROSSFADE_S = 0.015; // 15ms
+// Estado partilhado com o processador (actualizado pelo loop principal)
+let audioPhase = 0.0;
+let audioFBater = 4.0, audioFRetorno = 4.0;
+let audioCadencia = 0.0;
+let audioAmplitude = 0.0;
 
 function iniciarAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  audioGain = audioCtx.createGain();       // gain mestre (volume/throttle)
+
+  audioGain = audioCtx.createGain();
   audioGain.gain.value = 0;
   audioGain.connect(audioCtx.destination);
 
-  gainA = audioCtx.createGain(); gainA.gain.value = 0; gainA.connect(audioGain);
-  gainB = audioCtx.createGain(); gainB.gain.value = 0; gainB.connect(audioGain);
+  // ScriptProcessorNode: 2048 samples por buffer, 1 canal in, 1 out
+  procNode = audioCtx.createScriptProcessor(2048, 1, 1);
+  procNode.onaudioprocess = function(e) {
+    const out = e.outputBuffer.getChannelData(0);
+    const sr = e.outputBuffer.sampleRate;
+    const n = out.length;
 
-  audioBuf = audioCtx.createBuffer(1, BUFFER_SIZE, audioCtx.sampleRate);
-  reconstruirBuffer();
-  iniciarFonte('A', true);
-  fonteAtiva = 'A';
-  gainA.gain.setValueAtTime(1, audioCtx.currentTime);
-}
+    // Snapshot do estado (evita race conditions com o loop principal)
+    const fB = audioFBater, fR = audioFRetorno;
+    const cad = audioCadencia;
+    const amp = audioAmplitude;
+    let ph = audioPhase;
 
-function reconstruirBuffer() {
-  if (!audioBuf) return;
-  const data = audioBuf.getChannelData(0);
-  const fBater  = mapearRC(parseInt(document.getElementById('ch7').value), FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
-  const fRetorno = mapearRC(parseInt(document.getElementById('ch8').value), FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
-  for (let i = 0; i < BUFFER_SIZE; i++) {
-    const theta = (i / BUFFER_SIZE) * TWO_PI;
-    data[i] = formaDoBaterDasAsas(theta, fBater, fRetorno);
-  }
-}
+    // Valor anterior para calcular derivada (envelope rítmico)
+    let prevSample = formaDoBaterDasAsas(ph - cad / sr, fB, fR);
 
-function iniciarFonte(label, loop) {
-  const src = audioCtx.createBufferSource();
-  src.buffer = audioBuf;
-  src.loop = true;
-  src.loopStart = 0;
-  src.loopEnd = BUFFER_SIZE / audioCtx.sampleRate;
+    for (let i = 0; i < n; i++) {
+      ph += cad / sr;
+      if (ph > TWO_PI) ph -= TWO_PI;
 
-  const gain = (label === 'A') ? gainA : gainB;
-  src.connect(gain);
-  src.start(0);
+      const waveform = formaDoBaterDasAsas(ph, fB, fR);
 
-  // Guarda e limpa a anterior
-  if (label === 'A') {
-    if (fonteA) { try { fonteA.stop(); } catch(e) {} fonteA.disconnect(); }
-    fonteA = src;
-  } else {
-    if (fonteB) { try { fonteB.stop(); } catch(e) {} fonteB.disconnect(); }
-    fonteB = src;
-  }
-}
+      // Envelope rítmico: |derivada| → som mais forte quando a asa se move
+      const deriv = (waveform - prevSample) * sr / Math.max(1.0, cad);
+      const envelope = Math.min(1.0, Math.abs(deriv) * 0.8);
 
-function crossfade() {
-  const agora = audioCtx.currentTime;
-  if (fonteAtiva === 'A') {
-    // A → B: B entra, A sai
-    gainB.gain.cancelScheduledValues(agora);
-    gainB.gain.setValueAtTime(gainB.gain.value, agora);
-    gainB.gain.linearRampToValueAtTime(1, agora + CROSSFADE_S);
-    gainA.gain.cancelScheduledValues(agora);
-    gainA.gain.setValueAtTime(gainA.gain.value, agora);
-    gainA.gain.linearRampToValueAtTime(0, agora + CROSSFADE_S);
-    fonteAtiva = 'B';
-  } else {
-    // B → A: A entra, B sai
-    gainA.gain.cancelScheduledValues(agora);
-    gainA.gain.setValueAtTime(gainA.gain.value, agora);
-    gainA.gain.linearRampToValueAtTime(1, agora + CROSSFADE_S);
-    gainB.gain.cancelScheduledValues(agora);
-    gainB.gain.setValueAtTime(gainB.gain.value, agora);
-    gainB.gain.linearRampToValueAtTime(0, agora + CROSSFADE_S);
-    fonteAtiva = 'A';
-  }
+      out[i] = waveform * envelope * amp;
+
+      prevSample = waveform;
+    }
+
+    audioPhase = ph;
+  };
+  procNode.connect(audioGain);
 }
 
 function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
-  if (!audioCtx || !somAtivo) return;
-
-  // Reconstrói buffer se a ferocidade mudou (timbre)
-  const chaveBuf = fBater.toFixed(2) + '|' + fRetorno.toFixed(2);
-  if (chaveBuf !== ultimaFerocidadeBuf) {
-    ultimaFerocidadeBuf = chaveBuf;
-    reconstruirBuffer();
-
-    // Nova fonte no canal oposto, crossfade para ela
-    const novoLabel = (fonteAtiva === 'A') ? 'B' : 'A';
-    iniciarFonte(novoLabel, true);
-    crossfade();
-  }
-
-  // Frequência: ambas as fontes activas recebem o mesmo playbackRate
-  const freq = cadencia / TWO_PI;
-  if (freq > 0.001) {
-    if (fonteA) fonteA.playbackRate.value = freq;
-    if (fonteB) fonteB.playbackRate.value = freq;
-  }
-
-  // Volume: amplitude + compensação de ferocidade
-  // Onda quadrada tem +3dB RMS e muito mais energia harmónica → atenua com ferocidade
+  audioFBater = fBater;
+  audioFRetorno = fRetorno;
+  audioCadencia = cadencia;
+  // Amplitude: comprimida no topo, com compensação de ferocidade
   const ferocidadeMedia = (fBater + fRetorno) * 0.5;
-  const compensacaoFerocidade = 1.0 / (1.0 + ferocidadeMedia * 0.18);
-  const volBase = Math.min(0.8, (amplitudeDoBater || 0) / 60);
+  const compensacaoFerocidade = 1.0 / (1.0 + ferocidadeMedia * 0.3);
+  const volBase = Math.min(1.0, (amplitudeDoBater || 0) / 60);
   const vol = volBase * compensacaoFerocidade;
-  audioGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.05);
+  audioAmplitude = vol;
+  if (audioGain) {
+    audioGain.gain.setTargetAtTime(somAtivo ? 0.7 : 0, audioCtx.currentTime, 0.05);
+  }
 }
 
 // ── Botão de som ──
@@ -638,8 +610,8 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   if (somAtivo) {
     btn.textContent = '🔊 Som';
     btn.classList.remove('muted');
-    audioGain.gain.setTargetAtTime(0.3, audioCtx.currentTime, 0.02);
-    ultimaFerocidadeBuf = null;
+    audioPhase = 0.0; // reset de fase para sincronizar com o loop visual
+    audioGain.gain.setTargetAtTime(0.7, audioCtx.currentTime, 0.02);
   } else {
     btn.textContent = '🔇 Som';
     btn.classList.add('muted');
@@ -676,11 +648,11 @@ function loop(timestamp) {
   const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
   const cantoDoVento = Math.cos(anguloDaDancaAlada);
 
-  // Armazena para o gráfico
-  pushHistory(cantoDoVento, pulsoAsa);
+  // Armazena para o gráfico (com amplitude individual — traços encolhem com throttle ao longo do tempo)
+  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || 50);
 
   // Desenha
-  ultimaAmplitudeGraus = amplitudeDoBater || 0;
+  ultimaAmplitudeGraus = amplitudeDoBater || 50;
   drawServos(pulsoAsa, amplitudeDoBater);
   drawGraph();
 
