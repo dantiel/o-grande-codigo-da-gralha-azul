@@ -433,6 +433,8 @@ function pushHistory(sinVal, warpVal) {
   if (history.warp.length > HISTORY_LEN) history.warp.shift();
 }
 
+let ultimaAmplitudeGraus = 50; // amplitude actual para escala do gráfico
+
 function drawGraph() {
   const W = 660, H = 300;
   graphCtx.clearRect(0, 0, W, H);
@@ -441,7 +443,8 @@ function drawGraph() {
   const pw = W - margin.left - margin.right;
   const ph = H - margin.top - margin.bottom;
   const midY = margin.top + ph / 2;
-  const ampY = ph / 2; // amplitude de ±1 mapeia para ±ampY pixels
+  const fatorEscala = Math.max(0.05, ultimaAmplitudeGraus / 50); // 50° = escala cheia
+  const ampY = (ph / 2) * fatorEscala; // amplitude visual segue throttle
 
   // Grelha
   graphCtx.strokeStyle = '#1a2030';
@@ -513,21 +516,32 @@ function drawGraph() {
 // =========================================================================
 const BUFFER_SIZE = 256; // amostras por ciclo
 let audioCtx = null;
-let audioSource = null;
 let audioGain = null;
 let audioBuf = null;
 let somAtivo = false;
-let ultimaFerocidadeBuf = null; // para detectar mudanças na forma de onda
+let ultimaFerocidadeBuf = null;
+
+// Crossfade: duas fontes + gains independentes
+let fonteA = null, gainA = null;
+let fonteB = null, gainB = null;
+let fonteAtiva = 'A'; // qual está audível neste momento
+const CROSSFADE_S = 0.015; // 15ms
 
 function iniciarAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  audioGain = audioCtx.createGain();
+  audioGain = audioCtx.createGain();       // gain mestre (volume/throttle)
   audioGain.gain.value = 0;
   audioGain.connect(audioCtx.destination);
+
+  gainA = audioCtx.createGain(); gainA.gain.value = 0; gainA.connect(audioGain);
+  gainB = audioCtx.createGain(); gainB.gain.value = 0; gainB.connect(audioGain);
+
   audioBuf = audioCtx.createBuffer(1, BUFFER_SIZE, audioCtx.sampleRate);
   reconstruirBuffer();
-  iniciarFonte();
+  iniciarFonte('A', true);
+  fonteAtiva = 'A';
+  gainA.gain.setValueAtTime(1, audioCtx.currentTime);
 }
 
 function reconstruirBuffer() {
@@ -535,48 +549,84 @@ function reconstruirBuffer() {
   const data = audioBuf.getChannelData(0);
   const fBater  = mapearRC(parseInt(document.getElementById('ch7').value), FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
   const fRetorno = mapearRC(parseInt(document.getElementById('ch8').value), FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
-
   for (let i = 0; i < BUFFER_SIZE; i++) {
-    // Amostra um ciclo completo [0, 2π)
     const theta = (i / BUFFER_SIZE) * TWO_PI;
     data[i] = formaDoBaterDasAsas(theta, fBater, fRetorno);
   }
 }
 
-function iniciarFonte() {
-  if (audioSource) {
-    try { audioSource.stop(); } catch(e) {}
-    audioSource.disconnect();
+function iniciarFonte(label, loop) {
+  const src = audioCtx.createBufferSource();
+  src.buffer = audioBuf;
+  src.loop = true;
+  src.loopStart = 0;
+  src.loopEnd = BUFFER_SIZE / audioCtx.sampleRate;
+
+  const gain = (label === 'A') ? gainA : gainB;
+  src.connect(gain);
+  src.start(0);
+
+  // Guarda e limpa a anterior
+  if (label === 'A') {
+    if (fonteA) { try { fonteA.stop(); } catch(e) {} fonteA.disconnect(); }
+    fonteA = src;
+  } else {
+    if (fonteB) { try { fonteB.stop(); } catch(e) {} fonteB.disconnect(); }
+    fonteB = src;
   }
-  audioSource = audioCtx.createBufferSource();
-  audioSource.buffer = audioBuf;
-  audioSource.loop = true;
-  audioSource.loopStart = 0;
-  audioSource.loopEnd = BUFFER_SIZE / audioCtx.sampleRate; // 1 ciclo
-  audioSource.connect(audioGain);
-  audioSource.start(0);
+}
+
+function crossfade() {
+  const agora = audioCtx.currentTime;
+  if (fonteAtiva === 'A') {
+    // A → B: B entra, A sai
+    gainB.gain.cancelScheduledValues(agora);
+    gainB.gain.setValueAtTime(gainB.gain.value, agora);
+    gainB.gain.linearRampToValueAtTime(1, agora + CROSSFADE_S);
+    gainA.gain.cancelScheduledValues(agora);
+    gainA.gain.setValueAtTime(gainA.gain.value, agora);
+    gainA.gain.linearRampToValueAtTime(0, agora + CROSSFADE_S);
+    fonteAtiva = 'B';
+  } else {
+    // B → A: A entra, B sai
+    gainA.gain.cancelScheduledValues(agora);
+    gainA.gain.setValueAtTime(gainA.gain.value, agora);
+    gainA.gain.linearRampToValueAtTime(1, agora + CROSSFADE_S);
+    gainB.gain.cancelScheduledValues(agora);
+    gainB.gain.setValueAtTime(gainB.gain.value, agora);
+    gainB.gain.linearRampToValueAtTime(0, agora + CROSSFADE_S);
+    fonteAtiva = 'A';
+  }
 }
 
 function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
   if (!audioCtx || !somAtivo) return;
 
-  // Reconstrói buffer se a ferocidade mudou (forma de onda → timbre)
+  // Reconstrói buffer se a ferocidade mudou (timbre)
   const chaveBuf = fBater.toFixed(2) + '|' + fRetorno.toFixed(2);
   if (chaveBuf !== ultimaFerocidadeBuf) {
     ultimaFerocidadeBuf = chaveBuf;
     reconstruirBuffer();
-    iniciarFonte(); // reinicia com novo buffer
+
+    // Nova fonte no canal oposto, crossfade para ela
+    const novoLabel = (fonteAtiva === 'A') ? 'B' : 'A';
+    iniciarFonte(novoLabel, true);
+    crossfade();
   }
 
-  // Frequência: cadencia (rad/s) → Hz
+  // Frequência: ambas as fontes activas recebem o mesmo playbackRate
   const freq = cadencia / TWO_PI;
-  if (freq > 0.001 && audioSource) {
-    audioSource.playbackRate.value = freq;
+  if (freq > 0.001) {
+    if (fonteA) fonteA.playbackRate.value = freq;
+    if (fonteB) fonteB.playbackRate.value = freq;
   }
 
-  // Volume: amplitude graus mapeada para [0, 1]
-  // sqrt já aplicado em actualizarFase; mapeamos 0..~50° → 0..0.8
-  const vol = Math.min(0.8, (amplitudeDoBater || 0) / 60);
+  // Volume: amplitude + compensação de ferocidade
+  // Onda quadrada tem +3dB RMS e muito mais energia harmónica → atenua com ferocidade
+  const ferocidadeMedia = (fBater + fRetorno) * 0.5;
+  const compensacaoFerocidade = 1.0 / (1.0 + ferocidadeMedia * 0.18);
+  const volBase = Math.min(0.8, (amplitudeDoBater || 0) / 60);
+  const vol = volBase * compensacaoFerocidade;
   audioGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.05);
 }
 
@@ -588,10 +638,8 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   if (somAtivo) {
     btn.textContent = '🔊 Som';
     btn.classList.remove('muted');
-    if (!audioSource) iniciarFonte();
-    // Pequeno fade-in imediato
     audioGain.gain.setTargetAtTime(0.3, audioCtx.currentTime, 0.02);
-    ultimaFerocidadeBuf = null; // força reconstrução
+    ultimaFerocidadeBuf = null;
   } else {
     btn.textContent = '🔇 Som';
     btn.classList.add('muted');
@@ -632,6 +680,7 @@ function loop(timestamp) {
   pushHistory(cantoDoVento, pulsoAsa);
 
   // Desenha
+  ultimaAmplitudeGraus = amplitudeDoBater || 0;
   drawServos(pulsoAsa, amplitudeDoBater);
   drawGraph();
 
