@@ -636,10 +636,12 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   float wD = 8.0f - fD;  // peso da descida
   float wS = 8.0f - fS;  // peso da subida
   float wTotal = wD + wS;
-  if (wTotal < 0.001f) wTotal = 16.0f;  // ambas f=8 → simétrico
 
-  // Fronteira: descida ocupa wD/wTotal do ciclo
-  float limiar = TWO_PI * wD / wTotal;
+  // Fronteira: descida ocupa wD/wTotal do ciclo.
+  // Se ambas f=8 → wTotal=0 → divisão simétrica π cada.
+  float limiar;
+  if (wTotal < 0.001f) limiar = TWO_PI * 0.5f;
+  else                  limiar = TWO_PI * wD / wTotal;
 
   bool descida = (theta < limiar);
   float t, ferocidade, d, dh;

@@ -209,10 +209,10 @@ function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   // Pesos: (8-f) — meia-onda mais suave pesa mais, dura mais
   const wD = 8.0 - fD;
   const wS = 8.0 - fS;
-  const wTotal = wD + wS || 16.0;  // fallback se ambas f=8
 
-  // Fronteira: descida ocupa wD/wTotal do ciclo
-  const limiar = TWO_PI * wD / wTotal;
+  // Fronteira: descida ocupa wD/wTotal do ciclo.
+  // Se ambas f=8 → wTotal=0 → divisão simétrica π cada.
+  const limiar = (wD + wS < 0.001) ? TWO_PI * 0.5 : TWO_PI * wD / (wD + wS);
 
   const descida = (theta < limiar);
   const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
