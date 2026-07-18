@@ -205,15 +205,18 @@ function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   let theta = anguloDoCiclo % TWO_PI;
   if (theta < 0) theta += TWO_PI;
 
-  const meiaOndaPositiva = (theta < PI);
+  // Meia-onda de extremo a extremo: cos(θ) ≥ 0 → [-π/2, π/2]
+  let thetaCos = theta + PI * 0.5;
+  if (thetaCos >= TWO_PI) thetaCos -= TWO_PI;
+  const meiaOndaPositiva = (thetaCos < PI);
 
   // Fase normalizada dentro da meia-onda: t ∈ [0, 1]
   let t, ferocidade;
   if (meiaOndaPositiva) {
-    t = theta / PI;
+    t = thetaCos / PI;
     ferocidade = fBater;
   } else {
-    t = (theta - PI) / PI;
+    t = (thetaCos - PI) / PI;
     ferocidade = fRetorno;
   }
 

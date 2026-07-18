@@ -635,18 +635,20 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
 
-  // Meia-onda positiva [0, π) vs negativa [π, 2π)
+  // Meia-onda de extremo a extremo: cos(θ) ≥ 0 → [-π/2, π/2]
   const float PI = 3.14159265358979f;
-  bool meiaOndaPositiva = (theta < PI);
+  float thetaCos = theta + PI * 0.5f;
+  if (thetaCos >= LIMITE_ANGULAR_DO_GIRO_PADRAO) thetaCos -= LIMITE_ANGULAR_DO_GIRO_PADRAO;
+  bool meiaOndaPositiva = (thetaCos < PI);
 
   // Fase normalizada dentro da meia-onda: t ∈ [0, 1]
   float t;
   float ferocidade;
   if (meiaOndaPositiva) {
-    t = theta / PI;
+    t = thetaCos / PI;
     ferocidade = ferocidadeDoBater;
   } else {
-    t = (theta - PI) / PI;
+    t = (thetaCos - PI) / PI;
     ferocidade = ferocidadeDoRetorno;
   }
 
