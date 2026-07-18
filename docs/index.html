@@ -197,9 +197,8 @@ function mapearRC(x, outMin, outMax) {
 // ── FORMA DO BATER DAS ASAS ────────────────────────────────────────────
 //  Porte directo de GralhaAzul.h:formaDoBaterDasAsas()
 //  Modelo Trapezoidal Extremo-a-Extremo com Duração Variável
-//  Cada meia-onda pesa (8-f): mais suave → mais longa
-//  anguloDoCiclo: fase bruta em radianos
-//  fBater, fRetorno: [0, 8] — 0=cos puro, 8=onda quadrada
+//  Cada meia-onda: dwell d/2 no extremo inicial + rampa + dwell d/2 no final
+//  Nos extremos, dwells adjacentes somam-se — planaltos simétricos.
 function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   let theta = anguloDoCiclo % TWO_PI;
   if (theta < 0) theta += TWO_PI;
@@ -219,10 +218,12 @@ function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
   const ferocidade = descida ? fD : fS;
   const d = ferocidade / 8.0;
+  const dh = d * 0.5;  // d/2 por extremo
 
   if (d >= 1.0) return descida ? 1.0 : -1.0;
-  if (t < d) return descida ? 1.0 : -1.0;
-  const ramp = Math.cos(PI * (t - d) / (1.0 - d));
+  if (t < dh) return descida ? 1.0 : -1.0;             // dwell extremo inicial
+  if (t > 1.0 - dh) return descida ? -1.0 : 1.0;       // dwell extremo final
+  const ramp = Math.cos(PI * (t - dh) / (1.0 - d));
   return descida ? ramp : -ramp;
 }
 

@@ -617,9 +617,11 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 // ============================================================
 inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno) {
   // ── Modelo Trapezoidal Extremo-a-Extremo com Duração Variável ──
-  // Cada meia-onda (descida ou subida) tem duração proporcional a
-  // (8-f): mais suave = mais longa, mais feroz = mais curta.
-  // Dentro de cada meia-onda: dwell (f/8) + rampa cos.
+  // Cada meia-onda (descida [0,π) ou subida [π,2π)) tem duração
+  // proporcional a (8-f): mais suave = mais longa, mais feroz = mais curta.
+  // Dentro de cada meia-onda: dwell d/2 no extremo inicial + rampa cos +
+  // dwell d/2 no extremo final. Nos extremos, os dwells de duas meias-ondas
+  // adjacentes somam-se, mantendo os planaltos simétricos.
 
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
@@ -640,7 +642,7 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   float limiar = TWO_PI * wD / wTotal;
 
   bool descida = (theta < limiar);
-  float t, ferocidade, d;
+  float t, ferocidade, d, dh;
   if (descida) {
     t = theta / limiar;
     ferocidade = fD;
@@ -649,11 +651,13 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
     ferocidade = fS;
   }
   d = ferocidade * 0.125f;  // f/8, [0,1]
+  dh = d * 0.5f;            // d/2 por extremo
 
   if (d >= 1.0f) return descida ? 1.0f : -1.0f;
-  if (t < d) return descida ? 1.0f : -1.0f;
+  if (t < dh) return descida ? 1.0f : -1.0f;             // dwell extremo inicial
+  if (t > 1.0f - dh) return descida ? -1.0f : 1.0f;      // dwell extremo final
 
-  float ramp = cosf(PI * (t - d) / (1.0f - d));
+  float ramp = cosf(PI * (t - dh) / (1.0f - d));
   return descida ? ramp : -ramp;
 }
 
