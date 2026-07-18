@@ -330,7 +330,7 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     // CH9 → rudder ferocity (independente)
     const t = (ch6 - 1500.0) / 500.0; // -1 a +1
     const tCubico = t * t * t; // cúbico: zona central plana
-    const frequenciaPedida_Hz = 4.0 + 2.5 * tCubico; // 1.5–6.5 Hz
+    const frequenciaPedida_Hz = 2.0 + 3.0 * tCubico; // centro 2 Hz, range 0–5 Hz
     const freqEfetiva = Math.max(frequenciaPedida_Hz, FREQ_MINIMA_ALT);
 
     cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
@@ -876,7 +876,7 @@ document.getElementById('btn-alt').addEventListener('click', () => {
   modoAlternativo = true;
   document.getElementById('btn-normal').classList.remove('active');
   document.getElementById('btn-alt').classList.add('active');
-  document.getElementById('label-ch6').innerHTML = 'CH6 · Frequência (Compasso) <span class="val" id="val-ch6">4.0 Hz</span>';
+  document.getElementById('label-ch6').innerHTML = 'CH6 · Frequência (Compasso) <span class="val" id="val-ch6">2.0 Hz</span>';
   resetState();
 });
 
