@@ -162,7 +162,7 @@
       <input type="range" id="ch4" min="1000" max="2000" value="1500" step="1">
     </div>
     <div class="control-group">
-      <label>CH6 · Frequência (Compasso) <span class="val" id="val-ch6">1500</span></label>
+      <label id="label-ch6">CH6 · Diferencial Ferocidade <span class="val" id="val-ch6">1500</span></label>
       <input type="range" id="ch6" min="1000" max="2000" value="1500" step="1">
     </div>
     <div class="control-group">
@@ -344,7 +344,7 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
   } else {
     // Modo Normal (PI)
     // throttle → cadência alvo; CH9 (ferocidade do leme) modula cadência
-    // CH6 (compasso/freq) não usado no modo normal
+    // CH6 → diferencial de ferocidade esq/dir (como no C++: fatorDoLeme)
     const intencaoDeCadencia = (throttle - 1000.0) *
       ((1.0 / (120.0 * cicloMs * 0.001)) + ((ch9 - 1500.0) * 0.0000725));
 
@@ -369,9 +369,14 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
       ((soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA) *
       (1.0 - (ch9 - 1500.0) * MODULACAO_DO_COMPASSO));
 
+    // CH6 → Diferencial de Ferocidade: desloca fBater/fRetorno entre asas
+    // Centro 1500 = sem diferencial; extremos 1000/2000 = ±4.0 de shift
+    const fatorLeme = (ch6 - 1500.0) / 125.0;  // [-4.0, +4.0] como no C++
+
     return {
       amplitudeDoBater: Math.max(0, amplitudeDoBater),
-      cadencia: cadenciaDoDestinoAlado
+      cadencia: cadenciaDoDestinoAlado,
+      fatorLeme: fatorLeme
     };
   }
 }
@@ -791,11 +796,22 @@ function loop(timestamp) {
   const fBater  = mapearRC(ch7, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
   const fRetorno = mapearRC(ch8, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
 
-  // Actualiza a fase
-  const { amplitudeDoBater, cadencia } = actualizarFase(dt, ch3, ch6, ch9, cicloMs);
+  // Actualiza a fase, obtendo fatorLeme (CH6) no modo normal
+  const { amplitudeDoBater, cadencia, fatorLeme } = actualizarFase(dt, ch3, ch6, ch9, cicloMs);
 
-  // Calcula a forma de onda
+  // ── CH6: Diferencial de Ferocidade (modo normal) ou já aplicado no alt mode ──
+  // No modo normal, fatorLeme desloca ferocidade entre asas (C++: fatorDoLeme)
+  // No modo alternativo, fatorLeme é undefined → sem efeito
+  const fl = fatorLeme || 0;
+  const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
+  const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
+  const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
+  const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
+
+  // Calcula a forma de onda — separada esq/dir se houver diferencial
   const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
+  const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
+  const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
   const cantoDoVento = Math.cos(anguloDaDancaAlada);
 
   // ── Simulação da física do servo ──
@@ -803,15 +819,20 @@ function loop(timestamp) {
   const velocidadeAngularServo = 60.0 / (cicloMs * 0.001);
   const passoMax = velocidadeAngularServo * dt; // °/frame
 
-  // ── Leme Estelar (CH4) + Ferocidade do Leme (CH9) → diferencial esquerda/direita ──
-  const rudderFactor = (ch4 - 1500) / 500;          // [-1, 1]
-  const mixStrength = (ch9 - 1000) / 1000;           // [0, 1]
-  const leftFactor  = 1.0 + rudderFactor * mixStrength * 0.5;
-  const rightFactor = 1.0 - rudderFactor * mixStrength * 0.5;
+  // ── Leme Estelar (CH4) → diferencial multiplicativo (C++: fatorLemeEstelar) ──
+  const denom = (ch4 > 0) ? ch4 : 1500;
+  const fatorLemeEstelar = ((1500.0 / denom) - 1.0) * 2.0 + 1.0;
 
-  const comandoAsa = pulsoAsa * (amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO); // ângulo comandado em °
-  const comandoEsquerdo = comandoAsa * leftFactor;
-  const comandoDireito  = comandoAsa * rightFactor;
+  // ── Ferocidade do Leme (CH9) → intensidade do diferencial ──
+  const mixStrength = (ch9 - 1000) / 1000;           // [0, 1]
+
+  // Combina: diferencial de ferocidade (CH6) × factor multiplicativo (CH4) × intensidade (CH9)
+  const leftFactor  = mixStrength > 0 ? 1.0 + (fatorLemeEstelar - 1.0) * mixStrength : 1.0;
+  const rightFactor = mixStrength > 0 ? 1.0 + (1.0/fatorLemeEstelar - 1.0) * mixStrength : 1.0;
+
+  const ampGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
+  const comandoEsquerdo = pulsoAsaEsq * ampGraus * leftFactor;
+  const comandoDireito  = pulsoAsaDir * ampGraus * rightFactor;
 
   // Cada servo persegue o seu comando com velocidade limitada
   const deltaEsq = comandoEsquerdo - servoAngleEsquerdo;
@@ -854,7 +875,9 @@ function loop(timestamp) {
   document.getElementById('val-ch8').textContent = fRetorno.toFixed(1);
   document.getElementById('val-ch3').textContent = ch3 + ' µs';
   document.getElementById('val-ch4').textContent = ch4 + ' µs';
-  document.getElementById('val-ch6').textContent = ch6 + ' µs';
+  document.getElementById('val-ch6').textContent = modoAlternativo
+    ? (cadencia / TWO_PI).toFixed(2) + ' Hz'
+    : ((fatorLeme || 0) >= 0 ? '+' : '') + (fatorLeme || 0).toFixed(1);
   document.getElementById('val-ch9').textContent = ch9 + ' µs';
 
   requestAnimationFrame(loop);
@@ -865,12 +888,14 @@ document.getElementById('btn-normal').addEventListener('click', () => {
   modoAlternativo = false;
   document.getElementById('btn-normal').classList.add('active');
   document.getElementById('btn-alt').classList.remove('active');
+  document.getElementById('label-ch6').innerHTML = 'CH6 · Diferencial Ferocidade <span class="val" id="val-ch6">4.0</span>';
   resetState();
 });
 document.getElementById('btn-alt').addEventListener('click', () => {
   modoAlternativo = true;
   document.getElementById('btn-normal').classList.remove('active');
   document.getElementById('btn-alt').classList.add('active');
+  document.getElementById('label-ch6').innerHTML = 'CH6 · Frequência (Compasso) <span class="val" id="val-ch6">4.0 Hz</span>';
   resetState();
 });
 
