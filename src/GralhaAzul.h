@@ -616,27 +616,43 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 //  A FORMA DO BATER — A Geometria do Movimento Alado
 // ============================================================
 inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno) {
-  // ── Modelo Trapezoidal Extremo-a-Extremo ─────────────────
-  // Cada meia-onda (descida [0,π) ou subida [π,2π)) tem dois
-  // segmentos: dwell no extremo de partida + rampa cos até ao
-  // extremo oposto. d = f/8 → 0=cos puro, 8=onda quadrada.
-  // A convergência é contínua e não requer powf nem limiares.
+  // ── Modelo Trapezoidal Extremo-a-Extremo com Duração Variável ──
+  // Cada meia-onda (descida ou subida) tem duração proporcional a
+  // (8-f): mais suave = mais longa, mais feroz = mais curta.
+  // Dentro de cada meia-onda: dwell (f/8) + rampa cos.
 
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
 
   const float PI = 3.14159265358979f;
+  const float TWO_PI = LIMITE_ANGULAR_DO_GIRO_PADRAO;
 
-  // Meia-onda: [0,π) descida (cos 1→-1),  [π,2π) subida (cos -1→1)
-  bool descida = (theta < PI);
-  float t = descida ? (theta / PI) : ((theta - PI) / PI);
-  float ferocidade = descida ? ferocidadeDoBater : ferocidadeDoRetorno;
-  float d = (ferocidade >= 8.0f) ? 1.0f : (ferocidade * 0.125f);  // f/8
+  float fD = constrain(ferocidadeDoBater,   0.0f, 8.0f);
+  float fS = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
+
+  // Pesos: (8-f) — a meia-onda mais suave pesa mais, dura mais
+  float wD = 8.0f - fD;  // peso da descida
+  float wS = 8.0f - fS;  // peso da subida
+  float wTotal = wD + wS;
+  if (wTotal < 0.001f) wTotal = 16.0f;  // ambas f=8 → simétrico
+
+  // Fronteira: descida ocupa wD/wTotal do ciclo
+  float limiar = TWO_PI * wD / wTotal;
+
+  bool descida = (theta < limiar);
+  float t, ferocidade, d;
+  if (descida) {
+    t = theta / limiar;
+    ferocidade = fD;
+  } else {
+    t = (theta - limiar) / (TWO_PI - limiar);
+    ferocidade = fS;
+  }
+  d = ferocidade * 0.125f;  // f/8, [0,1]
 
   if (d >= 1.0f) return descida ? 1.0f : -1.0f;
   if (t < d) return descida ? 1.0f : -1.0f;
 
-  // Rampa cos: cos(π·(t-d)/(1-d)) para descida, -cos para subida
   float ramp = cosf(PI * (t - d) / (1.0f - d));
   return descida ? ramp : -ramp;
 }

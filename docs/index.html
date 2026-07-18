@@ -103,7 +103,7 @@
 <div class="container">
   <header>
     <h1>🐦‍⬛ O Simulador da Gralha Azul</h1>
-    <div class="subtitle">Phase Warp Model v1.31.1 — O pico avança com a ferocidade</div>
+    <div class="subtitle">Trapezoidal Extremo-a-Extremo v1.32.0 — Duração variável: (8−f)</div>
   </header>
 
   <div class="panels">
@@ -196,18 +196,29 @@ function mapearRC(x, outMin, outMax) {
 
 // ── FORMA DO BATER DAS ASAS ────────────────────────────────────────────
 //  Porte directo de GralhaAzul.h:formaDoBaterDasAsas()
-//  Modelo Trapezoidal Extremo-a-Extremo: dwell + rampa cos
-//  anguloDoCiclo: fase bruta em radianos (anguloDaDancaAlada)
+//  Modelo Trapezoidal Extremo-a-Extremo com Duração Variável
+//  Cada meia-onda pesa (8-f): mais suave → mais longa
+//  anguloDoCiclo: fase bruta em radianos
 //  fBater, fRetorno: [0, 8] — 0=cos puro, 8=onda quadrada
 function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   let theta = anguloDoCiclo % TWO_PI;
   if (theta < 0) theta += TWO_PI;
 
-  // Meia-onda: [0,π) descida,  [π,2π) subida
-  const descida = (theta < PI);
-  const t = descida ? (theta / PI) : ((theta - PI) / PI);
-  const ferocidade = descida ? fBater : fRetorno;
-  const d = Math.min(1.0, ferocidade / 8.0);
+  const fD = Math.max(0, Math.min(8, fBater));
+  const fS = Math.max(0, Math.min(8, fRetorno));
+
+  // Pesos: (8-f) — meia-onda mais suave pesa mais, dura mais
+  const wD = 8.0 - fD;
+  const wS = 8.0 - fS;
+  const wTotal = wD + wS || 16.0;  // fallback se ambas f=8
+
+  // Fronteira: descida ocupa wD/wTotal do ciclo
+  const limiar = TWO_PI * wD / wTotal;
+
+  const descida = (theta < limiar);
+  const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
+  const ferocidade = descida ? fD : fS;
+  const d = ferocidade / 8.0;
 
   if (d >= 1.0) return descida ? 1.0 : -1.0;
   if (t < d) return descida ? 1.0 : -1.0;
@@ -528,9 +539,13 @@ function loop(timestamp) {
   drawServos(pulsoAsa, amplitudeDoBater);
   drawGraph();
 
-  // Calcula dwell actual para display
-  const ferocidadeAtual = (Math.cos(anguloDaDancaAlada) >= 0) ? fBater : fRetorno;
-  const dwellFrac = Math.min(1.0, Math.max(0, ferocidadeAtual) / 8.0);
+  // Calcula pesos e fracção de dwell para display
+  const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
+  const limiar = TWO_PI * wD / wT;
+  const descida = (anguloDaDancaAlada % TWO_PI + TWO_PI) % TWO_PI < limiar;
+  const ferocidadeAtual = descida ? fBater : fRetorno;
+  const dwellFrac = ferocidadeAtual / 8.0;
+  const duracaoAtual = descida ? limiar : (TWO_PI - limiar);
 
   // Actualiza info bar
   document.getElementById('info-angulo').textContent = anguloDaDancaAlada.toFixed(2);
@@ -538,7 +553,7 @@ function loop(timestamp) {
   document.getElementById('info-freq').textContent = (cadencia / TWO_PI).toFixed(2);
   document.getElementById('info-amp').textContent = (amplitudeDoBater || 0).toFixed(1);
   document.getElementById('info-pulso').textContent = pulsoAsa.toFixed(3);
-  document.getElementById('info-alpha').textContent = (dwellFrac * 100).toFixed(0) + '%';
+  document.getElementById('info-alpha').textContent = 'dwell:' + (dwellFrac * 100).toFixed(0) + '% dur:' + duracaoAtual.toFixed(2) + 'rad';
 
   // Actualiza labels dos sliders
   document.getElementById('val-ch7').textContent = fBater.toFixed(1);
