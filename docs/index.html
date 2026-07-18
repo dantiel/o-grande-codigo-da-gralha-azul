@@ -783,6 +783,11 @@ function loop(timestamp) {
   const ch9 = parseInt(document.getElementById('ch9').value); // ferocidade do leme
   const cicloMs = parseFloat(document.getElementById('ciclo').value);
 
+  // ── Switch de modo pendente: aplica quando CH3 ≤ 1000 (glide) ──
+  if (modoPendente && ch3 <= 1000) {
+    aplicarModo(modoPendente);
+  }
+
   const fBater  = mapearRC(ch7, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
   const fRetorno = mapearRC(ch8, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
 
@@ -887,20 +892,44 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-// ── Toggle de modo ──
-document.getElementById('btn-normal').addEventListener('click', () => {
-  modoAlternativo = false;
-  document.getElementById('btn-normal').classList.add('active');
-  document.getElementById('btn-alt').classList.remove('active');
-  document.getElementById('label-ch6').innerHTML = 'CH6 · Diferencial Ferocidade <span class="val" id="val-ch6">4.0</span>';
+// ── Toggle de modo (só comuta em glide: CH3 ≤ 1000) ──
+let modoPendente = null; // 'normal' | 'alt' | null
+
+function aplicarModo(alvo) {
+  if (alvo === 'normal') {
+    modoAlternativo = false;
+    document.getElementById('btn-normal').classList.add('active');
+    document.getElementById('btn-alt').classList.remove('active');
+    document.getElementById('label-ch6').innerHTML = 'CH6 · Diferencial Ferocidade <span class="val" id="val-ch6">4.0</span>';
+  } else {
+    modoAlternativo = true;
+    document.getElementById('btn-normal').classList.remove('active');
+    document.getElementById('btn-alt').classList.add('active');
+    document.getElementById('label-ch6').innerHTML = 'CH6 · Frequência (Compasso) <span class="val" id="val-ch6">2.0 Hz</span>';
+  }
+  modoPendente = null;
   resetState();
+}
+
+document.getElementById('btn-normal').addEventListener('click', () => {
+  const ch3 = parseInt(document.getElementById('ch3').value);
+  if (ch3 <= 1000) {
+    aplicarModo('normal');
+  } else {
+    modoPendente = 'normal';
+    document.getElementById('btn-normal').style.outline = '2px dashed #f0a';
+    document.getElementById('btn-alt').style.outline = '';
+  }
 });
 document.getElementById('btn-alt').addEventListener('click', () => {
-  modoAlternativo = true;
-  document.getElementById('btn-normal').classList.remove('active');
-  document.getElementById('btn-alt').classList.add('active');
-  document.getElementById('label-ch6').innerHTML = 'CH6 · Frequência (Compasso) <span class="val" id="val-ch6">2.0 Hz</span>';
-  resetState();
+  const ch3 = parseInt(document.getElementById('ch3').value);
+  if (ch3 <= 1000) {
+    aplicarModo('alt');
+  } else {
+    modoPendente = 'alt';
+    document.getElementById('btn-alt').style.outline = '2px dashed #f0a';
+    document.getElementById('btn-normal').style.outline = '';
+  }
 });
 
 // ── Toggle de ligação de ferocidade (∥ ↔ ↔) ──
