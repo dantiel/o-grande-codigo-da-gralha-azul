@@ -637,16 +637,14 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   float fD = constrain(ferocidadeDoBater,   0.0f, 8.0f);
   float fS = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
 
-  // Pesos: (8-f) — a meia-onda mais suave pesa mais, dura mais
-  float wD = 8.0f - fD;  // peso da descida
-  float wS = 8.0f - fS;  // peso da subida
+  // Pesos: (8-f) com mínimo 0.01 — evita que uma meia-onda
+  // tenha duração zero a f=8 (colapsaria limiar→0 causando shift de fase).
+  float wD = fmax(8.0f - fD, 0.01f);  // peso da descida
+  float wS = fmax(8.0f - fS, 0.01f);  // peso da subida
   float wTotal = wD + wS;
 
-  // Fronteira: descida ocupa wD/wTotal do ciclo.
-  // Se ambas f=8 → wTotal=0 → divisão simétrica π cada.
-  float limiar;
-  if (wTotal < 0.001f) limiar = TWO_PI * 0.5f;
-  else                  limiar = TWO_PI * wD / wTotal;
+  // Fronteira: descida ocupa wD/wTotal do ciclo
+  float limiar = TWO_PI * wD / wTotal;
 
   bool descida = (theta < limiar);
   float t, ferocidade, d, dh;

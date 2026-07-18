@@ -258,13 +258,14 @@ function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   const fD = Math.max(0, Math.min(8, fBater));
   const fS = Math.max(0, Math.min(8, fRetorno));
 
-  // Pesos: (8-f) — meia-onda mais suave pesa mais, dura mais
-  const wD = 8.0 - fD;
-  const wS = 8.0 - fS;
+  // Pesos: (8-f) com mínimo 0.01 — evita que uma meia-onda
+  // tenha duração zero a f=8 (colapsaria limiar→0 causando shift de fase).
+  const wD = Math.max(8.0 - fD, 0.01);
+  const wS = Math.max(8.0 - fS, 0.01);
+  const wTotal = wD + wS;
 
-  // Fronteira: descida ocupa wD/wTotal do ciclo.
-  // Se ambas f=8 → wTotal=0 → divisão simétrica π cada.
-  const limiar = (wD + wS < 0.001) ? TWO_PI * 0.5 : TWO_PI * wD / (wD + wS);
+  // Fronteira: descida ocupa wD/wTotal do ciclo
+  const limiar = TWO_PI * wD / wTotal;
 
   const descida = (theta < limiar);
   const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
@@ -289,8 +290,8 @@ function derivadaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
 
   const fD = Math.max(0, Math.min(8, fBater));
   const fS = Math.max(0, Math.min(8, fRetorno));
-  const wD = 8.0 - fD, wS = 8.0 - fS;
-  const limiar = (wD + wS < 0.001) ? TWO_PI * 0.5 : TWO_PI * wD / (wD + wS);
+  const wD = Math.max(8.0 - fD, 0.01), wS = Math.max(8.0 - fS, 0.01);
+  const limiar = TWO_PI * wD / (wD + wS);
 
   const descida = (theta < limiar);
   const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
