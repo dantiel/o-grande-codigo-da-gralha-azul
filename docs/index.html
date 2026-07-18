@@ -166,8 +166,8 @@
     <div>Cadência: <span id="info-cadencia">0.00</span> rad/s</div>
     <div>Frequência: <span id="info-freq">0.00</span> Hz</div>
     <div>Amplitude: <span id="info-amp">0.0</span>°</div>
-    <div>Pulso Asa: <span id="info-pulso">0.00</span></div>
-    <div>dwell: <span id="info-alpha">0%</span></div>
+    <div>Pulso Asa: <span id="info-pulso">0.000</span></div>
+    <div>Dwell: <span id="info-dwell">0</span>% / <span id="info-duracao">0.00</span>rad</div>
   </div>
 
   <footer>
@@ -529,16 +529,17 @@ function drawGraph() {
 }
 
 // =========================================================================
-//  SOM — ScriptProcessorNode: síntese directa com envelope rítmico
+//  SOM — AM Synthesis: portadora sinusoidal × envelope trapezoidal
+//  A portadora canta; o envelope (formaDoBaterDasAsas ao ritmo da asa)
+//  molda o volume. Ferocidade → forma do envelope → timbre/ritmo.
 // =========================================================================
-const BUFFER_SIZE_PROC = 2048; // amostras por buffer de áudio (não usado directamente)
 let audioCtx = null;
 let audioGain = null;
 let procNode = null;
 let somAtivo = false;
 
-// Estado partilhado com o processador (actualizado pelo loop principal)
-let audioPhase = 0.0;
+// Estado partilhado com o ScriptProcessor
+let audioPhaseEnv = 0.0;   // fase do envelope (ritmo da asa)
 let audioFBater = 4.0, audioFRetorno = 4.0;
 let audioCadencia = 0.0;
 let audioAmplitude = 0.0;
@@ -551,38 +552,43 @@ function iniciarAudio() {
   audioGain.gain.value = 0;
   audioGain.connect(audioCtx.destination);
 
-  // ScriptProcessorNode: 2048 samples por buffer, 1 canal in, 1 out
   procNode = audioCtx.createScriptProcessor(2048, 1, 1);
   procNode.onaudioprocess = function(e) {
     const out = e.outputBuffer.getChannelData(0);
     const sr = e.outputBuffer.sampleRate;
     const n = out.length;
 
-    // Snapshot do estado (evita race conditions com o loop principal)
     const fB = audioFBater, fR = audioFRetorno;
     const cad = audioCadencia;
     const amp = audioAmplitude;
-    let ph = audioPhase;
+    let phEnv = audioPhaseEnv;
 
-    // Valor anterior para calcular derivada (envelope rítmico)
-    let prevSample = formaDoBaterDasAsas(ph - cad / sr, fB, fR);
+    // Frequência da portadora: harmónico 30× do batimento (sempre ≥ 120 Hz)
+    const carrierHz = Math.max(120, cad * 4.77); // cad/(2π) * 30 ≈ cad * 4.77
+    const carrierStep = carrierHz / sr;
+
+    // Fase da portadora (retoma do frame anterior via phaseEnv, recalculada)
+    let phCar = (audioPhaseEnv * carrierHz * TWO_PI / Math.max(0.001, cad)) % 1.0;
+    if (!isFinite(phCar)) phCar = 0;
 
     for (let i = 0; i < n; i++) {
-      ph += cad / sr;
-      if (ph > TWO_PI) ph -= TWO_PI;
+      // Envelope: formaDoBaterDasAsas ao ritmo da asa, mapeado [−1,1]→[0,1]
+      const envRaw = formaDoBaterDasAsas(phEnv, fB, fR);
+      const envelope = 0.5 + 0.5 * envRaw;  // agora [0, 1] com dwells nos extremos
 
-      const waveform = formaDoBaterDasAsas(ph, fB, fR);
+      // Portadora sinusoidal audível
+      const carrier = Math.sin(phCar * TWO_PI);
 
-      // Envelope rítmico: |derivada| → som mais forte quando a asa se move
-      const deriv = (waveform - prevSample) * sr / Math.max(1.0, cad);
-      const envelope = Math.min(1.0, Math.abs(deriv) * 0.8);
+      out[i] = carrier * envelope * amp;
 
-      out[i] = waveform * envelope * amp;
+      phEnv += cad / sr;
+      if (phEnv > TWO_PI) phEnv -= TWO_PI;
 
-      prevSample = waveform;
+      phCar += carrierStep;
+      if (phCar > 1.0) phCar -= 1.0;
     }
 
-    audioPhase = ph;
+    audioPhaseEnv = phEnv;
   };
   procNode.connect(audioGain);
 }
@@ -591,14 +597,12 @@ function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
   audioFBater = fBater;
   audioFRetorno = fRetorno;
   audioCadencia = cadencia;
-  // Amplitude: comprimida no topo, com compensação de ferocidade
+  // Volume: throttle→amplitude, com atenuação para ferocidade alta
   const ferocidadeMedia = (fBater + fRetorno) * 0.5;
-  const compensacaoFerocidade = 1.0 / (1.0 + ferocidadeMedia * 0.3);
   const volBase = Math.min(1.0, (amplitudeDoBater || 0) / 60);
-  const vol = volBase * compensacaoFerocidade;
-  audioAmplitude = vol;
+  audioAmplitude = volBase / (1.0 + ferocidadeMedia * 0.35);
   if (audioGain) {
-    audioGain.gain.setTargetAtTime(somAtivo ? 0.7 : 0, audioCtx.currentTime, 0.05);
+    audioGain.gain.setTargetAtTime(somAtivo ? 0.6 : 0, audioCtx.currentTime, 0.05);
   }
 }
 
@@ -610,12 +614,12 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   if (somAtivo) {
     btn.textContent = '🔊 Som';
     btn.classList.remove('muted');
-    audioPhase = 0.0; // reset de fase para sincronizar com o loop visual
-    audioGain.gain.setTargetAtTime(0.7, audioCtx.currentTime, 0.02);
+    audioPhaseEnv = 0.0;
+    audioGain.gain.setTargetAtTime(0.6, audioCtx.currentTime, 0.03);
   } else {
     btn.textContent = '🔇 Som';
     btn.classList.add('muted');
-    audioGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.02);
+    audioGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.03);
   }
 });
 
@@ -668,12 +672,14 @@ function loop(timestamp) {
   const duracaoAtual = descida ? limiar : (TWO_PI - limiar);
 
   // Actualiza info bar
-  document.getElementById('info-angulo').textContent = anguloDaDancaAlada.toFixed(2);
+  const anguloMostrado = ((anguloDaDancaAlada % TWO_PI) + TWO_PI) % TWO_PI;
+  document.getElementById('info-angulo').textContent = anguloMostrado.toFixed(2);
   document.getElementById('info-cadencia').textContent = cadencia.toFixed(2);
   document.getElementById('info-freq').textContent = (cadencia / TWO_PI).toFixed(2);
   document.getElementById('info-amp').textContent = (amplitudeDoBater || 0).toFixed(1);
   document.getElementById('info-pulso').textContent = pulsoAsa.toFixed(3);
-  document.getElementById('info-alpha').textContent = 'dwell:' + (dwellFrac * 100).toFixed(0) + '% dur:' + duracaoAtual.toFixed(2) + 'rad';
+  document.getElementById('info-dwell').textContent = (dwellFrac * 100).toFixed(0);
+  document.getElementById('info-duracao').textContent = duracaoAtual.toFixed(2);
 
   // Actualiza labels dos sliders
   document.getElementById('val-ch7').textContent = fBater.toFixed(1);
