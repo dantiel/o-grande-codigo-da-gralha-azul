@@ -572,14 +572,14 @@ function iniciarAudio() {
     const carHz = targetCarHz; // já interpolado via actualizarAudio
 
     for (let i = 0; i < n; i++) {
-      // Envelope ao ritmo da asa: [−1,1] → [0.02, 1.0]
+      // Envelope ao ritmo da asa: |forma| → ambas meias-ondas soam
       const envRaw = formaDoBaterDasAsas(phEnv, fB, fR);
-      const envelope = 0.02 + 0.98 * (0.5 + 0.5 * envRaw);
+      const envelope = 0.02 + 0.98 * Math.abs(envRaw);
 
       // Portadora sinusoidal com fase contínua
       const carrier = Math.sin(phCar);
 
-      out[i] = carrier * envelope * amp * 0.45;
+      out[i] = carrier * envelope * amp * 0.6;
 
       // Avança envelope ao ritmo da cadência
       phEnv += audioCadencia / sr;
@@ -608,10 +608,10 @@ function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
 
   // Volume: throttle→amplitude, atenuação suave para ferocidade alta
   const ferocidadeMedia = (fBater + fRetorno) * 0.5;
-  const volBase = Math.min(1.0, (amplitudeDoBater || 0) / 55);
-  audioAmplitude = volBase / (1.0 + ferocidadeMedia * 0.2);
+  const volBase = Math.min(1.0, (amplitudeDoBater || 0) / 50);
+  audioAmplitude = volBase / (1.0 + ferocidadeMedia * 0.12);
   if (audioGain) {
-    audioGain.gain.setTargetAtTime(somAtivo ? 0.85 : 0, audioCtx.currentTime, 0.03);
+    audioGain.gain.setTargetAtTime(somAtivo ? 0.9 : 0, audioCtx.currentTime, 0.03);
   }
 }
 
@@ -625,7 +625,7 @@ document.getElementById('btn-sound').addEventListener('click', () => {
     btn.classList.remove('muted');
     audioPhaseEnv = 0.0;
     audioPhaseCar = 0.0;
-    audioGain.gain.setTargetAtTime(0.85, audioCtx.currentTime, 0.03);
+    audioGain.gain.setTargetAtTime(0.9, audioCtx.currentTime, 0.03);
   } else {
     btn.textContent = '🔇 Som';
     btn.classList.add('muted');
