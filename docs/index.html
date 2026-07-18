@@ -200,6 +200,10 @@ const FREQ_MINIMA_ALT = 0.05;
 
 let modoAlternativo = false;
 
+// ── Simulação da física do servo (inércia + velocidade angular máxima) ──
+let servoAngleEsquerdo = 0.0;
+let servoAngleDireito = 0.0;
+
 // ── Mapeamento linear RC → valores internos ──
 function mapearRC(x, outMin, outMax) {
   return ((x - 1000.0) / 1000.0) * (outMax - outMin) + outMin;
@@ -310,7 +314,7 @@ function actualizarFase(dt, throttle, compasso, cicloMs) {
 // =========================================================================
 const servoCtx = document.getElementById('servo-canvas').getContext('2d');
 
-function drawServos(pulsoAsa, amplitudeGraus) {
+function drawServos(servoAngleEsq, servoAngleDir, amplitudeGraus) {
   const W = 400, H = 400;
   servoCtx.clearRect(0, 0, W, H);
 
@@ -322,19 +326,20 @@ function drawServos(pulsoAsa, amplitudeGraus) {
   const wingLen = 140;
   const maxAngle = (amplitudeGraus || 50) * (Math.PI / 180);
 
-  // Ângulo visual (positivo = para cima)
-  const visualAngle = pulsoAsa * maxAngle;
+  // Ângulos visuais (positivo = para cima) — já limitados pela física do servo
+  const leftAngle  = servoAngleEsq * (Math.PI / 180);
+  const rightAngle = servoAngleDir * (Math.PI / 180);
 
   // Posições dos pivots
   const leftPivotX  = cx - pivotOffsetX;
   const rightPivotX = cx + pivotOffsetX;
   const pivotY = cy;
 
-  // Posições das pontas dos braços
-  const leftTipX  = leftPivotX  - armLen * Math.cos(visualAngle);
-  const leftTipY  = pivotY      - armLen * Math.sin(visualAngle);
-  const rightTipX = rightPivotX + armLen * Math.cos(visualAngle);
-  const rightTipY = pivotY      - armLen * Math.sin(visualAngle);
+  // Posições das pontas dos braços (cada servo com seu ângulo independente)
+  const leftTipX  = leftPivotX  - armLen * Math.cos(leftAngle);
+  const leftTipY  = pivotY      - armLen * Math.sin(leftAngle);
+  const rightTipX = rightPivotX + armLen * Math.cos(rightAngle);
+  const rightTipY = pivotY      - armLen * Math.sin(rightAngle);
 
   // ── Fuselagem ──
   servoCtx.fillStyle = '#2a3040';
@@ -371,10 +376,10 @@ function drawServos(pulsoAsa, amplitudeGraus) {
   // ── Asas (extensões dos braços) ──
   servoCtx.strokeStyle = 'rgba(240,192,96,0.5)';
   servoCtx.lineWidth = 2;
-  const leftWingTipX  = leftPivotX  - (armLen + wingLen) * Math.cos(visualAngle);
-  const leftWingTipY  = pivotY      - (armLen + wingLen) * Math.sin(visualAngle);
-  const rightWingTipX = rightPivotX + (armLen + wingLen) * Math.cos(visualAngle);
-  const rightWingTipY = pivotY      - (armLen + wingLen) * Math.sin(visualAngle);
+  const leftWingTipX  = leftPivotX  - (armLen + wingLen) * Math.cos(leftAngle);
+  const leftWingTipY  = pivotY      - (armLen + wingLen) * Math.sin(leftAngle);
+  const rightWingTipX = rightPivotX + (armLen + wingLen) * Math.cos(rightAngle);
+  const rightWingTipY = pivotY      - (armLen + wingLen) * Math.sin(rightAngle);
   servoCtx.beginPath();
   servoCtx.moveTo(leftTipX, leftTipY);
   servoCtx.lineTo(leftWingTipX, leftWingTipY);
@@ -398,8 +403,9 @@ function drawServos(pulsoAsa, amplitudeGraus) {
   servoCtx.fillStyle = '#8b949e';
   servoCtx.font = '11px monospace';
   servoCtx.textAlign = 'center';
-  const angLabel = (pulsoAsa * amplitudeGraus).toFixed(1) + '°';
-  servoCtx.fillText(angLabel, cx, cy - fuselagemH/2 - 20);
+  // Ângulo mostrado: média dos dois servos × cos(Δ) para representar a posição
+  const angMedian = ((leftAngle + rightAngle) * 0.5 * 180 / Math.PI).toFixed(1);
+  servoCtx.fillText(angMedian + '°', cx, cy - fuselagemH/2 - 20);
 
   // Linha de referência horizontal
   servoCtx.strokeStyle = 'rgba(139,148,158,0.3)';
@@ -656,12 +662,26 @@ function loop(timestamp) {
   const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
   const cantoDoVento = Math.cos(anguloDaDancaAlada);
 
+  // ── Simulação da física do servo ──
+  // Velocidade angular máxima: 60° / ciclo (em °/s)
+  const velocidadeAngularServo = 60.0 / (cicloMs * 0.001);
+  const passoMax = velocidadeAngularServo * dt; // °/frame
+
+  const comandoAsa = pulsoAsa * (amplitudeDoBater || 50); // ângulo comandado em °
+
+  // Cada servo persegue o comando com velocidade limitada (esquerdo = inverso, direito = directo)
+  const deltaEsq = comandoAsa - servoAngleEsquerdo;
+  const deltaDir = comandoAsa - servoAngleDireito;
+
+  servoAngleEsquerdo += Math.max(-passoMax, Math.min(passoMax, deltaEsq));
+  servoAngleDireito  += Math.max(-passoMax, Math.min(passoMax, deltaDir));
+
   // Armazena para o gráfico (com amplitude individual — traços encolhem com throttle ao longo do tempo)
   pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || 50);
 
-  // Desenha
+  // Desenha com os ângulos limitados pela física do servo
   ultimaAmplitudeGraus = amplitudeDoBater || 50;
-  drawServos(pulsoAsa, amplitudeDoBater);
+  drawServos(servoAngleEsquerdo, servoAngleDireito, amplitudeDoBater);
   drawGraph();
 
   // Actualiza som
