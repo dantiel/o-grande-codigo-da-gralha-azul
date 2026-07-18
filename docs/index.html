@@ -596,10 +596,15 @@ function iniciarAudio() {
     // LP filter alpha: cutoff ~ 400 Hz a 44.1k → α ≈ 2π·400/44100 ≈ 0.057
     const lpAlpha = 0.057;
 
+    const blendFer = Math.min(1.0, (fB + fR) / 16.0); // 0→f=0, 1→f=8
     for (let i = 0; i < n; i++) {
-      // Envelope ao ritmo da asa: |forma| → ambas meias-ondas soam
+      // Envelope: |forma| domina a baixa ferocidade; a alta ferocidade
+      // o |forma| é ≈1.0 (plano) → faz crossfade com |cos(θ)| para preservar ritmo.
       const envRaw = formaDoBaterDasAsas(audioPhaseEnv, fB, fR);
-      const envelope = 0.02 + 0.98 * Math.abs(envRaw);
+      const envAbs = Math.abs(envRaw);
+      const envCos = Math.abs(Math.cos(audioPhaseEnv));
+      const envMisturado = envAbs * (1.0 - blendFer * 0.85) + envCos * blendFer * 0.85;
+      const envelope = 0.02 + 0.98 * envMisturado;
 
       // Ruído branco → low-pass → "fffff" de vento
       const white = Math.random() * 2 - 1;
@@ -630,7 +635,7 @@ function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
   // Volume: throttle→amplitude, atenuação suave para ferocidade alta
   const ferocidadeMedia = (fBater + fRetorno) * 0.5;
   const volBase = Math.min(1.0, (amplitudeDoBater || 0) / AMPLITUDE_MAXIMA_SERVO);
-  audioTargetAmp = volBase / (1.0 + ferocidadeMedia * 0.12);
+  audioTargetAmp = volBase / (1.0 + ferocidadeMedia * 0.20);
   if (audioGain) {
     audioGain.gain.setTargetAtTime(somAtivo ? 0.95 : 0, audioCtx.currentTime, 0.03);
   }
