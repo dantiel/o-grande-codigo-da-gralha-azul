@@ -271,6 +271,40 @@ function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   return descida ? ramp : -ramp;
 }
 
+// ── DERIVADA DO BATER DAS ASAS ─────────────────────────────────────────
+//  d(forma)/dθ — velocidade angular da forma de onda (forma/s).
+//  Usada para sonificação: som ∝ |velocidade da asa|, não posição.
+//  Velocidade zero nos dwells; picos nas rampas; satura ao limite do servo.
+function derivadaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
+  let theta = anguloDoCiclo % TWO_PI;
+  if (theta < 0) theta += TWO_PI;
+
+  const fD = Math.max(0, Math.min(8, fBater));
+  const fS = Math.max(0, Math.min(8, fRetorno));
+  const wD = 8.0 - fD, wS = 8.0 - fS;
+  const limiar = (wD + wS < 0.001) ? TWO_PI * 0.5 : TWO_PI * wD / (wD + wS);
+
+  const descida = (theta < limiar);
+  const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
+  const ferocidade = descida ? fD : fS;
+  const d = ferocidade / 8.0;
+  const dh = d * 0.5;
+  const duracao = descida ? limiar : (TWO_PI - limiar);
+
+  // Quadrada pura (d≥1): derivada infinita nas transições → satura mais tarde
+  if (d >= 1.0) return 0.0;
+
+  // Dwell: velocidade zero
+  if (t < dh || t > 1.0 - dh) return 0.0;
+
+  // Rampa cos: d/dt[±cos(π(t-dh)/(1-d))] = ∓π/(1-d)·sin(π(t-dh)/(1-d))
+  const arg = PI * (t - dh) / (1.0 - d);
+  const dForma_dt = (descida ? -PI : PI) / (1.0 - d) * Math.sin(arg);
+
+  // d(forma)/dθ = d(forma)/dt × dt/dθ = d(forma)/dt / duracao
+  return dForma_dt / duracao;
+}
+
 // ── Estado Dinâmico ────────────────────────────────────────────────────
 let anguloDaDancaAlada = 0.0;
 let cadenciaDoDestinoAlado = 0.0;
@@ -605,10 +639,11 @@ function drawGraph() {
 }
 
 // =========================================================================
-//  SOM — Ruído filtrado (vento de asa) × envelope trapezoidal
+//  SOM — Ruído filtrado (vento de asa) × velocidade da asa
 //  Portadora: ruído branco → low-pass 400 Hz → som "fffff" de turbulência.
-//  Envelope [−1,1] → [0.02, 1.0] — dwells são quase silêncio, rampas sopram.
-//  Ferocidade → forma do envelope → ritmo do sopro.
+//  Envelope: |derivadaDoBaterDasAsas| × cadência — som ∝ velocidade da asa.
+//  Dwells → velocidade zero → silêncio. Rampas → whoosh. Quadrada → estalidos.
+//  Limitado pela velocidade máxima do servo (60°/ciclo).
 // =========================================================================
 let audioCtx = null;
 let audioGain = null;
@@ -625,6 +660,8 @@ let audioAmplitude = 0.0;
 let audioTargetAmp = 0.0;  // amplitude alvo (interpolada)
 let audioLeftFactor = 1.0, audioRightFactor = 1.0;
 let audioTargetLF = 1.0, audioTargetRF = 1.0;
+let audioCicloMs = 70.0;           // para cálculo do limite do servo
+let audioVelMaxForma = 20.0;       // velocidade máxima (forma/s) do servo
 
 function iniciarAudio() {
   if (audioCtx) return;
@@ -651,13 +688,17 @@ function iniciarAudio() {
     // LP filter alpha: cutoff ~ 400 Hz a 44.1k → α ≈ 0.057
     const lpAlpha = 0.057;
 
-    const blendFer = Math.min(1.0, (fB + fR) / 16.0);
+    const velMax = audioVelMaxForma;
     for (let i = 0; i < n; i++) {
-      const envRaw = formaDoBaterDasAsas(audioPhaseEnv, fB, fR);
-      const envAbs = Math.abs(envRaw);
-      const envCos = Math.abs(Math.cos(audioPhaseEnv));
-      const envMisturado = envAbs * (1.0 - blendFer * 0.85) + envCos * blendFer * 0.85;
-      const envelope = 0.02 + 0.98 * envMisturado;
+      // Velocidade da asa = |d(forma)/dθ| × cadência  (forma-unidades/s)
+      const deriv = derivadaDoBaterDasAsas(audioPhaseEnv, fB, fR);
+      const velRaw = Math.abs(deriv) * audioCadencia;
+
+      // Saturação suave ao limite do servo: tanh_clip
+      // Abaixo do limite → linear. Acima → comprime (som de "rasgar").
+      const velNorm = velRaw / velMax;
+      const velSat = Math.tanh(velNorm);              // [0, 1] suave
+      const envelope = 0.02 + 0.98 * velSat;
 
       // Ruído independente por canal → estéreo verdadeiro
       const whiteL = Math.random() * 2 - 1;
@@ -688,17 +729,20 @@ function iniciarAudio() {
   procNode.connect(audioGain);
 }
 
-function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor) {
+function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs) {
   audioFBater = fBater;
   audioFRetorno = fRetorno;
   audioCadencia = cadencia;
   audioTargetLF = leftFactor || 1.0;
   audioTargetRF = rightFactor || 1.0;
 
-  // Volume: throttle→amplitude, atenuação suave para ferocidade alta
-  const ferocidadeMedia = (fBater + fRetorno) * 0.5;
-  const volBase = Math.min(1.0, (amplitudeDoBater || 0) / AMPLITUDE_MAXIMA_SERVO);
-  audioTargetAmp = volBase / (1.0 + ferocidadeMedia * 0.20);
+  // Velocidade máxima do servo (forma-unidades/s):
+  //   60°/ciclo ÷ AMPLITUDE_MAXIMA_SERVO° → forma/s
+  audioCicloMs = cicloMs || 70.0;
+  audioVelMaxForma = (60.0 / AMPLITUDE_MAXIMA_SERVO) / (audioCicloMs * 0.001);
+
+  // Volume: throttle→amplitude. Sem atenuação extra — a velocidade já trata do resto.
+  audioTargetAmp = Math.min(1.0, (amplitudeDoBater || 0) / AMPLITUDE_MAXIMA_SERVO);
   if (audioGain) {
     audioGain.gain.setTargetAtTime(somAtivo ? 0.95 : 0, audioCtx.currentTime, 0.03);
   }
@@ -785,7 +829,7 @@ function loop(timestamp) {
   drawGraph();
 
   // Actualiza som (estéreo: diferencial esquerda/direita)
-  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor);
+  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs);
 
   // Calcula pesos e fracção de dwell para display
   const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
