@@ -350,9 +350,9 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     if (Math.abs(anguloDaDancaAlada) > TWO_PI)
       anguloDaDancaAlada %= TWO_PI;
 
-    // CH9 → amplitude differential factor (alt mode has no ferocity, so
+    // CH9 → amplitude differential factor (reversed: 1000=+1=esquerda, 2000=−1=direita)
     //   ferocity rudder shifts amplitude between left/right wings instead)
-    const fatorLeme = (ch9 - 1500.0) / 500.0; // [-1, +1]
+    const fatorLeme = (1500.0 - ch9) / 500.0; // [+1, −1]
     return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado, fatorLeme };
 
   } else {
@@ -810,12 +810,12 @@ function loop(timestamp) {
 
   // Forma de onda base (sem diferencial)
   const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
-  const ampGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
+  const ampGraus = (amplitudeDoBater != null && !isNaN(amplitudeDoBater)) ? amplitudeDoBater : AMPLITUDE_MAXIMA_SERVO;
 
   let comandoEsquerdo, comandoDireito;
   let audioLF = fatorLemeEstelar, audioRF = 1.0 / fatorLemeEstelar;
 
-  if (modoAlternativo && fl !== 0) {
+  if (modoAlternativo) {
     // Alt mode: CH9 → amplitude differential (ferocity not applicable)
     const altDiff = 1.0 + fl * 0.5;  // [0.5, 1.5]
     comandoEsquerdo = pulsoAsa * ampGraus * altDiff * fatorLemeEstelar;
@@ -849,10 +849,10 @@ function loop(timestamp) {
   ultimoServoAngleDir = servoAngleDireito;
 
   // Armazena para o gráfico — usa ângulos reais do servo (com limite de velocidade), não o comando
-  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO, servoAngleEsquerdo, servoAngleDireito);
+  pushHistory(cantoDoVento, pulsoAsa, ampGraus, servoAngleEsquerdo, servoAngleDireito);
 
   // Desenha com os ângulos limitados pela física do servo
-  ultimaAmplitudeGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
+  ultimaAmplitudeGraus = ampGraus;
   drawServos(servoAngleEsquerdo, servoAngleDireito, amplitudeDoBater);
   drawGraph();
 
