@@ -786,19 +786,6 @@ function loop(timestamp) {
   // Actualiza a fase, obtendo fatorLeme (CH6) no modo normal
   const { amplitudeDoBater, cadencia, fatorLeme } = actualizarFase(dt, ch3, ch6, ch9, cicloMs);
 
-  // ── CH6: Diferencial de Ferocidade (modo normal) ou já aplicado no alt mode ──
-  // No modo normal, fatorLeme desloca ferocidade entre asas (C++: fatorDoLeme)
-  // No modo alternativo, fatorLeme é undefined → sem efeito
-  const fl = fatorLeme || 0;
-  const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
-  const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
-  const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
-  const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
-
-  // Calcula a forma de onda — separada esq/dir se houver diferencial
-  const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
-  const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
-  const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
   const cantoDoVento = Math.cos(anguloDaDancaAlada);
 
   // ── Simulação da física do servo ──
@@ -810,16 +797,26 @@ function loop(timestamp) {
   const denom = (ch4 > 0) ? ch4 : 1500;
   const fatorLemeEstelar = ((1500.0 / denom) - 1.0) * 2.0 + 1.0;
 
-  // ── Ferocidade do Leme (CH9) → intensidade do diferencial ──
-  const mixStrength = (ch9 - 1000) / 1000;           // [0, 1]
+  // ── Ferocidade do Leme (CH9) → escala a diferencial de ferocidade (CH6) ──
+  // Centro 1500 = 50%, 1000 = 0% (sem diferencial), 2000 = 100% (força máxima)
+  const ferocityRudderMix = (ch9 - 1000) / 1000;  // [0, 1]
 
-  // Combina: diferencial de ferocidade (CH6) × factor multiplicativo (CH4) × intensidade (CH9)
-  const leftFactor  = mixStrength > 0 ? 1.0 + (fatorLemeEstelar - 1.0) * mixStrength : 1.0;
-  const rightFactor = mixStrength > 0 ? 1.0 + (1.0/fatorLemeEstelar - 1.0) * mixStrength : 1.0;
+  // CH6 (fatorLeme) escalado por CH9
+  const fl = (fatorLeme || 0) * ferocityRudderMix;
+  const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
+  const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
+  const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
+  const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
 
+  // Calcula forma de onda — separada esq/dir se houver diferencial
+  const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
+  const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
+  const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
+
+  // Aplica diferencial do leme (CH4) directamente — como no C++
   const ampGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
-  const comandoEsquerdo = pulsoAsaEsq * ampGraus * leftFactor;
-  const comandoDireito  = pulsoAsaDir * ampGraus * rightFactor;
+  const comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
+  const comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
 
   // Cada servo persegue o seu comando com velocidade limitada
   const deltaEsq = comandoEsquerdo - servoAngleEsquerdo;
@@ -843,8 +840,8 @@ function loop(timestamp) {
   drawServos(servoAngleEsquerdo, servoAngleDireito, amplitudeDoBater);
   drawGraph();
 
-  // Actualiza som (estéreo: diferencial esquerda/direita)
-  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs, velocidadeAsa);
+  // Actualiza som (estéreo: diferencial esquerda/direita via fatorLemeEstelar)
+  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, fatorLemeEstelar, 1.0/fatorLemeEstelar, cicloMs, velocidadeAsa);
 
   // Calcula pesos e fracção de dwell para display
   const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
