@@ -529,23 +529,23 @@ function drawGraph() {
 }
 
 // =========================================================================
-//  SOM — AM Synthesis: portadora sinusoidal × envelope trapezoidal
-//  Fase de portadora independente (sem saltos entre frames).
-//  Envelope [−1,1] → [0.02, 1.0] — dwells são quase silêncio, rampas cantam.
-//  Ferocidade → forma do envelope → timbre/ritmo.
+//  SOM — Ruído filtrado (vento de asa) × envelope trapezoidal
+//  Portadora: ruído branco → low-pass 400 Hz → som "fffff" de turbulência.
+//  Envelope [−1,1] → [0.02, 1.0] — dwells são quase silêncio, rampas sopram.
+//  Ferocidade → forma do envelope → ritmo do sopro.
 // =========================================================================
 let audioCtx = null;
 let audioGain = null;
 let procNode = null;
 let somAtivo = false;
 
-// Estado partilhado com o ScriptProcessor — cada fase tem o seu acumulador
-let audioPhaseEnv = 0.0;   // fase do envelope (rad, 0→2π)
-let audioPhaseCar = 0.0;   // fase da portadora (rad)
+// Estado do ScriptProcessor
+let audioPhaseEnv = 0.0;
+let audioNoiseLP = 0.0;    // memória do low-pass filter (1-pole IIR)
 let audioFBater = 4.0, audioFRetorno = 4.0;
 let audioCadencia = 0.0;
 let audioAmplitude = 0.0;
-let audioPortadoraHz = 200; // Hz alvo da portadora (interpolado)
+let audioTargetAmp = 0.0;  // amplitude alvo (interpolada para evitar clicks)
 
 function iniciarAudio() {
   if (audioCtx) return;
@@ -555,7 +555,6 @@ function iniciarAudio() {
   audioGain.gain.value = 0;
   audioGain.connect(audioCtx.destination);
 
-  // Buffer pequeno (256) → latência mínima, sem artefactos se fases são contínuas
   procNode = audioCtx.createScriptProcessor(256, 1, 1);
   procNode.onaudioprocess = function(e) {
     const out = e.outputBuffer.getChannelData(0);
@@ -563,36 +562,35 @@ function iniciarAudio() {
     const n = out.length;
 
     const fB = audioFBater, fR = audioFRetorno;
-    const amp = audioAmplitude;
-    let phEnv = audioPhaseEnv;
-    let phCar = audioPhaseCar;
+    let noiseLP = audioNoiseLP;
+    let ampNow = audioAmplitude;
+    const ampTarget = audioTargetAmp;
 
-    // Interpola a portadora alvo para evitar saltos quando cad muda
-    const targetCarHz = audioPortadoraHz;
-    const carHz = targetCarHz; // já interpolado via actualizarAudio
+    // LP filter alpha: cutoff ~ 400 Hz a 44.1k → α ≈ 2π·400/44100 ≈ 0.057
+    const lpAlpha = 0.057;
 
     for (let i = 0; i < n; i++) {
       // Envelope ao ritmo da asa: |forma| → ambas meias-ondas soam
-      const envRaw = formaDoBaterDasAsas(phEnv, fB, fR);
+      const envRaw = formaDoBaterDasAsas(audioPhaseEnv, fB, fR);
       const envelope = 0.02 + 0.98 * Math.abs(envRaw);
 
-      // Portadora sinusoidal com fase contínua
-      const carrier = Math.sin(phCar);
+      // Ruído branco → low-pass → "fffff" de vento
+      const white = Math.random() * 2 - 1;
+      noiseLP += lpAlpha * (white - noiseLP);
 
-      out[i] = carrier * envelope * amp * 0.6;
+      // Interpola amplitude para evitar clicks
+      ampNow += 0.02 * (ampTarget - ampNow);
+
+      out[i] = noiseLP * envelope * ampNow * 1.1;
 
       // Avança envelope ao ritmo da cadência
-      phEnv += audioCadencia / sr;
-      if (phEnv > TWO_PI) phEnv -= TWO_PI;
-      if (phEnv < 0) phEnv += TWO_PI;
-
-      // Avança portadora à sua própria frequência
-      phCar += TWO_PI * carHz / sr;
-      if (phCar > TWO_PI) phCar -= TWO_PI;
+      audioPhaseEnv += audioCadencia / sr;
+      if (audioPhaseEnv > TWO_PI) audioPhaseEnv -= TWO_PI;
+      if (audioPhaseEnv < 0) audioPhaseEnv += TWO_PI;
     }
 
-    audioPhaseEnv = phEnv;
-    audioPhaseCar = phCar;
+    audioNoiseLP = noiseLP;
+    audioAmplitude = ampNow;
   };
   procNode.connect(audioGain);
 }
@@ -602,16 +600,12 @@ function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
   audioFRetorno = fRetorno;
   audioCadencia = cadencia;
 
-  // Portadora: 2× a frequência da asa, mapeada para [180, 600] Hz
-  const hzAsa = Math.max(0.5, cadencia / TWO_PI);
-  audioPortadoraHz = Math.min(600, Math.max(180, hzAsa * 12));
-
   // Volume: throttle→amplitude, atenuação suave para ferocidade alta
   const ferocidadeMedia = (fBater + fRetorno) * 0.5;
   const volBase = Math.min(1.0, (amplitudeDoBater || 0) / 50);
-  audioAmplitude = volBase / (1.0 + ferocidadeMedia * 0.12);
+  audioTargetAmp = volBase / (1.0 + ferocidadeMedia * 0.12);
   if (audioGain) {
-    audioGain.gain.setTargetAtTime(somAtivo ? 0.9 : 0, audioCtx.currentTime, 0.03);
+    audioGain.gain.setTargetAtTime(somAtivo ? 0.95 : 0, audioCtx.currentTime, 0.03);
   }
 }
 
@@ -624,8 +618,8 @@ document.getElementById('btn-sound').addEventListener('click', () => {
     btn.textContent = '🔊 Som';
     btn.classList.remove('muted');
     audioPhaseEnv = 0.0;
-    audioPhaseCar = 0.0;
-    audioGain.gain.setTargetAtTime(0.9, audioCtx.currentTime, 0.03);
+    audioNoiseLP = 0.0;
+    audioGain.gain.setTargetAtTime(0.95, audioCtx.currentTime, 0.03);
   } else {
     btn.textContent = '🔇 Som';
     btn.classList.add('muted');
