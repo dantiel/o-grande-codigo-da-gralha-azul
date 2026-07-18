@@ -291,15 +291,18 @@ function derivadaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   const dh = d * 0.5;
   const duracao = descida ? limiar : (TWO_PI - limiar);
 
-  // Quadrada pura (d≥1): derivada infinita nas transições → satura mais tarde
-  if (d >= 1.0) return 0.0;
+  // Quadrada pura (d≥1): clamp a 0.999 — rampa quase instantânea gera
+  // pico de derivada enorme que o tanh satura → estalidos percussivos.
+  const dClamp = Math.min(d, 0.999);
+
+  const dhClamp = dClamp * 0.5;
 
   // Dwell: velocidade zero
-  if (t < dh || t > 1.0 - dh) return 0.0;
+  if (t < dhClamp || t > 1.0 - dhClamp) return 0.0;
 
   // Rampa cos: d/dt[±cos(π(t-dh)/(1-d))] = ∓π/(1-d)·sin(π(t-dh)/(1-d))
-  const arg = PI * (t - dh) / (1.0 - d);
-  const dForma_dt = (descida ? -PI : PI) / (1.0 - d) * Math.sin(arg);
+  const arg = PI * (t - dhClamp) / (1.0 - dClamp);
+  const dForma_dt = (descida ? -PI : PI) / (1.0 - dClamp) * Math.sin(arg);
 
   // d(forma)/dθ = d(forma)/dt × dt/dθ = d(forma)/dt / duracao
   return dForma_dt / duracao;
@@ -841,8 +844,8 @@ function loop(timestamp) {
   servoAngleEsquerdo += Math.max(-passoMax, Math.min(passoMax, deltaEsq));
   servoAngleDireito  += Math.max(-passoMax, Math.min(passoMax, deltaDir));
 
-  // Armazena para o gráfico (com amplitude individual — traços encolhem com throttle ao longo do tempo)
-  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO, comandoEsquerdo, comandoDireito);
+  // Armazena para o gráfico — usa ângulos reais do servo (com limite de velocidade), não o comando
+  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO, servoAngleEsquerdo, servoAngleDireito);
 
   // Desenha com os ângulos limitados pela física do servo
   ultimaAmplitudeGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
