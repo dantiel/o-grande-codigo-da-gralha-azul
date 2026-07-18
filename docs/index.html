@@ -232,6 +232,8 @@ let linkGuard = false; // evita loops infinitos ao actualizar sliders
 // ── Simulação da física do servo (inércia + velocidade angular máxima) ──
 let servoAngleEsquerdo = 0.0;
 let servoAngleDireito = 0.0;
+let ultimoServoAngleEsq = 0.0;
+let ultimoServoAngleDir = 0.0;
 
 // ── Mapeamento linear RC → valores internos ──
 function mapearRC(x, outMin, outMax) {
@@ -659,17 +661,15 @@ let procNode = null;
 let somAtivo = false;
 
 // Estado do ScriptProcessor (estéreo)
-let audioPhaseEnv = 0.0;
 let audioNoiseLPL = 0.0;   // memória LP canal esquerdo
 let audioNoiseLPR = 0.0;   // memória LP canal direito
-let audioFBater = 4.0, audioFRetorno = 4.0;
-let audioCadencia = 0.0;
 let audioAmplitude = 0.0;
 let audioTargetAmp = 0.0;  // amplitude alvo (interpolada)
 let audioLeftFactor = 1.0, audioRightFactor = 1.0;
 let audioTargetLF = 1.0, audioTargetRF = 1.0;
 let audioCicloMs = 70.0;           // para cálculo do limite do servo
-let audioVelMaxForma = 20.0;       // velocidade máxima (forma/s) do servo
+let audioVelAsa = 0.0;             // velocidade real do servo (forma/s) — servo-limited
+let audioTargetVel = 0.0;          // interpolated target
 
 function iniciarAudio() {
   if (audioCtx) return;
@@ -686,7 +686,6 @@ function iniciarAudio() {
     const sr = e.outputBuffer.sampleRate;
     const n = outL.length;
 
-    const fB = audioFBater, fR = audioFRetorno;
     let noiseLPL = audioNoiseLPL, noiseLPR = audioNoiseLPR;
     let ampNow = audioAmplitude;
     const ampTarget = audioTargetAmp;
@@ -696,17 +695,11 @@ function iniciarAudio() {
     // LP filter alpha: cutoff ~ 400 Hz a 44.1k → α ≈ 0.057
     const lpAlpha = 0.057;
 
-    const velMax = audioVelMaxForma;
     for (let i = 0; i < n; i++) {
-      // Velocidade da asa = |d(forma)/dθ| × cadência  (forma-unidades/s)
-      const deriv = derivadaDoBaterDasAsas(audioPhaseEnv, fB, fR);
-      const velRaw = Math.abs(deriv) * audioCadencia;
-
-      // Saturação suave ao limite do servo: tanh_clip
-      // Abaixo do limite → linear. Acima → comprime (som de "rasgar").
-      const velNorm = velRaw / velMax;
-      const velSat = Math.tanh(velNorm);              // [0, 1] suave
-      const envelope = 0.02 + 0.98 * velSat;
+      // Velocidade real do servo (servo-limited — já fisicamente possível).
+      // Interpola com inércia suave para evitar artefactos entre frames.
+      audioVelAsa += 0.05 * (audioTargetVel - audioVelAsa);
+      const envelope = 0.02 + 0.98 * Math.min(1.0, audioVelAsa / (60.0 / AMPLITUDE_MAXIMA_SERVO / (audioCicloMs * 0.001)));
 
       // Ruído independente por canal → estéreo verdadeiro
       const whiteL = Math.random() * 2 - 1;
@@ -721,11 +714,6 @@ function iniciarAudio() {
 
       outL[i] = noiseLPL * envelope * ampNow * 1.1 * lfNow;
       outR[i] = noiseLPR * envelope * ampNow * 1.1 * rfNow;
-
-      // Avança envelope ao ritmo da cadência
-      audioPhaseEnv += audioCadencia / sr;
-      if (audioPhaseEnv > TWO_PI) audioPhaseEnv -= TWO_PI;
-      if (audioPhaseEnv < 0) audioPhaseEnv += TWO_PI;
     }
 
     audioNoiseLPL = noiseLPL;
@@ -737,17 +725,14 @@ function iniciarAudio() {
   procNode.connect(audioGain);
 }
 
-function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs) {
-  audioFBater = fBater;
-  audioFRetorno = fRetorno;
-  audioCadencia = cadencia;
+function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs, velocidadeAsa) {
   audioTargetLF = leftFactor || 1.0;
   audioTargetRF = rightFactor || 1.0;
 
   // Velocidade máxima do servo (forma-unidades/s):
   //   60°/ciclo ÷ AMPLITUDE_MAXIMA_SERVO° → forma/s
   audioCicloMs = cicloMs || 70.0;
-  audioVelMaxForma = (60.0 / AMPLITUDE_MAXIMA_SERVO) / (audioCicloMs * 0.001);
+  audioTargetVel = (velocidadeAsa !== undefined && velocidadeAsa !== null) ? velocidadeAsa : 0;
 
   // Volume: throttle→amplitude. Sem atenuação extra — a velocidade já trata do resto.
   audioTargetAmp = Math.min(1.0, (amplitudeDoBater || 0) / AMPLITUDE_MAXIMA_SERVO);
@@ -764,7 +749,6 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   if (somAtivo) {
     btn.textContent = '🔊 Som';
     btn.classList.remove('muted');
-    audioPhaseEnv = 0.0;
     audioNoiseLPL = 0.0;
     audioNoiseLPR = 0.0;
     audioGain.gain.setTargetAtTime(0.95, audioCtx.currentTime, 0.03);
@@ -844,6 +828,13 @@ function loop(timestamp) {
   servoAngleEsquerdo += Math.max(-passoMax, Math.min(passoMax, deltaEsq));
   servoAngleDireito  += Math.max(-passoMax, Math.min(passoMax, deltaDir));
 
+  // Velocidade real da asa (servo-limited) para sonificação
+  const velEsq = (dt > 0.001) ? Math.abs(servoAngleEsquerdo - ultimoServoAngleEsq) / dt / AMPLITUDE_MAXIMA_SERVO : 0;
+  const velDir = (dt > 0.001) ? Math.abs(servoAngleDireito - ultimoServoAngleDir) / dt / AMPLITUDE_MAXIMA_SERVO : 0;
+  const velocidadeAsa = (velEsq + velDir) * 0.5;
+  ultimoServoAngleEsq = servoAngleEsquerdo;
+  ultimoServoAngleDir = servoAngleDireito;
+
   // Armazena para o gráfico — usa ângulos reais do servo (com limite de velocidade), não o comando
   pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO, servoAngleEsquerdo, servoAngleDireito);
 
@@ -853,7 +844,7 @@ function loop(timestamp) {
   drawGraph();
 
   // Actualiza som (estéreo: diferencial esquerda/direita)
-  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs);
+  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs, velocidadeAsa);
 
   // Calcula pesos e fracção de dwell para display
   const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
