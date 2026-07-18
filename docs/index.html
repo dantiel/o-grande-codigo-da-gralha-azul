@@ -90,6 +90,18 @@
   .mode-toggle button.active {
     background: var(--accent); color: #000; border-color: var(--accent);
   }
+  .link-toggle {
+    display: inline-flex; gap: 2px; margin-left: 8px; vertical-align: middle;
+  }
+  .link-toggle button {
+    padding: 1px 7px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--muted); border-radius: 4px;
+    cursor: pointer; font-size: 0.65rem; line-height: 1.4;
+  }
+  .link-toggle button.active {
+    background: var(--accent); color: #000; border-color: var(--accent);
+  }
+  #btn-mirrored { transform: scaleX(-1); }
   .mode-toggle button.muted {
     background: var(--danger); color: #fff; border-color: var(--danger);
   }
@@ -131,6 +143,11 @@
     <div class="control-group">
       <label>CH7 · Ferocidade do Bater <span class="val" id="val-ch7">4.0</span></label>
       <input type="range" id="ch7" min="1000" max="2000" value="1500" step="1">
+      <div class="link-toggle">
+        <button id="btn-independent" class="active" title="Independentes">∥</button>
+        <button id="btn-synced" title="Sincronizados">↔</button>
+        <button id="btn-mirrored" title="Espelhados">↔</button>
+      </div>
     </div>
     <div class="control-group">
       <label>CH8 · Ferocidade do Retorno <span class="val" id="val-ch8">4.0</span></label>
@@ -199,6 +216,8 @@ const ACELERACAO_DO_COMPASSO       = 8.0;
 const FREQ_MINIMA_ALT = 0.05;
 
 let modoAlternativo = false;
+let linkMode = 'independent'; // 'independent' | 'synced' | 'mirrored'
+let linkGuard = false; // evita loops infinitos ao actualizar sliders
 
 // ── Simulação da física do servo (inércia + velocidade angular máxima) ──
 let servoAngleEsquerdo = 0.0;
@@ -726,6 +745,60 @@ document.getElementById('btn-alt').addEventListener('click', () => {
   document.getElementById('btn-normal').classList.remove('active');
   document.getElementById('btn-alt').classList.add('active');
   resetState();
+});
+
+// ── Toggle de ligação de ferocidade (∥ ↔ ↔) ──
+const linkBtns = {
+  independent: document.getElementById('btn-independent'),
+  synced:      document.getElementById('btn-synced'),
+  mirrored:    document.getElementById('btn-mirrored'),
+};
+function setLinkMode(mode) {
+  linkMode = mode;
+  Object.entries(linkBtns).forEach(([key, btn]) => {
+    btn.classList.toggle('active', key === mode);
+  });
+  // Ao entrar em synced, sincroniza CH8 = CH7 imediatamente
+  if (mode === 'synced') {
+    const ch7 = document.getElementById('ch7');
+    document.getElementById('ch8').value = ch7.value;
+  }
+  // Ao entrar em mirrored, espelha CH8 = 3000 − CH7
+  if (mode === 'mirrored') {
+    const ch7 = document.getElementById('ch7');
+    document.getElementById('ch8').value = 3000 - parseInt(ch7.value);
+  }
+}
+linkBtns.independent.addEventListener('click', () => setLinkMode('independent'));
+linkBtns.synced.addEventListener('click',      () => setLinkMode('synced'));
+linkBtns.mirrored.addEventListener('click',    () => setLinkMode('mirrored'));
+
+// ── Sliders de ferocidade ──
+document.getElementById('ch7').addEventListener('input', () => {
+  if (linkGuard) return;
+  const val = parseInt(document.getElementById('ch7').value);
+  if (linkMode === 'synced') {
+    linkGuard = true;
+    document.getElementById('ch8').value = val;
+    linkGuard = false;
+  } else if (linkMode === 'mirrored') {
+    linkGuard = true;
+    document.getElementById('ch8').value = 3000 - val;
+    linkGuard = false;
+  }
+});
+document.getElementById('ch8').addEventListener('input', () => {
+  if (linkGuard) return;
+  const val = parseInt(document.getElementById('ch8').value);
+  if (linkMode === 'synced') {
+    linkGuard = true;
+    document.getElementById('ch7').value = val;
+    linkGuard = false;
+  } else if (linkMode === 'mirrored') {
+    linkGuard = true;
+    document.getElementById('ch7').value = 3000 - val;
+    linkGuard = false;
+  }
 });
 
 // ── Arranque ──
