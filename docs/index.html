@@ -162,7 +162,7 @@
       <input type="range" id="ch4" min="1000" max="2000" value="1500" step="1">
     </div>
     <div class="control-group">
-      <label id="label-ch6">CH6 · Diferencial Ferocidade <span class="val" id="val-ch6">1500</span></label>
+      <label id="label-ch6">CH6 · Compasso (Frequência) <span class="val" id="val-ch6">1500</span></label>
       <input type="range" id="ch6" min="1000" max="2000" value="1500" step="1">
     </div>
     <div class="control-group">
@@ -331,9 +331,9 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
 
   if (modoAlternativo) {
     // Modo Alternativo BIRD-LIKE
-    // CH6 → frequência (cúbica, centro 1500=4Hz, range 1.5–6.5 Hz)
+    // CH6 → frequência (cúbica, centro 2 Hz, range 0–5 Hz)
     // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
-    // CH9 → rudder ferocity (independente)
+    // CH9 → amplitude differential (independente, invertido: 1000→dir, 2000→esq)
     const t = (ch6 - 1500.0) / 500.0; // -1 a +1
     const tCubico = t * t * t; // cúbico: zona central plana
     const frequenciaPedida_Hz = 2.0 + 3.0 * tCubico; // centro 2 Hz, range 0–5 Hz
@@ -350,19 +350,22 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     if (Math.abs(anguloDaDancaAlada) > TWO_PI)
       anguloDaDancaAlada %= TWO_PI;
 
-    // CH9 → amplitude differential factor (reversed: 1000=+1=esquerda, 2000=−1=direita)
-    //   ferocity rudder shifts amplitude between left/right wings instead)
-    const fatorLeme = (1500.0 - ch9) / 500.0; // [+1, −1]
+    // CH9 → amplitude differential (invertido: 1000=−1→direita, 2000=+1→esquerda)
+    const fatorLeme = (ch9 - 1500.0) / 500.0; // [−1, +1]
     return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado, fatorLeme };
 
   } else {
     // Modo Normal (PI)
-    // throttle → cadência alvo; CH6 → diferencial ferocidade; CH9 → shift adicional
+    // CH6 → compasso (multiplicador de frequência, centro=1x)
+    // CH9 → ferocidade do leme (diferencial de ferocidade, ±4)
     const intencaoDeCadencia = (throttle - 1000.0) / (120.0 * cicloMs * 0.001);
+
+    // CH6 → fatorCompasso [0.5, 1.5] — escala a cadência base
+    const fatorCompasso = 1.0 + (ch6 - 1500.0) / 1000.0;
 
     if (throttle > LIMIAR_DO_VOO_ATIVO) {
       // Em voo: persegue a cadência alvo (dinâmica de 1ª ordem)
-      const variacao = 1.0 * intencaoDeCadencia - 10.0 * cadenciaDoDestinoAlado;
+      const variacao = fatorCompasso * intencaoDeCadencia - 10.0 * cadenciaDoDestinoAlado;
       cadenciaDoDestinoAlado += variacao * dt;
     } else {
       // Em glide/parado: decaimento
@@ -379,14 +382,14 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     const amplitudeDoBater = Math.min(AMPLITUDE_MAXIMA_SERVO,
       (soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA);
 
-    // CH6 → Diferencial de Ferocidade base (fatorDoLeme no C++)
-    // CH9 → ajuste independente (Ferocidade do Leme): 1500=sem efeito, ±4 shift
-    const fatorLeme = (ch6 - 1500.0) / 125.0 + (ch9 - 1500.0) / 125.0;
+    // CH9 → Ferocidade do Leme (diferencial): 1500=sem efeito, ±4 shift
+    const fatorLeme = (ch9 - 1500.0) / 125.0;
 
     return {
       amplitudeDoBater: Math.max(0, amplitudeDoBater),
       cadencia: cadenciaDoDestinoAlado,
-      fatorLeme: fatorLeme
+      fatorLeme: fatorLeme,
+      fatorCompasso: fatorCompasso
     };
   }
 }
@@ -791,8 +794,8 @@ function loop(timestamp) {
   const fBater  = mapearRC(ch7, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
   const fRetorno = mapearRC(ch8, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
 
-  // Actualiza a fase, obtendo fatorLeme (CH6) no modo normal
-  const { amplitudeDoBater, cadencia, fatorLeme } = actualizarFase(dt, ch3, ch6, ch9, cicloMs);
+  // Actualiza a fase: CH6 → compasso (freq), CH9 → ferocidade leme (diff)
+  const { amplitudeDoBater, cadencia, fatorLeme, fatorCompasso } = actualizarFase(dt, ch3, ch6, ch9, cicloMs);
 
   const cantoDoVento = Math.cos(anguloDaDancaAlada);
 
@@ -884,10 +887,10 @@ function loop(timestamp) {
   document.getElementById('val-ch4').textContent = ch4 + ' µs';
   document.getElementById('val-ch6').textContent = modoAlternativo
     ? (cadencia / TWO_PI).toFixed(2) + ' Hz'
-    : ((fatorLeme || 0) >= 0 ? '+' : '') + (fatorLeme || 0).toFixed(1);
+    : (fatorCompasso >= 0 ? '+' : '') + fatorCompasso.toFixed(2) + '×';
   document.getElementById('val-ch9').textContent = modoAlternativo
-    ? '±' + (Math.abs(fl) * 50).toFixed(0) + '%'
-    : ch9 + ' µs';
+    ? (fl >= 0 ? '+' : '') + (fl * 50).toFixed(0) + '%'
+    : ((fl || 0) >= 0 ? '+' : '') + (fl || 0).toFixed(1);
 
   requestAnimationFrame(loop);
 }
@@ -900,12 +903,10 @@ function aplicarModo(alvo) {
     modoAlternativo = false;
     document.getElementById('btn-normal').classList.add('active');
     document.getElementById('btn-alt').classList.remove('active');
-    document.getElementById('label-ch6').innerHTML = 'CH6 · Diferencial Ferocidade <span class="val" id="val-ch6">4.0</span>';
   } else {
     modoAlternativo = true;
     document.getElementById('btn-normal').classList.remove('active');
     document.getElementById('btn-alt').classList.add('active');
-    document.getElementById('label-ch6').innerHTML = 'CH6 · Frequência (Compasso) <span class="val" id="val-ch6">2.0 Hz</span>';
   }
   modoPendente = null;
   resetState();
