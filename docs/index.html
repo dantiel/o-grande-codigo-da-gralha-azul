@@ -350,8 +350,8 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     if (Math.abs(anguloDaDancaAlada) > TWO_PI)
       anguloDaDancaAlada %= TWO_PI;
 
-    // CH9 → amplitude differential (invertido: 1000=−1→direita, 2000=+1→esquerda)
-    const fatorLeme = (ch9 - 1500.0) / 500.0; // [−1, +1]
+    // CH9 → amplitude differential (alinhado com CH4: 1000=esq+50%, 2000=dir+50%)
+    const fatorLeme = (1500.0 - ch9) / 500.0; // 1000→+1 (esq), 2000→−1 (dir)
     return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado, fatorLeme };
 
   } else {
@@ -382,8 +382,8 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     const amplitudeDoBater = Math.min(AMPLITUDE_MAXIMA_SERVO,
       (soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA);
 
-    // CH9 → Ferocidade do Leme (diferencial): 1500=sem efeito, ±4 shift
-    const fatorLeme = (ch9 - 1500.0) / 125.0;
+    // CH9 → Ferocidade do Leme (diferencial, alinhado com CH4)
+    const fatorLeme = (1500.0 - ch9) / 125.0; // 1000→+4 (esq), 2000→−4 (dir)
 
     return {
       amplitudeDoBater: Math.max(0, amplitudeDoBater),
