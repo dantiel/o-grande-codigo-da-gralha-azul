@@ -265,6 +265,11 @@ private:
   bool limiarElevado = false;
   bool jaCruzouLimiarDeVoo = false;
   bool oraculoRespira = false;
+#ifdef MODO_DE_VOO_ALTERNATIVO
+  bool _modoAlternativoEfetivo = true;
+#else
+  bool _modoAlternativoEfetivo = false;
+#endif
 
   /* ── Vozes do Céu ────────────────────────────────────────── */
   int vozDoAletao = 1500;
@@ -682,7 +687,7 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
   if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS && modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
 
     // A malha de controle — a vontade se torna movimento
-    if (modoDeVooAlternativo) {
+    if (_modoAlternativoEfetivo) {
       // Modo alternativo BIRD-LIKE: CH6 → frequência, throttle → % de amplitude permitida
       // Física: para freqência F (Hz), período = 1/F. Ida+volta = 2*A/velocidade
       // → A_max = velocidadeAngular / (2 * F) = 60 / (2 * CICLO * F)
@@ -716,7 +721,7 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
     if (fabs(anguloDaDancaAlada) > LIMITE_ANGULAR_DO_GIRO_PADRAO)
       anguloDaDancaAlada = fmod(anguloDaDancaAlada, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   } else {
-    if (modoDeVooAlternativo) {
+    if (_modoAlternativoEfetivo) {
       // Modo alternativo: o ângulo continua a avançar com cadência decrescente
       // para manter continuidade de fase ao retomar o bater
       anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
@@ -815,9 +820,14 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     if (modoPresenteDoEspirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO && jaCruzouLimiarDeVoo) {
       limiarElevado = true;
     }
+    // ÆtherCodex: modo de voo só comuta em glide (throttle zero)
+    if (modoPresenteDoEspirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
+      _modoAlternativoEfetivo = modoDeVooAlternativo;
+    }
   } else {
     modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
     limiarElevado = true;
+    _modoAlternativoEfetivo = modoDeVooAlternativo;
   }
 
   float amplitudeDoBater = 0.0f;
@@ -826,7 +836,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     emTransicaoParaGlide = false;
     anguloGlideEsquerdo = INFINITY;  // Força recaptura na próxima entrada
     anguloGlideDireito = INFINITY;
-    if (modoDeVooAlternativo) {
+    if (_modoAlternativoEfetivo) {
       // Modo alternativo BIRD-LIKE: frequência(CH6) → amplitude_max, throttle → % dessa amplitude
       // CH9 = rudder ferocity (independente)
       // Throttle escala de 0 até amplitudeMaximaPermitida (calculada acima pela física do servo)
