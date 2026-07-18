@@ -616,57 +616,29 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 //  A FORMA DO BATER — A Geometria do Movimento Alado
 // ============================================================
 inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno) {
-  // ── Phase Warp Model: o pico avança com a ferocidade ─────
-  // O tanh aguçava a inclinação mas mantinha o pico no centro
-  // geométrico da meia-onda. No voo real, músculos mais potentes
-  // contraem-se mais cedo: o pico desloca-se para a frente e a
-  // asa passa mais tempo no extremo. Cada meia-onda é deformada
-  // temporalmente: t → t^α onde α = 1/(1 + f·K).
-  //   f=1: α=0.67 → pico a ~67% (ligeiro avanço)
-  //   f=4: α=0.33 → pico a ~33% (substancial)
-  //   f=8: α=0.20 → pico a ~20% (quase imediato)
-  //   f→∞: α→0   → pico instantâneo = onda quadrada (limite natural)
-  //
-  // Como a fase (anguloDaDancaAlada) é monotónica — não oscila
-  // como sin(θ) — a detecção de meia-onda é imune ao jitter
-  // soft-float que afligia o blend ±0.1 da v1.30.5–v1.30.30.
+  // ── Modelo Trapezoidal Extremo-a-Extremo ─────────────────
+  // Cada meia-onda (descida [0,π) ou subida [π,2π)) tem dois
+  // segmentos: dwell no extremo de partida + rampa cos até ao
+  // extremo oposto. d = f/8 → 0=cos puro, 8=onda quadrada.
+  // A convergência é contínua e não requer powf nem limiares.
 
-  // Normaliza ângulo para [0, 2π)
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
 
-  // Meia-onda de extremo a extremo: cos(θ) ≥ 0 → [-π/2, π/2]
   const float PI = 3.14159265358979f;
-  float thetaCos = theta + PI * 0.5f;
-  if (thetaCos >= LIMITE_ANGULAR_DO_GIRO_PADRAO) thetaCos -= LIMITE_ANGULAR_DO_GIRO_PADRAO;
-  bool meiaOndaPositiva = (thetaCos < PI);
 
-  // Fase normalizada dentro da meia-onda: t ∈ [0, 1]
-  float t;
-  float ferocidade;
-  if (meiaOndaPositiva) {
-    t = thetaCos / PI;
-    ferocidade = ferocidadeDoBater;
-  } else {
-    t = (thetaCos - PI) / PI;
-    ferocidade = ferocidadeDoRetorno;
-  }
+  // Meia-onda: [0,π) descida (cos 1→-1),  [π,2π) subida (cos -1→1)
+  bool descida = (theta < PI);
+  float t = descida ? (theta / PI) : ((theta - PI) / PI);
+  float ferocidade = descida ? ferocidadeDoBater : ferocidadeDoRetorno;
+  float d = (ferocidade >= 8.0f) ? 1.0f : (ferocidade * 0.125f);  // f/8
 
-  // ── Onda quadrada pura (Kazu-kaku mode) ──────────────────
-  // A warp natural converge para isto, mas powf(ε, ~0.11) é
-  // desperdício — o corte binário é idêntico e mais rápido.
-  if (ferocidade >= LIMIAR_DA_FEROCIDADE_QUADRADA_PADRAO) {
-    return meiaOndaPositiva ? 1.0f : -1.0f;
-  }
+  if (d >= 1.0f) return descida ? 1.0f : -1.0f;
+  if (t < d) return descida ? 1.0f : -1.0f;
 
-  // ── Power Warp ──────────────────────────────────────────
-  // α mínimo = 1/(1+8·0.5) = 0.2 → powf(0, 0.2) = 0, seguro.
-  float alpha = 1.0f / (1.0f + ferocidade * FASE_WARP_K_PADRAO);
-  float tWarped = powf(t, alpha);
-
-  // Reconstrói seno: sin(t'·π) para positiva, -sin(t'·π) para negativa
-  float resultado = sinf(tWarped * PI);
-  return meiaOndaPositiva ? resultado : -resultado;
+  // Rampa cos: cos(π·(t-d)/(1-d)) para descida, -cos para subida
+  float ramp = cosf(PI * (t - d) / (1.0f - d));
+  return descida ? ramp : -ramp;
 }
 
 // ============================================================
@@ -1264,7 +1236,7 @@ inline void GralhaAzul::irradiarLuzDaAlma() {
     if (pulsacaoDaChamaPrimordial > 1.0f) pulsacaoDaChamaPrimordial = 0.0f;
   }
   float respiro = sin(pulsacaoDaChamaPrimordial * 2.0f * PI) * 0.5f + 0.5f;
-  float posicaoDasAsasNoCiclo = (sin(anguloDaDancaAlada) + 1.0f) * 0.5f;
+  float posicaoDasAsasNoCiclo = (cos(anguloDaDancaAlada) + 1.0f) * 0.5f;
   float eixoDoProfundorCeleste = mapearEntreEscalasHarmonicas(vozDoProfundor, 1000.0f, 2000.0f, -1.0f, 1.0f);
   float eixoDoSoproDeVida = mapearEntreEscalasHarmonicas(vozDoSoproVital, 1000.0f, 2000.0f, 0.0f, 1.0f);
   float eixoDoCompassoAnimico = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, -1.0f, 1.0f);
