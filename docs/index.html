@@ -155,10 +155,18 @@
     </div>
     <div class="control-group">
       <label>CH3 · Sopro Vital (Throttle) <span class="val" id="val-ch3">1280</span></label>
-      <input type="range" id="ch3" min="480" max="2000" value="1280" step="1">
+      <input type="range" id="ch3" min="1000" max="2000" value="1280" step="1">
     </div>
     <div class="control-group">
-      <label>CH9 · Compasso (Rudder) <span class="val" id="val-ch9">1500</span></label>
+      <label>CH4 · Leme Estelar (Yaw) <span class="val" id="val-ch4">1500</span></label>
+      <input type="range" id="ch4" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH6 · Frequência (Compasso) <span class="val" id="val-ch6">1500</span></label>
+      <input type="range" id="ch6" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH9 · Ferocidade do Leme <span class="val" id="val-ch9">1500</span></label>
       <input type="range" id="ch9" min="1000" max="2000" value="1500" step="1">
     </div>
     <div class="control-group">
@@ -273,22 +281,24 @@ function resetState() {
 }
 
 // ── Actualiza a fase (equivale a animarPulsarDoCoracaoAlado) ──────────
-function actualizarFase(dt, throttle, compasso, cicloMs) {
+function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
   const velocidadeAngularServo = 60.0 / (cicloMs * 0.001); // °/s
 
   if (modoAlternativo) {
     // Modo Alternativo BIRD-LIKE
-    // CH9 (compasso) → frequência directa (0–10 Hz)
+    // CH6 → frequência (cúbica, centro 1500=4Hz, range 1.5–6.5 Hz)
     // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
-    const bracosDoRelogio = Math.max(0, Math.min(1, (compasso - 1000.0) * 0.001));
-    const frequenciaPedida_Hz = bracosDoRelogio * FREQ_MAXIMA_ALT_HZ;
+    // CH9 → rudder ferocity (independente)
+    const t = (ch6 - 1500.0) / 500.0; // -1 a +1
+    const tCubico = t * t * t; // cúbico: zona central plana
+    const frequenciaPedida_Hz = 4.0 + 2.5 * tCubico; // 1.5–6.5 Hz
     const freqEfetiva = Math.max(frequenciaPedida_Hz, FREQ_MINIMA_ALT);
 
     cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
 
     // amplitude máxima permitida pela física do servo
     const ampMax = Math.min(AMPLITUDE_MAXIMA_SERVO, Math.max(0, velocidadeAngularServo / (2.0 * freqEfetiva)));
-    const percentagemSopro = Math.max(0, Math.min(1, (throttle - 480.0) * 0.00125));
+    const percentagemSopro = Math.max(0, Math.min(1, (throttle - 1000.0) * 0.001));
     const amplitudeDoBater = Math.sqrt(percentagemSopro) * ampMax;
 
     anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
@@ -299,9 +309,10 @@ function actualizarFase(dt, throttle, compasso, cicloMs) {
 
   } else {
     // Modo Normal (PI)
-    // throttle → cadência alvo; compasso modula proporcionalmente
-    const intencaoDeCadencia = (throttle - 480.0) *
-      ((1.0 / (120.0 * cicloMs * 0.001)) + ((compasso - 1500.0) * 0.0000725));
+    // throttle → cadência alvo; CH9 (ferocidade do leme) modula cadência
+    // CH6 (compasso/freq) não usado no modo normal
+    const intencaoDeCadencia = (throttle - 1000.0) *
+      ((1.0 / (120.0 * cicloMs * 0.001)) + ((ch9 - 1500.0) * 0.0000725));
 
     if (throttle > LIMIAR_DO_VOO_ATIVO) {
       // Em voo: persegue a cadência alvo (dinâmica de 1ª ordem)
@@ -318,10 +329,11 @@ function actualizarFase(dt, throttle, compasso, cicloMs) {
       anguloDaDancaAlada %= TWO_PI;
 
     // Amplitude (modo normal) — com ceiling físico do servo
+    // CH9 (ferocidade do leme) modula amplitude: centro=1500 sem efeito
     const soproEfetivo = Math.max(throttle, LIMIAR_DO_VOO_ATIVO);
     const amplitudeDoBater = Math.min(AMPLITUDE_MAXIMA_SERVO,
       ((soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA) *
-      (1.0 - (compasso - 1500.0) * MODULACAO_DO_COMPASSO));
+      (1.0 - (ch9 - 1500.0) * MODULACAO_DO_COMPASSO));
 
     return {
       amplitudeDoBater: Math.max(0, amplitudeDoBater),
@@ -675,14 +687,16 @@ function loop(timestamp) {
   const ch7 = parseInt(document.getElementById('ch7').value); // ferocidade bater
   const ch8 = parseInt(document.getElementById('ch8').value); // ferocidade retorno
   const ch3 = parseInt(document.getElementById('ch3').value); // throttle
-  const ch9 = parseInt(document.getElementById('ch9').value); // compasso
+  const ch4 = parseInt(document.getElementById('ch4').value); // leme estelar (yaw)
+  const ch6 = parseInt(document.getElementById('ch6').value); // frequência (compasso)
+  const ch9 = parseInt(document.getElementById('ch9').value); // ferocidade do leme
   const cicloMs = parseFloat(document.getElementById('ciclo').value);
 
   const fBater  = mapearRC(ch7, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
   const fRetorno = mapearRC(ch8, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
 
   // Actualiza a fase
-  const { amplitudeDoBater, cadencia } = actualizarFase(dt, ch3, ch9, cicloMs);
+  const { amplitudeDoBater, cadencia } = actualizarFase(dt, ch3, ch6, ch9, cicloMs);
 
   // Calcula a forma de onda
   const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
@@ -735,6 +749,8 @@ function loop(timestamp) {
   document.getElementById('val-ch7').textContent = fBater.toFixed(1);
   document.getElementById('val-ch8').textContent = fRetorno.toFixed(1);
   document.getElementById('val-ch3').textContent = ch3 + ' µs';
+  document.getElementById('val-ch4').textContent = ch4 + ' µs';
+  document.getElementById('val-ch6').textContent = ch6 + ' µs';
   document.getElementById('val-ch9').textContent = ch9 + ' µs';
 
   requestAnimationFrame(loop);
