@@ -831,7 +831,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
       // CH9 = rudder ferocity (independente)
       // Throttle escala de 0 até amplitudeMaximaPermitida (calculada acima pela física do servo)
       float percentagemSopro = constrain((vozDoSoproVital - 480.0f) * 0.00125f, 0.0f, 1.0f);  // 480→2000 → 0→1
-      amplitudeDoBater = percentagemSopro * amplitudeMaximaPermitida;
+      amplitudeDoBater = sqrtf(percentagemSopro) * amplitudeMaximaPermitida;
     } else {
       // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
       amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDaFerocidadeDoLeme - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
