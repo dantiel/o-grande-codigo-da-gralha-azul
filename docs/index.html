@@ -472,8 +472,8 @@ const graphCtx = document.getElementById('graph-canvas').getContext('2d');
 const HISTORY_LEN = 200;
 const history = []; // [{sin, warp, amp}]
 
-function pushHistory(sinVal, warpVal, amp) {
-  history.push({ sin: sinVal, warp: warpVal, amp: amp || AMPLITUDE_MAXIMA_SERVO });
+function pushHistory(sinVal, warpVal, amp, esq, dir) {
+  history.push({ sin: sinVal, warp: warpVal, amp: amp || AMPLITUDE_MAXIMA_SERVO, esq: esq || 0, dir: dir || 0 });
   if (history.length > HISTORY_LEN) history.shift();
 }
 
@@ -552,6 +552,33 @@ function drawGraph() {
   graphCtx.stroke();
   graphCtx.globalAlpha = 1;
 
+  // Esquerda trace (servo real, com leme)
+  graphCtx.strokeStyle = '#3fb';
+  graphCtx.lineWidth = 1.8;
+  graphCtx.globalAlpha = 1;
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const y = midY - (history[i].esq / AMP_REF) * ampY;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+
+  // Direita trace (servo real, com leme)
+  graphCtx.strokeStyle = '#f3f';
+  graphCtx.lineWidth = 1.8;
+  graphCtx.setLineDash([8, 4]);
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const y = midY - (history[i].dir / AMP_REF) * ampY;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+  graphCtx.setLineDash([]);
+
   // Legenda
   graphCtx.font = '10px -apple-system, sans-serif';
   graphCtx.textAlign = 'left';
@@ -565,6 +592,16 @@ function drawGraph() {
   graphCtx.fillRect(W - margin.right - 200, margin.top + 14, 12, 3);
   graphCtx.fillStyle = '#8b949e';
   graphCtx.fillText('formaDoBaterDasAsas — trapezoidal', W - margin.right - 184, margin.top + 19);
+
+  graphCtx.fillStyle = '#3fb';
+  graphCtx.fillRect(W - margin.right - 200, margin.top + 26, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('Servo Esq (leme)', W - margin.right - 184, margin.top + 31);
+
+  graphCtx.fillStyle = '#f3f';
+  graphCtx.fillRect(W - margin.right - 102, margin.top + 26, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('Servo Dir (leme)', W - margin.right - 86, margin.top + 31);
 }
 
 // =========================================================================
@@ -578,13 +615,16 @@ let audioGain = null;
 let procNode = null;
 let somAtivo = false;
 
-// Estado do ScriptProcessor
+// Estado do ScriptProcessor (estéreo)
 let audioPhaseEnv = 0.0;
-let audioNoiseLP = 0.0;    // memória do low-pass filter (1-pole IIR)
+let audioNoiseLPL = 0.0;   // memória LP canal esquerdo
+let audioNoiseLPR = 0.0;   // memória LP canal direito
 let audioFBater = 4.0, audioFRetorno = 4.0;
 let audioCadencia = 0.0;
 let audioAmplitude = 0.0;
-let audioTargetAmp = 0.0;  // amplitude alvo (interpolada para evitar clicks)
+let audioTargetAmp = 0.0;  // amplitude alvo (interpolada)
+let audioLeftFactor = 1.0, audioRightFactor = 1.0;
+let audioTargetLF = 1.0, audioTargetRF = 1.0;
 
 function iniciarAudio() {
   if (audioCtx) return;
@@ -594,38 +634,44 @@ function iniciarAudio() {
   audioGain.gain.value = 0;
   audioGain.connect(audioCtx.destination);
 
-  procNode = audioCtx.createScriptProcessor(256, 1, 1);
+  procNode = audioCtx.createScriptProcessor(256, 1, 2); // 1 in, 2 out (estéreo)
   procNode.onaudioprocess = function(e) {
-    const out = e.outputBuffer.getChannelData(0);
+    const outL = e.outputBuffer.getChannelData(0);
+    const outR = e.outputBuffer.getChannelData(1);
     const sr = e.outputBuffer.sampleRate;
-    const n = out.length;
+    const n = outL.length;
 
     const fB = audioFBater, fR = audioFRetorno;
-    let noiseLP = audioNoiseLP;
+    let noiseLPL = audioNoiseLPL, noiseLPR = audioNoiseLPR;
     let ampNow = audioAmplitude;
     const ampTarget = audioTargetAmp;
+    let lfNow = audioLeftFactor, rfNow = audioRightFactor;
+    const lfTarget = audioTargetLF, rfTarget = audioTargetRF;
 
-    // LP filter alpha: cutoff ~ 400 Hz a 44.1k → α ≈ 2π·400/44100 ≈ 0.057
+    // LP filter alpha: cutoff ~ 400 Hz a 44.1k → α ≈ 0.057
     const lpAlpha = 0.057;
 
-    const blendFer = Math.min(1.0, (fB + fR) / 16.0); // 0→f=0, 1→f=8
+    const blendFer = Math.min(1.0, (fB + fR) / 16.0);
     for (let i = 0; i < n; i++) {
-      // Envelope: |forma| domina a baixa ferocidade; a alta ferocidade
-      // o |forma| é ≈1.0 (plano) → faz crossfade com |cos(θ)| para preservar ritmo.
       const envRaw = formaDoBaterDasAsas(audioPhaseEnv, fB, fR);
       const envAbs = Math.abs(envRaw);
       const envCos = Math.abs(Math.cos(audioPhaseEnv));
       const envMisturado = envAbs * (1.0 - blendFer * 0.85) + envCos * blendFer * 0.85;
       const envelope = 0.02 + 0.98 * envMisturado;
 
-      // Ruído branco → low-pass → "fffff" de vento
-      const white = Math.random() * 2 - 1;
-      noiseLP += lpAlpha * (white - noiseLP);
+      // Ruído independente por canal → estéreo verdadeiro
+      const whiteL = Math.random() * 2 - 1;
+      const whiteR = Math.random() * 2 - 1;
+      noiseLPL += lpAlpha * (whiteL - noiseLPL);
+      noiseLPR += lpAlpha * (whiteR - noiseLPR);
 
-      // Interpola amplitude para evitar clicks
+      // Interpola amplitude e factores de leme
       ampNow += 0.02 * (ampTarget - ampNow);
+      lfNow  += 0.02 * (lfTarget - lfNow);
+      rfNow  += 0.02 * (rfTarget - rfNow);
 
-      out[i] = noiseLP * envelope * ampNow * 1.1;
+      outL[i] = noiseLPL * envelope * ampNow * 1.1 * lfNow;
+      outR[i] = noiseLPR * envelope * ampNow * 1.1 * rfNow;
 
       // Avança envelope ao ritmo da cadência
       audioPhaseEnv += audioCadencia / sr;
@@ -633,16 +679,21 @@ function iniciarAudio() {
       if (audioPhaseEnv < 0) audioPhaseEnv += TWO_PI;
     }
 
-    audioNoiseLP = noiseLP;
+    audioNoiseLPL = noiseLPL;
+    audioNoiseLPR = noiseLPR;
     audioAmplitude = ampNow;
+    audioLeftFactor = lfNow;
+    audioRightFactor = rfNow;
   };
   procNode.connect(audioGain);
 }
 
-function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia) {
+function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor) {
   audioFBater = fBater;
   audioFRetorno = fRetorno;
   audioCadencia = cadencia;
+  audioTargetLF = leftFactor || 1.0;
+  audioTargetRF = rightFactor || 1.0;
 
   // Volume: throttle→amplitude, atenuação suave para ferocidade alta
   const ferocidadeMedia = (fBater + fRetorno) * 0.5;
@@ -662,7 +713,8 @@ document.getElementById('btn-sound').addEventListener('click', () => {
     btn.textContent = '🔊 Som';
     btn.classList.remove('muted');
     audioPhaseEnv = 0.0;
-    audioNoiseLP = 0.0;
+    audioNoiseLPL = 0.0;
+    audioNoiseLPR = 0.0;
     audioGain.gain.setTargetAtTime(0.95, audioCtx.currentTime, 0.03);
   } else {
     btn.textContent = '🔇 Som';
@@ -707,25 +759,33 @@ function loop(timestamp) {
   const velocidadeAngularServo = 60.0 / (cicloMs * 0.001);
   const passoMax = velocidadeAngularServo * dt; // °/frame
 
-  const comandoAsa = pulsoAsa * (amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO); // ângulo comandado em °
+  // ── Leme Estelar (CH4) + Ferocidade do Leme (CH9) → diferencial esquerda/direita ──
+  const rudderFactor = (ch4 - 1500) / 500;          // [-1, 1]
+  const mixStrength = (ch9 - 1000) / 1000;           // [0, 1]
+  const leftFactor  = 1.0 + rudderFactor * mixStrength * 0.5;
+  const rightFactor = 1.0 - rudderFactor * mixStrength * 0.5;
 
-  // Cada servo persegue o comando com velocidade limitada (esquerdo = inverso, direito = directo)
-  const deltaEsq = comandoAsa - servoAngleEsquerdo;
-  const deltaDir = comandoAsa - servoAngleDireito;
+  const comandoAsa = pulsoAsa * (amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO); // ângulo comandado em °
+  const comandoEsquerdo = comandoAsa * leftFactor;
+  const comandoDireito  = comandoAsa * rightFactor;
+
+  // Cada servo persegue o seu comando com velocidade limitada
+  const deltaEsq = comandoEsquerdo - servoAngleEsquerdo;
+  const deltaDir = comandoDireito - servoAngleDireito;
 
   servoAngleEsquerdo += Math.max(-passoMax, Math.min(passoMax, deltaEsq));
   servoAngleDireito  += Math.max(-passoMax, Math.min(passoMax, deltaDir));
 
   // Armazena para o gráfico (com amplitude individual — traços encolhem com throttle ao longo do tempo)
-  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO);
+  pushHistory(cantoDoVento, pulsoAsa, amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO, comandoEsquerdo, comandoDireito);
 
   // Desenha com os ângulos limitados pela física do servo
   ultimaAmplitudeGraus = amplitudeDoBater || AMPLITUDE_MAXIMA_SERVO;
   drawServos(servoAngleEsquerdo, servoAngleDireito, amplitudeDoBater);
   drawGraph();
 
-  // Actualiza som
-  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia);
+  // Actualiza som (estéreo: diferencial esquerda/direita)
+  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor);
 
   // Calcula pesos e fracção de dwell para display
   const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
