@@ -853,22 +853,34 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     float ferocidadeDoRetorno = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
 
-    // Limiar partilhado — calculado das ferocidades base (sem CH9 shift).
-    // Ambas as asas mudam de direcção no mesmo θ; só a forma (dwell) difere.
-    float fDbase = constrain(ferocidadeDoBater, 0.0f, 8.0f);
-    float fSbase = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
-    float wDbase = fmax(8.0f - fDbase, 0.01f);
-    float wSbase = fmax(8.0f - fSbase, 0.01f);
-    float limiarShared = LIMITE_ANGULAR_DO_GIRO_PADRAO * wDbase / (wDbase + wSbase);
+    // Limiar e ferocidades por asa.
+    // Modo Quadrado Puro: ambos f≥7.99 → CH9 desloca o limiar (±π/2 duty cycle)
+    // mantendo ondas quadradas limpas para sinal máximo nos servos.
+    // Modo Normal: CH9 desloca ferocidades, limiar partilhado das bases.
+    const float PI = 3.14159265358979f;
+    const float TWO_PI = LIMITE_ANGULAR_DO_GIRO_PADRAO;
+    bool quadMode = (ferocidadeDoBater >= 7.99f && ferocidadeDoRetorno >= 7.99f);
+    float fBE, fBD, fRE, fRD, limiarEsq, limiarDir;
 
-    float ferocidadeBaterEsquerda = fmax(ferocidadeDoBater + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float ferocidadeBaterDireita  = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float ferocidadeRetornoEsquerda = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float ferocidadeRetornoDireita  = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    // Limiar partilhado — asas mudam de direcção juntas; diferencial de
-    // ferocidade manifesta-se apenas na forma (dwell) de cada uma.
-    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda, limiarShared);
-    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterDireita, ferocidadeRetornoDireita, limiarShared);
+    if (quadMode) {
+      fBE = 8.0f; fBD = 8.0f; fRE = 8.0f; fRD = 8.0f;
+      float shift = fatorDoLeme * (PI / 8.0f);
+      limiarEsq = constrain(PI - shift, 0.05f, TWO_PI - 0.05f);
+      limiarDir = constrain(PI + shift, 0.05f, TWO_PI - 0.05f);
+    } else {
+      float fDbase = constrain(ferocidadeDoBater, 0.0f, 8.0f);
+      float fSbase = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
+      float wDbase = fmax(8.0f - fDbase, 0.01f);
+      float wSbase = fmax(8.0f - fSbase, 0.01f);
+      float limiarShared = TWO_PI * wDbase / (wDbase + wSbase);
+      limiarEsq = limiarDir = limiarShared;
+      fBE = fmax(ferocidadeDoBater + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
+      fBD = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
+      fRE = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
+      fRD = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
+    }
+    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, fBE, fRE, limiarEsq);
+    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, fBD, fRD, limiarDir);
     float denominadorLeme = (vozDoLemeEstelar > 0) ? (float)vozDoLemeEstelar : 1500.0f;
     float fatorLemeEstelar = ((1500.0f / denominadorLeme) - 1.0f) * 2.0f + 1.0f;
     float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;

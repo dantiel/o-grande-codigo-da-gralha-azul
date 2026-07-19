@@ -808,28 +808,43 @@ function loop(timestamp) {
   // ── CH6+CH9 → fatorLeme já combinado em actualizarFase ──
   const fl = fatorLeme || 0;
 
-  // ── Limiar partilhado (base ferocities, sem CH9) ──
-  // Ambas as asas mudam de direcção no mesmo θ — só a forma (dwell) difere.
-  const fDbase = Math.max(0, Math.min(8, fBater));
-  const fSbase = Math.max(0, Math.min(8, fRetorno));
-  const wDbase = Math.max(8.0 - fDbase, 0.01);
-  const wSbase = Math.max(8.0 - fSbase, 0.01);
-  const limiarShared = TWO_PI * wDbase / (wDbase + wSbase);
+  // ── Limiar e ferocidades por asa ──
+  // Modo Quadrado Puro: ambos f≥7.99 → CH9 desloca o limiar (duty cycle)
+  // mantendo ondas quadradas limpas em ambas as asas — sinal mais nítido
+  // para os servos no limite de velocidade.
+  // Modo Normal: CH9 desloca ferocidades, limiar partilhado das bases.
+  const QUAD_MODE = (fBater >= 7.99 && fRetorno >= 7.99);
+  let fBaterEsq, fBaterDir, fRetornoEsq, fRetornoDir;
+  let limiarEsq, limiarDir;
 
-  // Forma de onda base (sem diferencial)
-  const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno, limiarShared);
+  if (QUAD_MODE) {
+    // Ambas as asas mantêm f=8 (onda quadrada pura); CH9 desloca o limiar ±π/2
+    fBaterEsq = 8; fBaterDir = 8;
+    fRetornoEsq = 8; fRetornoDir = 8;
+    const shift = fl * (Math.PI / 8);
+    limiarEsq = Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI - shift));
+    limiarDir = Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI + shift));
+  } else {
+    // Modo trapezoidal: CH9 desloca ferocidades, limiar partilhado das bases
+    const fDbase = Math.max(0, Math.min(8, fBater));
+    const fSbase = Math.max(0, Math.min(8, fRetorno));
+    const wDbase = Math.max(8.0 - fDbase, 0.01);
+    const wSbase = Math.max(8.0 - fSbase, 0.01);
+    const limiarShared = TWO_PI * wDbase / (wDbase + wSbase);
+    limiarEsq = limiarDir = limiarShared;
+    fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
+    fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
+    fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
+    fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
+  }
+
+  const pulsoAsaEsq = formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq, limiarEsq);
+  const pulsoAsaDir = formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir, limiarDir);
+  const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno, limiarEsq);
   const ampGraus = (amplitudeDoBater != null && !isNaN(amplitudeDoBater)) ? amplitudeDoBater : AMPLITUDE_MAXIMA_SERVO;
 
   let comandoEsquerdo, comandoDireito;
   let audioLF = fatorLemeEstelar, audioRF = 1.0 / fatorLemeEstelar;
-
-  // Per-wing ferocities (shifted by CH9) — mesmo limiar, dwell diferente
-  const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
-  const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
-  const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
-  const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
-  const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq, limiarShared) : pulsoAsa;
-  const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir, limiarShared) : pulsoAsa;
 
   comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
   comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
@@ -865,8 +880,8 @@ function loop(timestamp) {
   actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, audioLF, audioRF, cicloMs, velocidadeAsa);
 
   // Calcula pesos e fracção de dwell para display
-  const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS || 16.0;
-  const limiar = TWO_PI * wD / wT;
+  const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS;
+  const limiar = (wT < 0.02) ? Math.PI : TWO_PI * wD / wT;
   const descida = (anguloDaDancaAlada % TWO_PI + TWO_PI) % TWO_PI < limiar;
   const ferocidadeAtual = descida ? fBater : fRetorno;
   const dwellFrac = ferocidadeAtual / 8.0;
