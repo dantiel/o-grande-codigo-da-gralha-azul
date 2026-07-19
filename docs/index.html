@@ -251,7 +251,9 @@ function mapearRC(x, outMin, outMax) {
 //  Modelo Trapezoidal Extremo-a-Extremo com Duração Variável
 //  Cada meia-onda: dwell d/2 no extremo inicial + rampa + dwell d/2 no final
 //  Nos extremos, dwells adjacentes somam-se — planaltos simétricos.
-function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
+//  limiarDeFase opcional: compartilhado entre asas quando CH9 ≠ 0,
+//  mantém ambas as asas em fase (mesmo θ de transição).
+function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno, limiarDeFase) {
   let theta = anguloDoCiclo % TWO_PI;
   if (theta < 0) theta += TWO_PI;
 
@@ -264,8 +266,9 @@ function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno) {
   const wS = Math.max(8.0 - fS, 0.01);
   const wTotal = wD + wS;
 
-  // Fronteira: descida ocupa wD/wTotal do ciclo
-  const limiar = TWO_PI * wD / wTotal;
+  // Fronteira: descida ocupa wD/wTotal do ciclo.
+  // Se limiarDeFase for fornecido (CH9 activo), usa-o para ambas as asas.
+  const limiar = (limiarDeFase !== undefined) ? limiarDeFase : (TWO_PI * wD / wTotal);
 
   const descida = (theta < limiar);
   const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
@@ -816,6 +819,14 @@ function loop(timestamp) {
   const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno);
   const ampGraus = (amplitudeDoBater != null && !isNaN(amplitudeDoBater)) ? amplitudeDoBater : AMPLITUDE_MAXIMA_SERVO;
 
+  // ── Limiar de fase partilhado (CH9) ──
+  // Ambas as asas devem mudar de direcção no mesmo θ — o limiar
+  // calcula-se das ferocidades base (sem shift do leme). Cada asa
+  // usa depois a sua própria fracção de dwell dentro da meia-onda.
+  const wDBase = Math.max(8.0 - fBater, 0.01);
+  const wSBase = Math.max(8.0 - fRetorno, 0.01);
+  const limiarDeFase = TWO_PI * wDBase / (wDBase + wSBase);
+
   let comandoEsquerdo, comandoDireito;
   let audioLF = fatorLemeEstelar, audioRF = 1.0 / fatorLemeEstelar;
 
@@ -825,8 +836,8 @@ function loop(timestamp) {
     const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
     const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
     const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
-    const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
-    const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
+    const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq, limiarDeFase) : pulsoAsa;
+    const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir, limiarDeFase) : pulsoAsa;
     comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
     comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
     audioLF = fatorLemeEstelar * (1.0 + fl * 0.125);
@@ -837,8 +848,8 @@ function loop(timestamp) {
     const fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
     const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
     const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
-    const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq) : pulsoAsa;
-    const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir) : pulsoAsa;
+    const pulsoAsaEsq = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq, limiarDeFase) : pulsoAsa;
+    const pulsoAsaDir = (fl !== 0) ? formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir, limiarDeFase) : pulsoAsa;
     comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
     comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
   }
