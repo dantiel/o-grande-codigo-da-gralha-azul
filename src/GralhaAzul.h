@@ -352,7 +352,7 @@ private:
   /* ── Métodos Privados ────────────────────────────────────── */
   void tecerTransicaoGlide(float alvoEsquerdo, float alvoDireito);
   float mapearEntreEscalasHarmonicas(float valor, float minOrigem, float maxOrigem, float minDestino, float maxDestino);
-  float formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno);
+  float formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno, float limiarShared = NAN);
   void animarPulsarDoCoracaoAlado();
   void sustentarAltura();
   void manifestarOVooNosVentos();
@@ -620,15 +620,16 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 // ============================================================
 //  A FORMA DO BATER — A Geometria do Movimento Alado
 // ============================================================
-inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno) {
+inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno, float limiarShared) {
   // ── Modelo Trapezoidal Extremo-a-Extremo com Duração Variável ──
   // Cada meia-onda (descida [0,π) ou subida [π,2π)) tem duração
   // proporcional a (8-f): mais suave = mais longa, mais feroz = mais curta.
   // Dentro de cada meia-onda: dwell d/2 no extremo inicial + rampa cos +
   // dwell d/2 no extremo final. Nos extremos, os dwells de duas meias-ondas
   // adjacentes somam-se, mantendo os planaltos simétricos.
-  // Cada asa calcula o seu próprio limiar — o diferencial de ferocidade
-  // desloca naturalmente a transição entre asas, gerando o momento de guinada.
+  // O limiar (fronteira descida/subida) é partilhado entre asas — calculado
+  // das ferocidades base (sem CH9). Cada asa aplica o seu próprio dwell dentro
+  // da mesma janela temporal, mantendo o sincronismo do bater.
 
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
@@ -639,14 +640,16 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   float fD = constrain(ferocidadeDoBater,   0.0f, 8.0f);
   float fS = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
 
-  // Pesos: (8-f) com mínimo 0.01 — evita que uma meia-onda
-  // tenha duração zero a f=8 (colapsaria limiar→0 causando shift de fase).
-  float wD = fmax(8.0f - fD, 0.01f);  // peso da descida
-  float wS = fmax(8.0f - fS, 0.01f);  // peso da subida
-  float wTotal = wD + wS;
-
-  // Fronteira: descida ocupa wD/wTotal do ciclo.
-  float limiar = TWO_PI * wD / wTotal;
+  // Limiar partilhado — ambas as asas mudam de direcção no mesmo θ.
+  // Se não for passado (NaN), calcula das ferocidades locais (fallback).
+  float limiar;
+  if (!isnan(limiarShared)) {
+    limiar = limiarShared;
+  } else {
+    float wD_fb = fmax(8.0f - fD, 0.01f);
+    float wS_fb = fmax(8.0f - fS, 0.01f);
+    limiar = TWO_PI * wD_fb / (wD_fb + wS_fb);
+  }
 
   bool descida = (theta < limiar);
   float t, ferocidade, d, dh;
@@ -849,14 +852,23 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     float ferocidadeDoBater = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float ferocidadeDoRetorno = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
+
+    // Limiar partilhado — calculado das ferocidades base (sem CH9 shift).
+    // Ambas as asas mudam de direcção no mesmo θ; só a forma (dwell) difere.
+    float fDbase = constrain(ferocidadeDoBater, 0.0f, 8.0f);
+    float fSbase = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
+    float wDbase = fmax(8.0f - fDbase, 0.01f);
+    float wSbase = fmax(8.0f - fSbase, 0.01f);
+    float limiarShared = LIMITE_ANGULAR_DO_GIRO_PADRAO * wDbase / (wDbase + wSbase);
+
     float ferocidadeBaterEsquerda = fmax(ferocidadeDoBater + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float ferocidadeBaterDireita  = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float ferocidadeRetornoEsquerda = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float ferocidadeRetornoDireita  = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    // Cada asa com o seu próprio limiar — diferencial de ferocidade desloca
-    // as transições naturalmente, gerando o momento de guinada assimétrico.
-    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda);
-    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterDireita, ferocidadeRetornoDireita);
+    // Limiar partilhado — asas mudam de direcção juntas; diferencial de
+    // ferocidade manifesta-se apenas na forma (dwell) de cada uma.
+    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda, limiarShared);
+    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterDireita, ferocidadeRetornoDireita, limiarShared);
     float denominadorLeme = (vozDoLemeEstelar > 0) ? (float)vozDoLemeEstelar : 1500.0f;
     float fatorLemeEstelar = ((1500.0f / denominadorLeme) - 1.0f) * 2.0f + 1.0f;
     float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;
