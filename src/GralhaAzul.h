@@ -620,16 +620,15 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 // ============================================================
 //  A FORMA DO BATER — A Geometria do Movimento Alado
 // ============================================================
-inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno, float limiarDeFase) {
+inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno) {
   // ── Modelo Trapezoidal Extremo-a-Extremo com Duração Variável ──
   // Cada meia-onda (descida [0,π) ou subida [π,2π)) tem duração
   // proporcional a (8-f): mais suave = mais longa, mais feroz = mais curta.
   // Dentro de cada meia-onda: dwell d/2 no extremo inicial + rampa cos +
   // dwell d/2 no extremo final. Nos extremos, os dwells de duas meias-ondas
   // adjacentes somam-se, mantendo os planaltos simétricos.
-  // limiarDeFase: se ≥ 0, partilhado entre asas (CH9 diferencial) — mantém
-  //   ambas as asas em fase com o mesmo θ de transição. Se < 0, calcula
-  //   dos próprios fD/fS (chamada sem diferencial).
+  // Cada asa calcula o seu próprio limiar — o diferencial de ferocidade
+  // desloca naturalmente a transição entre asas, gerando o momento de guinada.
 
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
@@ -646,8 +645,8 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   float wS = fmax(8.0f - fS, 0.01f);  // peso da subida
   float wTotal = wD + wS;
 
-  // Fronteira: se limiarDeFase fornecido (CH9 activo), usa-o para ambas as asas
-  float limiar = (limiarDeFase >= 0.0f) ? limiarDeFase : (TWO_PI * wD / wTotal);
+  // Fronteira: descida ocupa wD/wTotal do ciclo.
+  float limiar = TWO_PI * wD / wTotal;
 
   bool descida = (theta < limiar);
   float t, ferocidade, d, dh;
@@ -854,13 +853,10 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     float ferocidadeBaterDireita  = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float ferocidadeRetornoEsquerda = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
     float ferocidadeRetornoDireita  = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    // Limiar de fase partilhado: ambas as asas mudam de direcção no mesmo θ.
-    // Calculado das ferocidades base (sem shift do leme). < 0 = sem partilha.
-    float wDBase = fmax(8.0f - ferocidadeDoBater, 0.01f);
-    float wSBase = fmax(8.0f - ferocidadeDoRetorno, 0.01f);
-    float limiarDeFase = (fabs(fatorDoLeme) > 0.001f) ? (6.283185307f * wDBase / (wDBase + wSBase)) : -1.0f;
-    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda, limiarDeFase);
-    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterDireita, ferocidadeRetornoDireita, limiarDeFase);
+    // Cada asa com o seu próprio limiar — diferencial de ferocidade desloca
+    // as transições naturalmente, gerando o momento de guinada assimétrico.
+    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda);
+    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, ferocidadeBaterDireita, ferocidadeRetornoDireita);
     float denominadorLeme = (vozDoLemeEstelar > 0) ? (float)vozDoLemeEstelar : 1500.0f;
     float fatorLemeEstelar = ((1500.0f / denominadorLeme) - 1.0f) * 2.0f + 1.0f;
     float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;
