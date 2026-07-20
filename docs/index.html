@@ -809,34 +809,28 @@ function loop(timestamp) {
   const fl = fatorLeme || 0;
 
   // ── Limiar e ferocidades por asa ──
-  // Modo Quadrado Puro: ambos f≥7.99 → CH9 desloca o limiar (duty cycle)
-  // mantendo ondas quadradas limpas em ambas as asas — sinal mais nítido
-  // para os servos no limite de velocidade.
-  // Modo Normal: CH9 desloca ferocidades, limiar partilhado das bases.
-  const QUAD_MODE = (fBater >= 7.99 && fRetorno >= 7.99);
-  let fBaterEsq, fBaterDir, fRetornoEsq, fRetornoDir;
-  let limiarEsq, limiarDir;
+  // CH9 desloca ferocidades no regime trapezoidal (f→0) e desloca o
+  // limiar (duty cycle) no regime quadrado (f→8). A transição é contínua:
+  // quadFactor = 0 → puro f-shift; 1 → puro limiar-shift.
+  // No meio, ambos os efeitos aplicam-se proporcionalmente.
+  const fDbase = Math.max(0, Math.min(8, fBater));
+  const fSbase = Math.max(0, Math.min(8, fRetorno));
+  const wDbase = Math.max(8.0 - fDbase, 0.01);
+  const wSbase = Math.max(8.0 - fSbase, 0.01);
+  const limiarBase = TWO_PI * wDbase / (wDbase + wSbase);
+  const avgF = (fDbase + fSbase) * 0.5;
+  const quadFactor = Math.max(0, Math.min(1, (avgF - 6.0) / 2.0));  // 0@f≤6 → 1@f=8
+  const shift = fl * (Math.PI / 8);
 
-  if (QUAD_MODE) {
-    // Ambas as asas mantêm f=8 (onda quadrada pura); CH9 desloca o limiar ±π/2
-    fBaterEsq = 8; fBaterDir = 8;
-    fRetornoEsq = 8; fRetornoDir = 8;
-    const shift = fl * (Math.PI / 8);
-    limiarEsq = Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI - shift));
-    limiarDir = Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI + shift));
-  } else {
-    // Modo trapezoidal: CH9 desloca ferocidades, limiar partilhado das bases
-    const fDbase = Math.max(0, Math.min(8, fBater));
-    const fSbase = Math.max(0, Math.min(8, fRetorno));
-    const wDbase = Math.max(8.0 - fDbase, 0.01);
-    const wSbase = Math.max(8.0 - fSbase, 0.01);
-    const limiarShared = TWO_PI * wDbase / (wDbase + wSbase);
-    limiarEsq = limiarDir = limiarShared;
-    fBaterEsq  = Math.max(0, Math.min(8, fBater + fl));
-    fBaterDir  = Math.max(0, Math.min(8, fBater - fl));
-    fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl));
-    fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl));
-  }
+  // Limiar: interpola do base (trapezoidal) para PI±shift (quadrado)
+  const limiarEsq = (1 - quadFactor) * limiarBase + quadFactor * Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI - shift));
+  const limiarDir = (1 - quadFactor) * limiarBase + quadFactor * Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI + shift));
+
+  // Ferocidades: CH9 shift atenua com quadFactor; em quad puro fica 8
+  const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl * (1 - quadFactor)));
+  const fBaterDir  = Math.max(0, Math.min(8, fBater - fl * (1 - quadFactor)));
+  const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl * (1 - quadFactor)));
+  const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl * (1 - quadFactor)));
 
   const pulsoAsaEsq = formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq, limiarEsq);
   const pulsoAsaDir = formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir, limiarDir);

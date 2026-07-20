@@ -854,31 +854,29 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
 
     // Limiar e ferocidades por asa.
-    // Modo Quadrado Puro: ambos f≥7.99 → CH9 desloca o limiar (±π/2 duty cycle)
-    // mantendo ondas quadradas limpas para sinal máximo nos servos.
-    // Modo Normal: CH9 desloca ferocidades, limiar partilhado das bases.
+    // CH9 desloca ferocidades no regime trapezoidal (f→0) e desloca o
+    // limiar (duty cycle) no regime quadrado (f→8). A transição é contínua:
+    // quadFactor = 0 → puro f-shift; 1 → puro limiar-shift.
     const float PI = 3.14159265358979f;
     const float TWO_PI = LIMITE_ANGULAR_DO_GIRO_PADRAO;
-    bool quadMode = (ferocidadeDoBater >= 7.99f && ferocidadeDoRetorno >= 7.99f);
-    float fBE, fBD, fRE, fRD, limiarEsq, limiarDir;
+    float fDbase = constrain(ferocidadeDoBater, 0.0f, 8.0f);
+    float fSbase = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
+    float wDbase = fmax(8.0f - fDbase, 0.01f);
+    float wSbase = fmax(8.0f - fSbase, 0.01f);
+    float limiarBase = TWO_PI * wDbase / (wDbase + wSbase);
+    float avgF = (fDbase + fSbase) * 0.5f;
+    float quadFactor = constrain((avgF - 6.0f) / 2.0f, 0.0f, 1.0f);  // 0@f≤6 → 1@f=8
+    float shift = fatorDoLeme * (PI / 8.0f);
 
-    if (quadMode) {
-      fBE = 8.0f; fBD = 8.0f; fRE = 8.0f; fRD = 8.0f;
-      float shift = fatorDoLeme * (PI / 8.0f);
-      limiarEsq = constrain(PI - shift, 0.05f, TWO_PI - 0.05f);
-      limiarDir = constrain(PI + shift, 0.05f, TWO_PI - 0.05f);
-    } else {
-      float fDbase = constrain(ferocidadeDoBater, 0.0f, 8.0f);
-      float fSbase = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
-      float wDbase = fmax(8.0f - fDbase, 0.01f);
-      float wSbase = fmax(8.0f - fSbase, 0.01f);
-      float limiarShared = TWO_PI * wDbase / (wDbase + wSbase);
-      limiarEsq = limiarDir = limiarShared;
-      fBE = fmax(ferocidadeDoBater + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-      fBD = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-      fRE = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-      fRD = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    }
+    // Limiar: interpola do base (trapezoidal) para PI±shift (quadrado)
+    float limiarEsq = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(PI - shift, 0.05f, TWO_PI - 0.05f);
+    float limiarDir = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(PI + shift, 0.05f, TWO_PI - 0.05f);
+
+    // Ferocidades: CH9 shift atenua com quadFactor; em quad puro fica 8
+    float fBE = constrain(ferocidadeDoBater + fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
+    float fBD = constrain(ferocidadeDoBater - fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
+    float fRE = constrain(ferocidadeDoRetorno + fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
+    float fRD = constrain(ferocidadeDoRetorno - fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
     float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, fBE, fRE, limiarEsq);
     float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, fBD, fRD, limiarDir);
     float denominadorLeme = (vozDoLemeEstelar > 0) ? (float)vozDoLemeEstelar : 1500.0f;
