@@ -731,7 +731,11 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       if (amplitudeMaximaPermitida < 0.0f) amplitudeMaximaPermitida = 0.0f;
       if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO) amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
       
-      cadenciaDoDestinoAlado = frequenciaPedida_Hz * 6.283185307f;  // 2*PI rad/s para o integrador
+      // ÆtherCodex: cadência usa freqEfetiva (não frequenciaPedida_Hz) para
+      // manter amplitude e cadência coerentes. Sem isto, CH6 central (1500)
+      // produz 21.4 Hz — acima do corte do EMA (3.4 Hz) — e o filtro suaviza
+      // a forma de onda para DC, congelando as asas no neutro.
+      cadenciaDoDestinoAlado = freqEfetiva * 6.283185307f;  // 2*PI rad/s para o integrador
     } else {
       // Modo padrão (PI): throttle modula cadência + compasso afecta proporcionalmente
       float intencaoDeCadencia = (vozDoSoproVital - 480.0f) * ((1.0f / (120.0f * cicloDoCoracaoAlado)) +
@@ -911,7 +915,11 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   // o servo recebia valores "fantasma" do EMA de há 15ms atrás.
   // Agora: EMA e write correm ambos a 50Hz. O raw é capturado
   // no momento exacto da escrita, eliminando a perseguição atrasada.
-  const float ALPHA_EMA = 0.3f;
+  // EMA adaptativo: flap rápido precisa de alpha alto para seguir a onda;
+  // glide lento usa alpha baixo para suavidade. cutoff(−3dB) = α/(2π·Ts·(1−α))
+  // α=0.30 → fc=3.4Hz (glide); α=0.65 → fc=14.8Hz (flap até 10Hz)
+  bool emFlap = (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS);
+  const float ALPHA_EMA = emFlap ? 0.65f : 0.30f;
   const uint32_t INTERVALO_MIN_US = 20000;  // 20ms = 50Hz
   uint32_t agoraUs = micros();
   bool tickE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);
