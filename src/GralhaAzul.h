@@ -716,7 +716,7 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
     } else {
       // Modo padrão (PI): throttle modula cadência + compasso afecta proporcionalmente
       float intencaoDeCadencia = (vozDoSoproVital - 480.0f) * ((1.0f / (120.0f * cicloDoCoracaoAlado)) +
-                                 ((vozDaFerocidadeDoLeme - 1500.0f) * 0.0000725f));
+                                 ((vozDoCompassoDaAlma - 1500.0f) * 0.0000725f));
       float variacaoDoDestinoAlado = 1.0f * intencaoDeCadencia - 10.0f * cadenciaDoDestinoAlado;
       cadenciaDoDestinoAlado += variacaoDoDestinoAlado * dt;
     }
@@ -847,11 +847,11 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
       amplitudeDoBater = sqrtf(percentagemSopro) * amplitudeMaximaPermitida;
     } else {
       // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
-      amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDaFerocidadeDoLeme - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
+      amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDoCompassoDaAlma - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
     }
     float ferocidadeDoBater = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float ferocidadeDoRetorno = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
-    float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
+    float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoLeme, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
 
     // Limiar e ferocidades por asa.
     // CH9 desloca ferocidades no regime trapezoidal (f→0) e desloca o
