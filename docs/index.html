@@ -341,7 +341,8 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     // Apenas o limite mecânico do servo — sem floor artificial
     const ampMax = Math.min(AMPLITUDE_MAXIMA_SERVO, velocidadeAngularServo / (2.0 * freqEfetiva));
     const percentagemSopro = Math.max(0, Math.min(1, (throttle - 1000.0) * 0.001));
-    const amplitudeDoBater = Math.sqrt(percentagemSopro) * ampMax;
+    // Quadrático: início muito suave. 25% throttle → 6%, 50%→25%, 100%→100%
+    const amplitudeDoBater = percentagemSopro * percentagemSopro * ampMax;
 
     anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
     if (Math.abs(anguloDaDancaAlada) > TWO_PI)

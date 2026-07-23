@@ -851,7 +851,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
         if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO)
           amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
       }
-      amplitudeDoBater = sqrtf(percentagemSopro) * amplitudeMaximaPermitida;
+      // Quadrático: início muito suave. 25% throttle → 6%, 50%→25%, 100%→100%
+      amplitudeDoBater = percentagemSopro * percentagemSopro * amplitudeMaximaPermitida;
     } else {
       // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
       amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDoCompassoDaAlma - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
