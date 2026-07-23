@@ -704,13 +704,15 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       
       // Amplitude máxima permitida para essa frequência
       // A_max = velocidade / (2 * frequencia) [graus]
-      // Em CH6=100%: A_max = (60/CICLO) / (2 * 3/CICLO) = 10° (independente de CICLO!)
-      const float FREQ_MINIMA = 0.05f;  // evitar div/0, ~3 RPM mínimo
-      float freqEfetiva = fmax(frequenciaPedida_Hz, FREQ_MINIMA);
-      amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);  // guardado para usar abaixo
+      // CH6=100% → 10Hz → A_max = (60/CICLO)/(2*10) ≈ 43°@CICLO=0.07
+      // Cap de segurança: 55° para proteger os servos
+      const float FREQ_MAXIMA_ALT = 10.0f;
+      const float FREQ_MINIMA = 0.05f;
+      float freqEfetiva = fmax(fmin(frequenciaPedida_Hz, FREQ_MAXIMA_ALT), FREQ_MINIMA);
+      amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
       
-      // Não clampar — amplitude é puramente física
       if (amplitudeMaximaPermitida < 0.0f) amplitudeMaximaPermitida = 0.0f;
+      if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO) amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
       
       cadenciaDoDestinoAlado = frequenciaPedida_Hz * 6.283185307f;  // 2*PI rad/s para o integrador
     } else {
@@ -788,21 +790,6 @@ inline void GralhaAzul::sustentarAltura() {
 //  A MANIFESTAÇÃO — Quando a Vontade se Torna Voo
 // ============================================================
 inline void GralhaAzul::manifestarOVooNosVentos() {
-  if (estadoPresenteDaAlma != EM_DANCA_COM_OS_VENTOS) {
-    if (ultimoEscritoEsquerdo != OFFSET_ANGULAR_NEUTRO_PADRAO) {
-      tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
-      ultimoMicrosEscritaEsquerdo = micros();
-    }
-    if (ultimoEscritoDireito != OFFSET_ANGULAR_NEUTRO_PADRAO) {
-      tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
-      ultimoMicrosEscritaDireito = micros();
-    }
-    emaServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    ultimoEscritoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    ultimoEscritoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    return;
-  }
   float comandoAletao = (vozDoAletao - 1500.0f) * escalaAngularArticulacao;
   float comandoProfundor = (vozDoProfundor - 1500.0f) * ESCALA_ANGULAR_DO_PROFUNDOR_PADRAO;
   int anguloPortalEsquerdo, anguloPortalDireito;
@@ -1063,6 +1050,10 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
   limiarElevado = false;
   jaCruzouLimiarDeVoo = false;
   guardiaoInicializado = false;
+  // Reset limpo — sem memória de voo anterior
+  anguloDaDancaAlada = 0;
+  cadenciaDoDestinoAlado = 0;
+  amplitudeMaximaPermitida = 0.0f;
   if (ecosPrescindiveis) {
     ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se formou — o Firmamento canta!");
     ecosPrescindiveis->print("[PRESAGIO] Sopros no vento após o elo: ");
