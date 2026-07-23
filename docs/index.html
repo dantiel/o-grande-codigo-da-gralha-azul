@@ -225,8 +225,8 @@ const LIMIAR_DO_VOO_ATIVO          = 1040;
 const ACELERACAO_DO_COMPASSO       = 8.0;
 
 // Constantes do modo Alternativo
-const FREQ_MINIMA_ALT = 1.0;
-const FREQ_MAXIMA_ALT = 8.0;
+const FREQ_MINIMA_ALT = 0.5;
+// FREQ_MAXIMA_ALT agora é calculada dinamicamente: v_servo / (4 × 55°)
 const AMPLITUDE_MAXIMA_SERVO = 55.0;  // limite físico do servo com margem de segurança
 
 let modoAlternativo = false;
@@ -328,12 +328,13 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
 
   if (modoAlternativo) {
     // Modo Alternativo BIRD-LIKE
-    // CH6 → frequência (linear, 1000–2000 → FREQ_MINIMA_ALT–FREQ_MAXIMA_ALT_HZ)
+    // CH6 → frequência (linear, 1000–2000 → 0.5–f_max Hz)
+    // f_max = v_servo/(4·55°) — 50% do ciclo para pausar nos extremos (águia).
     // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
     // CH9 → amplitude differential (independente, invertido: 1000→dir, 2000→esq)
     const bracosDoRelogio = Math.max(0, Math.min(1, (ch6 - 1000.0) * 0.001)); // 0–1
-    // CH6 → frequência 1–15 Hz linear. Amplitude = física do servo, sem cap artificial.
-    const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (FREQ_MAXIMA_ALT - FREQ_MINIMA_ALT);
+    const freqMaxAlt = velocidadeAngularServo / (4.0 * AMPLITUDE_MAXIMA_SERVO);
+    const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (freqMaxAlt - FREQ_MINIMA_ALT);
 
     cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
 
