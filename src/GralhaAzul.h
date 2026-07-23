@@ -712,18 +712,18 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       // Física: A_max = velocidadeAngular / (2 * freq) [graus]
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
-      // CH6 1000–2000 → 0.05 Hz até f_max, onde a amplitude ainda é plena.
-      // f_max = v_servo / (2·A_max) : frequência-limite para 55° completos.
-      // v_servo = 60°/ciclo → f_max = 60/(ciclo × 110) ≈ 7.8 Hz @ 70ms
-      // Acima disto o servo já não consegue percorrer a amplitude pedida;
-      // aqui pára-se antes — o ornitóptero não zumbe, bate.
-      const float FREQ_MINIMA = 0.05f;
-      float freqMaximaFisica = velocidadeAngularServo / (2.0f * AMPLITUDE_MAXIMA_SERVO_PADRAO);
-      float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (freqMaximaFisica - FREQ_MINIMA);
+      // CH6 1000–2000 → 1–15 Hz linear. Sem cap artificial de amplitude.
+      // A física dita: A = v_servo / (2·f). Abaixo de ~7.8 Hz o servo consegue
+      // os 55° completos (cap mecânico). Acima, a amplitude cai naturalmente:
+      // 10 Hz → 42.8°, 12 Hz → 35.7°, 15 Hz → 28.6°.
+      const float FREQ_MINIMA = 1.0f;
+      const float FREQ_MAXIMA = 15.0f;
+      float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (FREQ_MAXIMA - FREQ_MINIMA);
       
       amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
-      if (amplitudeMaximaPermitida < 0.0f) amplitudeMaximaPermitida = 0.0f;
-      if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO) amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
+      // Apenas o limite mecânico do servo — sem floor artificial
+      if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO)
+        amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
       
       cadenciaDoDestinoAlado = freqEfetiva * 6.283185307f;  // 2*PI rad/s para o integrador
     } else {

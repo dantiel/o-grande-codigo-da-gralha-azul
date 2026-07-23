@@ -225,7 +225,8 @@ const LIMIAR_DO_VOO_ATIVO          = 1040;
 const ACELERACAO_DO_COMPASSO       = 8.0;
 
 // Constantes do modo Alternativo
-const FREQ_MINIMA_ALT = 0.05;
+const FREQ_MINIMA_ALT = 1.0;
+const FREQ_MAXIMA_ALT = 15.0;
 const AMPLITUDE_MAXIMA_SERVO = 55.0;  // limite físico do servo com margem de segurança
 
 let modoAlternativo = false;
@@ -331,14 +332,13 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
     // CH9 → amplitude differential (independente, invertido: 1000→dir, 2000→esq)
     const bracosDoRelogio = Math.max(0, Math.min(1, (ch6 - 1000.0) * 0.001)); // 0–1
-    // f_max = v_servo / (2·A_max) : frequência onde amplitude ainda é plena
-    const freqMaximaFisica = velocidadeAngularServo / (2.0 * AMPLITUDE_MAXIMA_SERVO);
-    const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (freqMaximaFisica - FREQ_MINIMA_ALT);
+    // CH6 → frequência 1–15 Hz linear. Amplitude = física do servo, sem cap artificial.
+    const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (FREQ_MAXIMA_ALT - FREQ_MINIMA_ALT);
 
     cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
 
-    // amplitude máxima permitida pela física do servo
-    const ampMax = Math.min(AMPLITUDE_MAXIMA_SERVO, Math.max(0, velocidadeAngularServo / (2.0 * freqEfetiva)));
+    // Apenas o limite mecânico do servo — sem floor artificial
+    const ampMax = Math.min(AMPLITUDE_MAXIMA_SERVO, velocidadeAngularServo / (2.0 * freqEfetiva));
     const percentagemSopro = Math.max(0, Math.min(1, (throttle - 1000.0) * 0.001));
     const amplitudeDoBater = Math.sqrt(percentagemSopro) * ampMax;
 
