@@ -709,32 +709,19 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
     // A malha de controle — a vontade se torna movimento
     if (_modoAlternativoEfetivo) {
       // Modo alternativo BIRD-LIKE: CH6 → frequência, throttle → % de amplitude permitida
-      // Física: para freqência F (Hz), período = 1/F. Ida+volta = 2*A/velocidade
-      // → A_max = velocidadeAngular / (2 * F) = 60 / (2 * CICLO * F)
+      // Física: A_max = velocidadeAngular / (2 * freq) [graus]
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
-      // Frequência máxima: 10% da capacidade física a amplitude mínima
-      // Capacidade a 1° = 1/(2*1*CICLO/60) = 30/CICLO Hz
-      // 10% disso → frequenciaMaxCH6 = 3/CICLO Hz
-      float frequenciaMaximaCH6_Hz = 3.0f / cicloDoCoracaoAlado;
-      float frequenciaPedida_Hz = bracosDoRelogio * frequenciaMaximaCH6_Hz;  // CH6=100% → proporcional
-      
-      // Amplitude máxima permitida para essa frequência
-      // A_max = velocidade / (2 * frequencia) [graus]
-      // CH6=100% → 10Hz → A_max = (60/CICLO)/(2*10) ≈ 43°@CICLO=0.07
-      // Cap de segurança: 55° para proteger os servos
-      const float FREQ_MAXIMA_ALT = 10.0f;
+      // Mapeamento linear directo CH6 1000–2000 → FREQ_MINIMA–FREQ_MAXIMA_ALT
+      // sem zona morta: cada posição do pot corresponde a uma frequência distinta
+      const float FREQ_MAXIMA_ALT = 15.0f;
       const float FREQ_MINIMA = 0.05f;
-      float freqEfetiva = fmax(fmin(frequenciaPedida_Hz, FREQ_MAXIMA_ALT), FREQ_MINIMA);
-      amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
+      float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (FREQ_MAXIMA_ALT - FREQ_MINIMA);
       
+      amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
       if (amplitudeMaximaPermitida < 0.0f) amplitudeMaximaPermitida = 0.0f;
       if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO) amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
       
-      // ÆtherCodex: cadência usa freqEfetiva (não frequenciaPedida_Hz) para
-      // manter amplitude e cadência coerentes. Sem isto, CH6 central (1500)
-      // produz 21.4 Hz — acima do corte do EMA (3.4 Hz) — e o filtro suaviza
-      // a forma de onda para DC, congelando as asas no neutro.
       cadenciaDoDestinoAlado = freqEfetiva * 6.283185307f;  // 2*PI rad/s para o integrador
     } else {
       // Modo padrão (PI): throttle modula cadência + compasso afecta proporcionalmente
@@ -919,7 +906,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   // glide lento usa alpha baixo para suavidade. cutoff(−3dB) = α/(2π·Ts·(1−α))
   // α=0.30 → fc=3.4Hz (glide); α=0.65 → fc=14.8Hz (flap até 10Hz)
   bool emFlap = (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS);
-  const float ALPHA_EMA = emFlap ? 0.65f : 0.30f;
+  const float ALPHA_EMA = emFlap ? 0.72f : 0.30f;
   const uint32_t INTERVALO_MIN_US = 20000;  // 20ms = 50Hz
   uint32_t agoraUs = micros();
   bool tickE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);
