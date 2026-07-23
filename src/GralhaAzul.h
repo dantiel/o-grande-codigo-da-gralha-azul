@@ -547,12 +547,24 @@ inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireit
   if (!emTransicaoParaGlide) {
     emTransicaoParaGlide = true;
     // Captura a posição actual das asas — evita salto brusco no primeiro frame
-    anguloGlideEsquerdo = tendaoDaAsaMatutina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
-    anguloGlideDireito = tendaoDaAsaVespertina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
+    int posEsq = tendaoDaAsaMatutina.read();
+    int posDir = tendaoDaAsaVespertina.read();
+    // Servo.read()=0 before first write on some platforms — clamp to neutral
+    if (posEsq == 0 && posDir == 0) {
+      anguloGlideEsquerdo = 0;
+      anguloGlideDireito = 0;
+    } else {
+      anguloGlideEsquerdo = posEsq - OFFSET_ANGULAR_NEUTRO_PADRAO;
+      anguloGlideDireito = posDir - OFFSET_ANGULAR_NEUTRO_PADRAO;
+    }
     microsUltimoPasso = micros();
     return;
   }
-  
+
+  // Clamp glide angles to servo range (±AMPLITUDE_MAXIMA_SERVO_PADRAO)
+  alvoEsquerdo = constrain(alvoEsquerdo, -AMPLITUDE_MAXIMA_SERVO_PADRAO, AMPLITUDE_MAXIMA_SERVO_PADRAO);
+  alvoDireito  = constrain(alvoDireito,  -AMPLITUDE_MAXIMA_SERVO_PADRAO, AMPLITUDE_MAXIMA_SERVO_PADRAO);
+
   // Nota: servo 0 = -60° (up position), 180 = +60° (down position)
   // Logo "subir" = mover para menor ângulo = decrescer posicao servo
   float ferocidadeEsquerdo = (anguloGlideEsquerdo > alvoEsquerdo)
@@ -561,34 +573,39 @@ inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireit
   float ferocidadeDireito = (anguloGlideDireito > alvoDireito)
     ? mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO)
     : mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
-  
+
+  // Glide mínimo: mesmo com CH7/CH8 a 1000, as asas respondem ao stick
+  static constexpr float FEROCIDADE_MINIMA_GLIDE = 1.0f;
+  ferocidadeEsquerdo = fmax(ferocidadeEsquerdo, FEROCIDADE_MINIMA_GLIDE);
+  ferocidadeDireito  = fmax(ferocidadeDireito,  FEROCIDADE_MINIMA_GLIDE);
+
   // Taxa de movimento = ferocidade * velocidadeAngular * delta_micros
   uint32_t agora = micros();
   uint32_t deltaMicros = agora - microsUltimoPasso;
   if (deltaMicros > 100000) deltaMicros = 100000;  // max 100ms safety
   microsUltimoPasso = agora;
-  
+
   // Passo máximo permitido para cada asa
   float passoMaxEsquerdo = ferocidadeEsquerdo * velocidadeAngularPorMicros * deltaMicros;
   float passoMaxDireito = ferocidadeDireito * velocidadeAngularPorMicros * deltaMicros;
-  
+
   // Calcula erros
   float erroEsquerdo = alvoEsquerdo - anguloGlideEsquerdo;
   float erroDireito = alvoDireito - anguloGlideDireito;
-  
+
   // Move na direção correta, limitado ao passo máximo
   if (fabs(erroEsquerdo) <= passoMaxEsquerdo) {
     anguloGlideEsquerdo = alvoEsquerdo;  // Chegou ao alvo
   } else {
     anguloGlideEsquerdo += (erroEsquerdo > 0) ? passoMaxEsquerdo : -passoMaxEsquerdo;
   }
-  
+
   if (fabs(erroDireito) <= passoMaxDireito) {
     anguloGlideDireito = alvoDireito;  // Chegou ao alvo
   } else {
     anguloGlideDireito += (erroDireito > 0) ? passoMaxDireito : -passoMaxDireito;
   }
-  
+
   // Debug: reportar progresso (~2Hz)
   if (ecosPrescindiveis && (agora % 500000 < deltaMicros)) {
     ecosPrescindiveis->print("[GLIDE] Transição: esq=");
@@ -1054,6 +1071,10 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
   anguloDaDancaAlada = 0;
   cadenciaDoDestinoAlado = 0;
   amplitudeMaximaPermitida = 0.0f;
+  // Reset do glide — força recaptura da posição actual das asas
+  emTransicaoParaGlide = false;
+  anguloGlideEsquerdo = INFINITY;
+  anguloGlideDireito = INFINITY;
   if (ecosPrescindiveis) {
     ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se formou — o Firmamento canta!");
     ecosPrescindiveis->print("[PRESAGIO] Sopros no vento após o elo: ");
