@@ -712,11 +712,12 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       // Física: A_max = velocidadeAngular / (2 * freq) [graus]
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
-      // Mapeamento linear directo CH6 1000–2000 → FREQ_MINIMA–FREQ_MAXIMA_ALT
+      // Mapeamento linear CH6 1000–2000 → FREQ_MINIMA–freqMaximaFisica
+      // Freq máxima = 3/ciclo (≈43 Hz @ 70ms): amplitude física a 10°
       // sem zona morta: cada posição do pot corresponde a uma frequência distinta
-      const float FREQ_MAXIMA_ALT = 15.0f;
       const float FREQ_MINIMA = 0.05f;
-      float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (FREQ_MAXIMA_ALT - FREQ_MINIMA);
+      float freqMaximaFisica = 3.0f / cicloDoCoracaoAlado;
+      float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (freqMaximaFisica - FREQ_MINIMA);
       
       amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
       if (amplitudeMaximaPermitida < 0.0f) amplitudeMaximaPermitida = 0.0f;
@@ -904,9 +905,9 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   // no momento exacto da escrita, eliminando a perseguição atrasada.
   // EMA adaptativo: flap rápido precisa de alpha alto para seguir a onda;
   // glide lento usa alpha baixo para suavidade. cutoff(−3dB) = α/(2π·Ts·(1−α))
-  // α=0.30 → fc=3.4Hz (glide); α=0.65 → fc=14.8Hz (flap até 10Hz)
+  // α=0.30 → fc=3.4Hz (glide); α=0.85 → fc≈30Hz (flap até 43Hz)
   bool emFlap = (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS);
-  const float ALPHA_EMA = emFlap ? 0.72f : 0.30f;
+  const float ALPHA_EMA = emFlap ? 0.85f : 0.30f;
   const uint32_t INTERVALO_MIN_US = 20000;  // 20ms = 50Hz
   uint32_t agoraUs = micros();
   bool tickE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);

@@ -226,7 +226,6 @@ const ACELERACAO_DO_COMPASSO       = 8.0;
 
 // Constantes do modo Alternativo
 const FREQ_MINIMA_ALT = 0.05;
-const FREQ_MAXIMA_ALT_HZ = 15.0;      // frequência máxima realista de asa
 const AMPLITUDE_MAXIMA_SERVO = 55.0;  // limite físico do servo com margem de segurança
 
 let modoAlternativo = false;
@@ -332,7 +331,8 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
     // CH9 → amplitude differential (independente, invertido: 1000→dir, 2000→esq)
     const bracosDoRelogio = Math.max(0, Math.min(1, (ch6 - 1000.0) * 0.001)); // 0–1
-    const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (FREQ_MAXIMA_ALT_HZ - FREQ_MINIMA_ALT);
+    const freqMaximaFisica = 3.0 / (cicloMs * 0.001);  // ≈43 Hz @ 70ms
+    const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (freqMaximaFisica - FREQ_MINIMA_ALT);
 
     cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
 
