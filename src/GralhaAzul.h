@@ -634,8 +634,8 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
 
-  const float PI = 3.14159265358979f;
-  const float TWO_PI = LIMITE_ANGULAR_DO_GIRO_PADRAO;
+  const float pi = 3.14159265358979f;
+  const float twoPi = LIMITE_ANGULAR_DO_GIRO_PADRAO;
 
   float fD = constrain(ferocidadeDoBater,   0.0f, 8.0f);
   float fS = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
@@ -648,7 +648,7 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   } else {
     float wD_fb = fmax(8.0f - fD, 0.01f);
     float wS_fb = fmax(8.0f - fS, 0.01f);
-    limiar = TWO_PI * wD_fb / (wD_fb + wS_fb);
+    limiar = twoPi * wD_fb / (wD_fb + wS_fb);
   }
 
   bool descida = (theta < limiar);
@@ -657,7 +657,7 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
     t = theta / limiar;
     ferocidade = fD;
   } else {
-    t = (theta - limiar) / (TWO_PI - limiar);
+    t = (theta - limiar) / (twoPi - limiar);
     ferocidade = fS;
   }
   d = ferocidade * 0.125f;  // f/8, [0,1]
@@ -667,7 +667,7 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   if (t < dh) return descida ? 1.0f : -1.0f;             // dwell extremo inicial
   if (t > 1.0f - dh) return descida ? -1.0f : 1.0f;      // dwell extremo final
 
-  float ramp = cosf(PI * (t - dh) / (1.0f - d));
+  float ramp = cosf(pi * (t - dh) / (1.0f - d));
   return descida ? ramp : -ramp;
 }
 
@@ -857,20 +857,20 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     // CH9 desloca ferocidades no regime trapezoidal (f→0) e desloca o
     // limiar (duty cycle) no regime quadrado (f→8). A transição é contínua:
     // quadFactor = 0 → puro f-shift; 1 → puro limiar-shift.
-    const float PI = 3.14159265358979f;
-    const float TWO_PI = LIMITE_ANGULAR_DO_GIRO_PADRAO;
+    const float pi = 3.14159265358979f;
+    const float twoPi = LIMITE_ANGULAR_DO_GIRO_PADRAO;
     float fDbase = constrain(ferocidadeDoBater, 0.0f, 8.0f);
     float fSbase = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
     float wDbase = fmax(8.0f - fDbase, 0.01f);
     float wSbase = fmax(8.0f - fSbase, 0.01f);
-    float limiarBase = TWO_PI * wDbase / (wDbase + wSbase);
+    float limiarBase = twoPi * wDbase / (wDbase + wSbase);
     float avgF = (fDbase + fSbase) * 0.5f;
     float quadFactor = constrain((avgF - 6.0f) / 2.0f, 0.0f, 1.0f);  // 0@f≤6 → 1@f=8
-    float shift = fatorDoLeme * (PI / 8.0f);
+    float shift = fatorDoLeme * (pi / 8.0f);
 
-    // Limiar: interpola do base (trapezoidal) para PI±shift (quadrado)
-    float limiarEsq = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(PI - shift, 0.05f, TWO_PI - 0.05f);
-    float limiarDir = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(PI + shift, 0.05f, TWO_PI - 0.05f);
+    // Limiar: interpola do base (trapezoidal) para pi±shift (quadrado)
+    float limiarEsq = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(pi - shift, 0.05f, twoPi - 0.05f);
+    float limiarDir = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(pi + shift, 0.05f, twoPi - 0.05f);
 
     // Ferocidades: CH9 shift atenua com quadFactor; em quad puro fica 8
     float fBE = constrain(ferocidadeDoBater + fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
