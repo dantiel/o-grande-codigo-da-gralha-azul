@@ -712,12 +712,13 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       // Física: A_max = velocidadeAngular / (2 * freq) [graus]
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
-      // Mapeamento linear CH6 1000–2000 → FREQ_MINIMA–freqMaximaFisica
-      // f_max = v_servo / A_max : frequência de canto onde amplitude = 55°
-      // Acima disto a amplitude cai naturalmente: A = v/(2f)
-      // v_servo = 60°/ciclo → f_max = 60/(ciclo × 55) ≈ 15.6 Hz @ 70ms
+      // CH6 1000–2000 → 0.05 Hz até f_max, onde a amplitude ainda é plena.
+      // f_max = v_servo / (2·A_max) : frequência-limite para 55° completos.
+      // v_servo = 60°/ciclo → f_max = 60/(ciclo × 110) ≈ 7.8 Hz @ 70ms
+      // Acima disto o servo já não consegue percorrer a amplitude pedida;
+      // aqui pára-se antes — o ornitóptero não zumbe, bate.
       const float FREQ_MINIMA = 0.05f;
-      float freqMaximaFisica = velocidadeAngularServo / AMPLITUDE_MAXIMA_SERVO_PADRAO;
+      float freqMaximaFisica = velocidadeAngularServo / (2.0f * AMPLITUDE_MAXIMA_SERVO_PADRAO);
       float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (freqMaximaFisica - FREQ_MINIMA);
       
       amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);

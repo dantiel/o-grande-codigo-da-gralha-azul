@@ -331,8 +331,8 @@ function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
     // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
     // CH9 → amplitude differential (independente, invertido: 1000→dir, 2000→esq)
     const bracosDoRelogio = Math.max(0, Math.min(1, (ch6 - 1000.0) * 0.001)); // 0–1
-    // f_max = v_servo / A_max : frequência de canto — amplitude plena ainda possível
-    const freqMaximaFisica = velocidadeAngularServo / AMPLITUDE_MAXIMA_SERVO;
+    // f_max = v_servo / (2·A_max) : frequência onde amplitude ainda é plena
+    const freqMaximaFisica = velocidadeAngularServo / (2.0 * AMPLITUDE_MAXIMA_SERVO);
     const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (freqMaximaFisica - FREQ_MINIMA_ALT);
 
     cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
