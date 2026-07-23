@@ -839,7 +839,8 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
       // Modo alternativo BIRD-LIKE: frequência(CH6) → amplitude_max, throttle → % dessa amplitude
       // CH9 = rudder ferocity (independente)
       // Throttle escala de 0 até amplitudeMaximaPermitida (calculada acima pela física do servo)
-      float percentagemSopro = constrain((soproEfetivo - 1000.0f) * 0.001f, 0.0f, 1.0f);  // 1000→2000 → 0→1, usa soproEfetivo (respeita sustentar)
+      // Linear com offset: amplitude 0 no limiar do flap (1040), 100% a 2000
+      float percentagemSopro = constrain((soproEfetivo - 1040.0f) / (2000.0f - 1040.0f), 0.0f, 1.0f);
       // Fallback: primeiro frame de flap após armar — amplitudeMaximaPermitida ainda 0
       // porque animarPulsarDoCoracaoAlado() correu em modo glide. Calcula localmente.
       if (amplitudeMaximaPermitida <= 0.0f) {
@@ -851,8 +852,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
         if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO)
           amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
       }
-      // Quadrático: início muito suave. 25% throttle → 6%, 50%→25%, 100%→100%
-      amplitudeDoBater = percentagemSopro * percentagemSopro * amplitudeMaximaPermitida;
+      amplitudeDoBater = percentagemSopro * amplitudeMaximaPermitida;
     } else {
       // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
       amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDoCompassoDaAlma - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
