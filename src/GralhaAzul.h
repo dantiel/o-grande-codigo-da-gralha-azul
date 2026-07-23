@@ -1076,7 +1076,9 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
   jaCruzouLimiarDeVoo = false;
   guardiaoInicializado = false;
   // Reset limpo — sem memória de voo anterior
-  anguloDaDancaAlada = 0;
+  // π/2 = meio do ciclo descendente → formaDoBaterDasAsas ≈ 0 (neutro).
+  // Evita que as asas disparem para o extremo no primeiro frame de flap.
+  anguloDaDancaAlada = 1.57079632679f;  // π/2
   cadenciaDoDestinoAlado = 0;
   amplitudeMaximaPermitida = 0.0f;
   // Reset do glide — força recaptura da posição actual das asas
