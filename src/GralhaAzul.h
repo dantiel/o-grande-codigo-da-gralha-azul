@@ -712,12 +712,10 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       // Física: A_max = velocidadeAngular / (2 * freq) [graus]
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
-      // CH6 1000–2000 → 1–15 Hz linear. Sem cap artificial de amplitude.
-      // A física dita: A = v_servo / (2·f). Abaixo de ~7.8 Hz o servo consegue
-      // os 55° completos (cap mecânico). Acima, a amplitude cai naturalmente:
-      // 10 Hz → 42.8°, 12 Hz → 35.7°, 15 Hz → 28.6°.
+      // CH6 1000–2000 → 1–8 Hz linear. 8 Hz = v_servo/(2·55°) — frequência
+      // de canto onde o servo ainda entrega amplitude plena. Sem cap artificial.
       const float FREQ_MINIMA = 1.0f;
-      const float FREQ_MAXIMA = 15.0f;
+      const float FREQ_MAXIMA = 8.0f;
       float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (FREQ_MAXIMA - FREQ_MINIMA);
       
       amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
