@@ -713,10 +713,11 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
       // Mapeamento linear CH6 1000–2000 → FREQ_MINIMA–freqMaximaFisica
-      // Freq máxima = 3/ciclo (≈43 Hz @ 70ms): amplitude física a 10°
-      // sem zona morta: cada posição do pot corresponde a uma frequência distinta
+      // f_max = v_servo / A_max : frequência de canto onde amplitude = 55°
+      // Acima disto a amplitude cai naturalmente: A = v/(2f)
+      // v_servo = 60°/ciclo → f_max = 60/(ciclo × 55) ≈ 15.6 Hz @ 70ms
       const float FREQ_MINIMA = 0.05f;
-      float freqMaximaFisica = 3.0f / cicloDoCoracaoAlado;
+      float freqMaximaFisica = velocidadeAngularServo / AMPLITUDE_MAXIMA_SERVO_PADRAO;
       float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (freqMaximaFisica - FREQ_MINIMA);
       
       amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
