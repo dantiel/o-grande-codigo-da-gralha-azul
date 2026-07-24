@@ -648,6 +648,13 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   // das ferocidades base (sem CH9). Cada asa aplica o seu próprio dwell dentro
   // da mesma janela temporal, mantendo o sincronismo do bater.
 
+  // Fast-path: ferocidade máxima → onda quadrada pura, sem float math
+  if (ferocidadeDoBater >= 7.999f && ferocidadeDoRetorno >= 7.999f) {
+    float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
+    if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
+    return (theta < 3.14159265358979f) ? 1.0f : -1.0f;
+  }
+
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
 
@@ -910,16 +917,21 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   // Filtro EMA sincronizado com cadência de 50Hz.
-  // v1.30.15 dessincronizava EMA (200Hz) das escritas (50Hz),
-  // causando saltos de 10–52 passos entre writes consecutivos —
-  // o servo recebia valores "fantasma" do EMA de há 15ms atrás.
-  // Agora: EMA e write correm ambos a 50Hz. O raw é capturado
-  // no momento exacto da escrita, eliminando a perseguição atrasada.
-  // EMA adaptativo: flap rápido precisa de alpha alto para seguir a onda;
-  // glide lento usa alpha baixo para suavidade. cutoff(−3dB) = α/(2π·Ts·(1−α))
-  // α=0.30 → fc=3.4Hz (glide); α=0.85 → fc≈30Hz (flap até 43Hz)
-  bool emFlap = (modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS);
-  const float ALPHA_EMA = emFlap ? 0.85f : 0.30f;
+  // EMA adaptativo: glide → α=0.30 (fc 3.4Hz, suave nos sticks)
+  // flap sinusoidal → α=0.85 (fc 45Hz, segue onda até ~15Hz)
+  // flap quadrado (f≥7) → α=1.00 (raw directo — o servo já tem inércia)
+  // A ferocidade média determina a "quadratura" da onda: f alto = mais quadrada.
+  float alphaEma;
+  if (modoPresenteDoEspirito != EM_RITMO_DE_BATIDA_DAS_ASAS) {
+    alphaEma = 0.30f;
+  } else {
+    // Ferocidade média rápida a partir dos canais crus (0–8 range)
+    float fRaw = (vozDaFerocidadeDoBater + vozDaFerocidadeDoRetorno) * (4.0f / 1000.0f) - 8.0f;
+    // fRaw: 0 quando ambos=1000, 8 quando ambos=2000
+    if (fRaw >= 7.0f)      alphaEma = 1.00f;  // quadrado puro → raw, sem filtro
+    else if (fRaw >= 5.0f) alphaEma = 0.92f;  // misto → transição rápida
+    else                    alphaEma = 0.85f;  // sinusoidal → tracking suave
+  }
   const uint32_t INTERVALO_MIN_US = 20000;  // 20ms = 50Hz
   uint32_t agoraUs = micros();
   bool tickE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);
@@ -929,7 +941,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   int escreveEsq = (int)lround(emaServoEsquerdo);
   int escreveDir = (int)lround(emaServoDireito);
   if (tickE) {
-    emaServoEsquerdo = ALPHA_EMA * novoEsquerdo + (1.0f - ALPHA_EMA) * emaServoEsquerdo;
+    emaServoEsquerdo = alphaEma * novoEsquerdo + (1.0f - alphaEma) * emaServoEsquerdo;
     escreveEsq = (int)lround(emaServoEsquerdo);
     if (escreveEsq != ultimoEscritoEsquerdo) {
       tendaoDaAsaMatutina.write(escreveEsq);
@@ -939,7 +951,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     ultimoMicrosEscritaEsquerdo = agoraUs;
   }
   if (tickD) {
-    emaServoDireito = ALPHA_EMA * novoDireito + (1.0f - ALPHA_EMA) * emaServoDireito;
+    emaServoDireito = alphaEma * novoDireito + (1.0f - alphaEma) * emaServoDireito;
     escreveDir = (int)lround(emaServoDireito);
     if (escreveDir != ultimoEscritoDireito) {
       tendaoDaAsaVespertina.write(escreveDir);
