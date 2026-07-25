@@ -1,0 +1,1040 @@
+
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Simulador da Gralha Azul — Phase Warp v1.31.1</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #f0883e;
+    --danger: #f85149;
+    --green: #3fb950;
+    --purple: #a371f7;
+    --wing: #f0c060;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; padding: 20px;
+  }
+  .container {
+    max-width: 1100px; width: 100%;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  header {
+    text-align: center; padding: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  header h1 { font-size: 1.4rem; color: var(--accent); }
+  header .subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  .panels {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) { .panels { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+  }
+  .panel h2 { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  canvas { display: block; width: 100%; border-radius: 4px; }
+  #servo-canvas { background: #0a0e14; }
+  #graph-canvas { background: #0a0e14; }
+  .controls {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
+  .control-group label {
+    font-size: 0.75rem; color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+  .control-group label span.val {
+    color: var(--accent); font-weight: 600;
+    display: inline-block; min-width: 42px; text-align: right;
+  }
+  .control-group input[type=range] {
+    width: 100%; accent-color: var(--accent);
+  }
+  .control-row {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .control-row input[type=number] {
+    width: 72px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 6px; font-size: 0.8rem; text-align: center;
+  }
+  .mode-toggle {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .mode-toggle button {
+    padding: 4px 12px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+    border-radius: 4px; cursor: pointer; font-size: 0.75rem;
+  }
+  .mode-toggle button.active {
+    background: var(--accent); color: #000; border-color: var(--accent);
+  }
+  .link-toggle {
+    display: inline-flex; gap: 2px; margin-left: 8px; vertical-align: middle;
+  }
+  .link-toggle button {
+    padding: 1px 7px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--muted); border-radius: 4px;
+    cursor: pointer; font-size: 0.65rem; line-height: 1.4;
+  }
+  .link-toggle button.active {
+    background: var(--accent); color: #000; border-color: var(--accent);
+  }
+  #btn-mirrored { transform: scaleX(-1); }
+  .mode-toggle button.muted {
+    background: var(--danger); color: #fff; border-color: var(--danger);
+  }
+  .info-bar {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    font-size: 0.72rem; color: var(--muted);
+  }
+  .info-bar > div { white-space: nowrap; }
+  .info-bar span {
+    color: var(--text); font-weight: 600;
+    display: inline-block; min-width: 54px; text-align: right;
+  }
+  footer {
+    text-align: center; font-size: 0.7rem; color: var(--muted);
+    padding: 8px;
+  }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🐦‍⬛ O Simulador da Gralha Azul</h1>
+    <div class="subtitle">Trapezoidal Extremo-a-Extremo v1.32.0 — Duração variável: (8−f)</div>
+  </header>
+
+  <div class="panels">
+    <div class="panel">
+      <h2>🔭 Vista Frontal — Servos &amp; Vara de Carbono</h2>
+      <canvas id="servo-canvas" width="400" height="400"></canvas>
+    </div>
+    <div class="panel">
+      <h2>🌊 Ondas Internas — cos(θ) vs formaDoBater</h2>
+      <canvas id="graph-canvas" width="660" height="300"></canvas>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>CH7 · Ferocidade do Bater <span class="val" id="val-ch7">4.0</span></label>
+      <input type="range" id="ch7" min="1000" max="2000" value="1500" step="1">
+      <div class="link-toggle">
+        <button id="btn-independent" class="active" title="Independentes">∥</button>
+        <button id="btn-synced" title="Sincronizados">↔</button>
+        <button id="btn-mirrored" title="Espelhados">↔</button>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>CH8 · Ferocidade do Retorno <span class="val" id="val-ch8">4.0</span></label>
+      <input type="range" id="ch8" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH3 · Sopro Vital (Throttle) <span class="val" id="val-ch3">1280</span></label>
+      <input type="range" id="ch3" min="1000" max="2000" value="1280" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH4 · Leme Estelar (Yaw) <span class="val" id="val-ch4">1500</span></label>
+      <input type="range" id="ch4" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label id="label-ch6">CH6 · Compasso (Frequência) <span class="val" id="val-ch6">1500</span></label>
+      <input type="range" id="ch6" min="1000" max="2000" value="1500" step="1">
+    </div>
+    <div class="control-group">
+      <label>CH9 · Ferocidade do Leme <span class="val" id="val-ch9">1500</span></label>
+      <input type="range" id="ch9" min="1000" max="2000" value="1500" step="1">
+      <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;margin-top:2px;cursor:pointer">
+        <input type="checkbox" id="cb-couple-rudder" style="accent-color:var(--accent);width:14px;height:14px">
+        🔗 Acoplar CH9→CH4
+      </label>
+    </div>
+    <div class="control-group">
+      <label>Ciclo do Coração Alado (ms)</label>
+      <div class="control-row">
+        <input type="number" id="ciclo" value="70" min="30" max="200" step="1">
+        <span style="font-size:0.7rem;color:var(--muted)">servo °/s</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>Modo de Voo</label>
+      <div class="mode-toggle">
+        <button id="btn-normal" class="active">Normal (PI)</button>
+        <button id="btn-alt">Alternativo</button>
+        <button id="btn-sound" style="margin-left:8px">🔇 Som</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-bar">
+    <div>Ângulo da Dança: <span id="info-angulo">0.00</span> rad</div>
+    <div>Cadência: <span id="info-cadencia">0.00</span> rad/s</div>
+    <div>Frequência: <span id="info-freq">0.00</span> Hz</div>
+    <div>Amplitude: <span id="info-amp">0.0</span>°</div>
+    <div>Pulso Asa: <span id="info-pulso">0.000</span></div>
+    <div>Dwell: <span id="info-dwell">0</span>% / <span id="info-duracao">0.00</span>rad</div>
+  </div>
+
+  <footer>
+    <a href="https://github.com/your-repo/o-grande-codigo-da-gralha-azul">O Grande Código da Gralha Azul</a>
+    — Modelo Trapezoidal · branch <code>feature/phase-warp-ferocity</code>
+  </footer>
+</div>
+
+<script>
+// =========================================================================
+//  O GRANDE CÓDIGO DA GRALHA AZUL — Waveform Logic (portado para JS)
+//  Espelha GralhaAzul.h v1.31.1 — Phase Warp Model
+// =========================================================================
+
+const TWO_PI = 2 * Math.PI;
+const PI = Math.PI;
+
+// Constantes do Modelo Trapezoidal
+const FEROCIDADE_MINIMA  = 0.0;
+const FEROCIDADE_MAXIMA  = 8.0;
+
+// Constantes do modo Normal
+const MAGNITUDE_DA_BATIDA          = 0.04;
+const MODULACAO_DO_COMPASSO        = 0.0003;
+const LIMIAR_DO_VOO_ATIVO          = 1040;
+const ACELERACAO_DO_COMPASSO       = 8.0;
+
+// Constantes do modo Alternativo
+const FREQ_MINIMA_ALT = 0.5;
+// FREQ_MAXIMA_ALT agora é calculada dinamicamente: v_servo / (4 × 55°)
+const AMPLITUDE_MAXIMA_SERVO = 55.0;  // limite físico do servo com margem de segurança
+
+let modoAlternativo = false;
+let coupleRudder = false;
+let coupleGuard = false; // evita loops ao acoplar CH9↔CH4
+let linkMode = 'independent'; // 'independent' | 'synced' | 'mirrored'
+let linkGuard = false; // evita loops infinitos ao actualizar sliders
+
+// ── Simulação da física do servo (inércia + velocidade angular máxima) ──
+let servoAngleEsquerdo = 0.0;
+let servoAngleDireito = 0.0;
+let ultimoServoAngleEsq = 0.0;
+let ultimoServoAngleDir = 0.0;
+
+// ── Mapeamento linear RC → valores internos ──
+function mapearRC(x, outMin, outMax) {
+  return ((x - 1000.0) / 1000.0) * (outMax - outMin) + outMin;
+}
+
+// ── FORMA DO BATER DAS ASAS ────────────────────────────────────────────
+//  Porte directo de GralhaAzul.h:formaDoBaterDasAsas()
+//  Modelo Trapezoidal Extremo-a-Extremo com Duração Variável
+//  Cada meia-onda: dwell d/2 no extremo inicial + rampa + dwell d/2 no final
+//  Nos extremos, dwells adjacentes somam-se — planaltos simétricos.
+//  O limiar (fronteira descida/subida) é partilhado entre asas — calculado
+//  das ferocidades base (sem CH9). Cada asa aplica o seu próprio dwell dentro
+//  da mesma janela temporal, mantendo o sincronismo do bater.
+function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno, limiarShared) {
+  // Fast-path: ferocidade máxima → onda quadrada pura
+  if (fBater >= 7.999 && fRetorno >= 7.999) {
+    let theta = anguloDoCiclo % TWO_PI;
+    if (theta < 0) theta += TWO_PI;
+    return (theta < PI) ? 1.0 : -1.0;
+  }
+
+  let theta = anguloDoCiclo % TWO_PI;
+  if (theta < 0) theta += TWO_PI;
+
+  const fD = Math.max(0, Math.min(8, fBater));
+  const fS = Math.max(0, Math.min(8, fRetorno));
+
+  // Limiar partilhado — ambas as asas mudam de direcção no mesmo θ.
+  const limiar = (limiarShared != null) ? limiarShared : TWO_PI * 0.5;
+
+  const descida = (theta < limiar);
+  const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
+  const ferocidade = descida ? fD : fS;
+  const d = ferocidade / 8.0;
+  const dh = d * 0.5;  // d/2 por extremo
+
+  if (d >= 1.0) return descida ? 1.0 : -1.0;
+  if (t < dh) return descida ? 1.0 : -1.0;             // dwell extremo inicial
+  if (t > 1.0 - dh) return descida ? -1.0 : 1.0;       // dwell extremo final
+  const ramp = Math.cos(PI * (t - dh) / (1.0 - d));
+  return descida ? ramp : -ramp;
+}
+
+// ── DERIVADA DO BATER DAS ASAS ─────────────────────────────────────────
+//  d(forma)/dθ — velocidade angular da forma de onda (forma/s).
+//  Usada para sonificação: som ∝ |velocidade da asa|, não posição.
+//  Velocidade zero nos dwells; picos nas rampas; satura ao limite do servo.
+function derivadaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno, limiarShared) {
+  let theta = anguloDoCiclo % TWO_PI;
+  if (theta < 0) theta += TWO_PI;
+
+  const fD = Math.max(0, Math.min(8, fBater));
+  const fS = Math.max(0, Math.min(8, fRetorno));
+  const limiar = (limiarShared != null) ? limiarShared : TWO_PI * 0.5;
+
+  const descida = (theta < limiar);
+  const t = descida ? (theta / limiar) : ((theta - limiar) / (TWO_PI - limiar));
+  const ferocidade = descida ? fD : fS;
+  const d = ferocidade / 8.0;
+  const dh = d * 0.5;
+  const duracao = descida ? limiar : (TWO_PI - limiar);
+
+  // Quadrada pura (d≥1): clamp a 0.999 — rampa quase instantânea gera
+  // pico de derivada enorme que o tanh satura → estalidos percussivos.
+  const dClamp = Math.min(d, 0.999);
+
+  const dhClamp = dClamp * 0.5;
+
+  // Dwell: velocidade zero
+  if (t < dhClamp || t > 1.0 - dhClamp) return 0.0;
+
+  // Rampa cos: d/dt[±cos(π(t-dh)/(1-d))] = ∓π/(1-d)·sin(π(t-dh)/(1-d))
+  const arg = PI * (t - dhClamp) / (1.0 - dClamp);
+  const dForma_dt = (descida ? -PI : PI) / (1.0 - dClamp) * Math.sin(arg);
+
+  // d(forma)/dθ = d(forma)/dt × dt/dθ = d(forma)/dt / duracao
+  return dForma_dt / duracao;
+}
+
+// ── Estado Dinâmico ────────────────────────────────────────────────────
+let anguloDaDancaAlada = 0.0;
+let cadenciaDoDestinoAlado = 0.0;
+
+function resetState() {
+  anguloDaDancaAlada = 0.0;
+  cadenciaDoDestinoAlado = 0.0;
+}
+
+// ── Actualiza a fase (equivale a animarPulsarDoCoracaoAlado) ──────────
+function actualizarFase(dt, throttle, ch6, ch9, cicloMs) {
+  const velocidadeAngularServo = 60.0 / (cicloMs * 0.001); // °/s
+
+  if (modoAlternativo) {
+    // Modo Alternativo BIRD-LIKE
+    // CH6 → frequência (linear, 1000–2000 → 0.5–f_max Hz)
+    // f_max = v_servo/(4·55°) — 50% do ciclo para pausar nos extremos (águia).
+    // CH3 (throttle) → % de amplitude (0–100%, saturada a 1280 µs)
+    // CH9 → amplitude differential (independente, invertido: 1000→dir, 2000→esq)
+    const bracosDoRelogio = Math.max(0, Math.min(1, (ch6 - 1000.0) * 0.001)); // 0–1
+    const freqMaxAlt = velocidadeAngularServo / (4.0 * AMPLITUDE_MAXIMA_SERVO);
+    const freqEfetiva = FREQ_MINIMA_ALT + bracosDoRelogio * (freqMaxAlt - FREQ_MINIMA_ALT);
+
+    cadenciaDoDestinoAlado = freqEfetiva * TWO_PI; // rad/s
+
+    // Apenas o limite mecânico do servo — sem floor artificial
+    const ampMax = Math.min(AMPLITUDE_MAXIMA_SERVO, velocidadeAngularServo / (2.0 * freqEfetiva));
+    // Linear com offset: amplitude 0 no limiar do flap (1040), 100% a 2000
+    const percentagemSopro = Math.max(0, Math.min(1, (throttle - 1040.0) / (2000.0 - 1040.0)));
+    const amplitudeDoBater = percentagemSopro * ampMax;
+
+    anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
+    if (Math.abs(anguloDaDancaAlada) > TWO_PI)
+      anguloDaDancaAlada %= TWO_PI;
+
+    // CH9 → ferocidade do leme (diferencial nos CH7/CH8 entre asas, ±4)
+    const fatorLeme = (1500.0 - ch9) / 125.0; // 1000→+4 (esq mais quadrada), 2000→−4 (dir)
+    return { amplitudeDoBater, cadencia: cadenciaDoDestinoAlado, fatorLeme };
+
+  } else {
+    // Modo Normal (PI)
+    // CH6 → compasso (multiplicador de frequência, centro=1x)
+    // CH9 → ferocidade do leme (diferencial de ferocidade, ±4)
+    const intencaoDeCadencia = (throttle - 1000.0) / (120.0 * cicloMs * 0.001);
+
+    // CH6 → fatorCompasso [0.5, 1.5] — escala a cadência base
+    const fatorCompasso = 1.0 + (ch6 - 1500.0) / 1000.0;
+
+    if (throttle > LIMIAR_DO_VOO_ATIVO) {
+      // Em voo: persegue a cadência alvo (dinâmica de 1ª ordem)
+      const variacao = fatorCompasso * intencaoDeCadencia - 10.0 * cadenciaDoDestinoAlado;
+      cadenciaDoDestinoAlado += variacao * dt;
+    } else {
+      // Em glide/parado: decaimento
+      cadenciaDoDestinoAlado *= 0.90;
+      if (Math.abs(cadenciaDoDestinoAlado) < 0.001) cadenciaDoDestinoAlado = 0;
+    }
+
+    anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
+    if (Math.abs(anguloDaDancaAlada) > TWO_PI)
+      anguloDaDancaAlada %= TWO_PI;
+
+    // Amplitude (modo normal) — com ceiling físico do servo
+    const soproEfetivo = Math.max(throttle, LIMIAR_DO_VOO_ATIVO);
+    const amplitudeDoBater = Math.min(AMPLITUDE_MAXIMA_SERVO,
+      (soproEfetivo - LIMIAR_DO_VOO_ATIVO) * MAGNITUDE_DA_BATIDA);
+
+    // CH9 → Ferocidade do Leme (diferencial, alinhado com CH4)
+    const fatorLeme = (1500.0 - ch9) / 125.0; // 1000→+4 (esq), 2000→−4 (dir)
+
+    return {
+      amplitudeDoBater: Math.max(0, amplitudeDoBater),
+      cadencia: cadenciaDoDestinoAlado,
+      fatorLeme: fatorLeme,
+      fatorCompasso: fatorCompasso
+    };
+  }
+}
+
+// =========================================================================
+//  VISUALIZAÇÃO — Servos + Vara de Carbono
+// =========================================================================
+const servoCtx = document.getElementById('servo-canvas').getContext('2d');
+
+function drawServos(servoAngleEsq, servoAngleDir, amplitudeGraus) {
+  const W = 400, H = 400;
+  servoCtx.clearRect(0, 0, W, H);
+
+  // Parâmetros do desenho
+  const cx = W / 2, cy = H * 0.55;
+  const fuselagemW = 28, fuselagemH = 120;
+  const pivotOffsetX = 20;
+  const armLen = 70;
+  const wingLen = 140;
+  const maxAngle = (amplitudeGraus || AMPLITUDE_MAXIMA_SERVO) * (Math.PI / 180);
+
+  // Ângulos visuais (positivo = para cima) — já limitados pela física do servo
+  const leftAngle  = servoAngleEsq * (Math.PI / 180);
+  const rightAngle = servoAngleDir * (Math.PI / 180);
+
+  // Posições dos pivots
+  const leftPivotX  = cx - pivotOffsetX;
+  const rightPivotX = cx + pivotOffsetX;
+  const pivotY = cy;
+
+  // Posições das pontas dos braços (cada servo com seu ângulo independente)
+  const leftTipX  = leftPivotX  - armLen * Math.cos(leftAngle);
+  const leftTipY  = pivotY      - armLen * Math.sin(leftAngle);
+  const rightTipX = rightPivotX + armLen * Math.cos(rightAngle);
+  const rightTipY = pivotY      - armLen * Math.sin(rightAngle);
+
+  // ── Fuselagem ──
+  servoCtx.fillStyle = '#2a3040';
+  servoCtx.strokeStyle = '#4a5568';
+  servoCtx.lineWidth = 1.5;
+  roundRect(servoCtx, cx - fuselagemW/2, cy - fuselagemH/2, fuselagemW, fuselagemH, 6);
+  servoCtx.fill();
+  servoCtx.stroke();
+
+  // ── Pivots dos servos ──
+  [leftPivotX, rightPivotX].forEach(px => {
+    servoCtx.beginPath();
+    servoCtx.arc(px, pivotY, 5, 0, TWO_PI);
+    servoCtx.fillStyle = '#5865f2';
+    servoCtx.fill();
+    servoCtx.strokeStyle = '#8899ff';
+    servoCtx.lineWidth = 1;
+    servoCtx.stroke();
+  });
+
+  // ── Braços dos servos ──
+  servoCtx.strokeStyle = '#c0c8e0';
+  servoCtx.lineWidth = 4;
+  servoCtx.lineCap = 'round';
+  servoCtx.beginPath();
+  servoCtx.moveTo(leftPivotX, pivotY);
+  servoCtx.lineTo(leftTipX, leftTipY);
+  servoCtx.stroke();
+  servoCtx.beginPath();
+  servoCtx.moveTo(rightPivotX, pivotY);
+  servoCtx.lineTo(rightTipX, rightTipY);
+  servoCtx.stroke();
+
+  // ── Asas (extensões dos braços) ──
+  servoCtx.strokeStyle = 'rgba(240,192,96,0.5)';
+  servoCtx.lineWidth = 2;
+  const leftWingTipX  = leftPivotX  - (armLen + wingLen) * Math.cos(leftAngle);
+  const leftWingTipY  = pivotY      - (armLen + wingLen) * Math.sin(leftAngle);
+  const rightWingTipX = rightPivotX + (armLen + wingLen) * Math.cos(rightAngle);
+  const rightWingTipY = pivotY      - (armLen + wingLen) * Math.sin(rightAngle);
+  servoCtx.beginPath();
+  servoCtx.moveTo(leftTipX, leftTipY);
+  servoCtx.lineTo(leftWingTipX, leftWingTipY);
+  servoCtx.stroke();
+  servoCtx.beginPath();
+  servoCtx.moveTo(rightTipX, rightTipY);
+  servoCtx.lineTo(rightWingTipX, rightWingTipY);
+  servoCtx.stroke();
+
+  // ── Vara de carbono (liga as pontas dos braços) ──
+  servoCtx.strokeStyle = '#f0883e';
+  servoCtx.lineWidth = 2.5;
+  servoCtx.setLineDash([6, 4]);
+  servoCtx.beginPath();
+  servoCtx.moveTo(leftTipX, leftTipY);
+  servoCtx.lineTo(rightTipX, rightTipY);
+  servoCtx.stroke();
+  servoCtx.setLineDash([]);
+
+  // ── Marcação de ângulo ──
+  servoCtx.fillStyle = '#8b949e';
+  servoCtx.font = '11px monospace';
+  servoCtx.textAlign = 'center';
+  // Ângulo mostrado: média dos dois servos × cos(Δ) para representar a posição
+  const angMedian = ((leftAngle + rightAngle) * 0.5 * 180 / Math.PI).toFixed(1);
+  servoCtx.fillText(angMedian + '°', cx, cy - fuselagemH/2 - 20);
+
+  // Linha de referência horizontal
+  servoCtx.strokeStyle = 'rgba(139,148,158,0.3)';
+  servoCtx.lineWidth = 0.5;
+  servoCtx.setLineDash([4, 8]);
+  servoCtx.beginPath();
+  servoCtx.moveTo(cx - 180, pivotY);
+  servoCtx.lineTo(cx + 180, pivotY);
+  servoCtx.stroke();
+  servoCtx.setLineDash([]);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+// =========================================================================
+//  GRÁFICO — Osciloscópio das Ondas Internas
+// =========================================================================
+const graphCtx = document.getElementById('graph-canvas').getContext('2d');
+const HISTORY_LEN = 200;
+const history = []; // [{sin, warp, amp}]
+
+function pushHistory(sinVal, warpVal, amp, esq, dir) {
+  history.push({ sin: sinVal, warp: warpVal, amp: amp || AMPLITUDE_MAXIMA_SERVO, esq: esq || 0, dir: dir || 0 });
+  if (history.length > HISTORY_LEN) history.shift();
+}
+
+let ultimaAmplitudeGraus = AMPLITUDE_MAXIMA_SERVO;
+
+function drawGraph() {
+  const W = 660, H = 300;
+  graphCtx.clearRect(0, 0, W, H);
+
+  const margin = { top: 20, right: 40, bottom: 25, left: 45 };
+  const pw = W - margin.left - margin.right;
+  const ph = H - margin.top - margin.bottom;
+  const midY = margin.top + ph / 2;
+  const AMP_REF = AMPLITUDE_MAXIMA_SERVO; // referência fixa para escala
+  const ampY = ph / 2; // escala cheia sempre
+
+  // Grelha
+  graphCtx.strokeStyle = '#1a2030';
+  graphCtx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = margin.top + (ph * i) / 4;
+    graphCtx.beginPath();
+    graphCtx.moveTo(margin.left, y);
+    graphCtx.lineTo(W - margin.right, y);
+    graphCtx.stroke();
+  }
+  // Linha zero
+  graphCtx.strokeStyle = '#30363d';
+  graphCtx.lineWidth = 1;
+  graphCtx.beginPath();
+  graphCtx.moveTo(margin.left, midY);
+  graphCtx.lineTo(W - margin.right, midY);
+  graphCtx.stroke();
+
+  // Rótulos
+  graphCtx.fillStyle = '#484f58';
+  graphCtx.font = '10px monospace';
+  graphCtx.textAlign = 'right';
+  graphCtx.fillText('+1', margin.left - 6, midY - ampY);
+  graphCtx.fillText('0', margin.left - 6, midY + 4);
+  graphCtx.fillText('−1', margin.left - 6, midY + ampY + 3);
+
+  // Dados
+  if (history.length < 2) return;
+
+  const n = history.length;
+  const xScale = pw / (n - 1);
+
+  // cos(θ) trace — amplitude-corrected per sample
+  graphCtx.strokeStyle = '#58a6ff';
+  graphCtx.lineWidth = 1.5;
+  graphCtx.globalAlpha = 0.5;
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const scale = Math.max(0.05, history[i].amp / AMP_REF);
+    const y = midY - history[i].sin * ampY * scale;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+  graphCtx.globalAlpha = 1;
+
+  // formaDoBater trace
+  graphCtx.strokeStyle = '#f0883e';
+  graphCtx.lineWidth = 1.5;
+  graphCtx.globalAlpha = 1;
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const scale = Math.max(0.05, history[i].amp / AMP_REF);
+    const y = midY - history[i].warp * ampY * scale;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+  graphCtx.globalAlpha = 1;
+
+  // Esquerda trace (servo real, com leme)
+  graphCtx.strokeStyle = '#3fb';
+  graphCtx.lineWidth = 1.8;
+  graphCtx.globalAlpha = 1;
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const y = midY - (history[i].esq / AMP_REF) * ampY;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+
+  // Direita trace (servo real, com leme)
+  graphCtx.strokeStyle = '#f3f';
+  graphCtx.lineWidth = 1.8;
+  graphCtx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = margin.left + i * xScale;
+    const y = midY - (history[i].dir / AMP_REF) * ampY;
+    if (i === 0) graphCtx.moveTo(x, y);
+    else graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+
+  // Legenda
+  graphCtx.font = '10px -apple-system, sans-serif';
+  graphCtx.textAlign = 'left';
+
+  graphCtx.fillStyle = '#58a6ff';
+  graphCtx.fillRect(W - margin.right - 200, margin.top + 2, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('cos(θ) — canto do vento', W - margin.right - 184, margin.top + 7);
+
+  graphCtx.fillStyle = '#f0883e';
+  graphCtx.fillRect(W - margin.right - 200, margin.top + 14, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('formaDoBaterDasAsas — trapezoidal', W - margin.right - 184, margin.top + 19);
+
+  graphCtx.fillStyle = '#3fb';
+  graphCtx.fillRect(W - margin.right - 200, margin.top + 26, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('Servo Esq (leme)', W - margin.right - 184, margin.top + 31);
+
+  graphCtx.fillStyle = '#f3f';
+  graphCtx.fillRect(W - margin.right - 102, margin.top + 26, 12, 3);
+  graphCtx.fillStyle = '#8b949e';
+  graphCtx.fillText('Servo Dir (leme)', W - margin.right - 86, margin.top + 31);
+}
+
+// =========================================================================
+//  SOM — Ruído filtrado (vento de asa) × velocidade da asa
+//  Portadora: ruído branco → low-pass 400 Hz → som "fffff" de turbulência.
+//  Envelope: |derivadaDoBaterDasAsas| × cadência — som ∝ velocidade da asa.
+//  Dwells → velocidade zero → silêncio. Rampas → whoosh. Quadrada → estalidos.
+//  Limitado pela velocidade máxima do servo (60°/ciclo).
+// =========================================================================
+let audioCtx = null;
+let audioGain = null;
+let procNode = null;
+let somAtivo = false;
+
+// Estado do ScriptProcessor (estéreo)
+let audioNoiseLPL = 0.0;   // memória LP canal esquerdo
+let audioNoiseLPR = 0.0;   // memória LP canal direito
+let audioAmplitude = 0.0;
+let audioTargetAmp = 0.0;  // amplitude alvo (interpolada)
+let audioLeftFactor = 1.0, audioRightFactor = 1.0;
+let audioTargetLF = 1.0, audioTargetRF = 1.0;
+let audioCicloMs = 70.0;           // para cálculo do limite do servo
+let audioVelAsa = 0.0;             // velocidade real do servo (forma/s) — servo-limited
+let audioTargetVel = 0.0;          // interpolated target
+
+function iniciarAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  audioGain = audioCtx.createGain();
+  audioGain.gain.value = 0;
+  audioGain.connect(audioCtx.destination);
+
+  procNode = audioCtx.createScriptProcessor(256, 1, 2); // 1 in, 2 out (estéreo)
+  procNode.onaudioprocess = function(e) {
+    const outL = e.outputBuffer.getChannelData(0);
+    const outR = e.outputBuffer.getChannelData(1);
+    const sr = e.outputBuffer.sampleRate;
+    const n = outL.length;
+
+    let noiseLPL = audioNoiseLPL, noiseLPR = audioNoiseLPR;
+    let ampNow = audioAmplitude;
+    const ampTarget = audioTargetAmp;
+    let lfNow = audioLeftFactor, rfNow = audioRightFactor;
+    const lfTarget = audioTargetLF, rfTarget = audioTargetRF;
+
+    // LP filter alpha: cutoff ~ 400 Hz a 44.1k → α ≈ 0.057
+    const lpAlpha = 0.057;
+
+    for (let i = 0; i < n; i++) {
+      // Velocidade real do servo (servo-limited — já fisicamente possível).
+      // Interpola com inércia suave para evitar artefactos entre frames.
+      audioVelAsa += 0.05 * (audioTargetVel - audioVelAsa);
+      const envelope = 0.02 + 0.98 * Math.min(1.0, audioVelAsa / (60.0 / AMPLITUDE_MAXIMA_SERVO / (audioCicloMs * 0.001)));
+
+      // Ruído independente por canal → estéreo verdadeiro
+      const whiteL = Math.random() * 2 - 1;
+      const whiteR = Math.random() * 2 - 1;
+      noiseLPL += lpAlpha * (whiteL - noiseLPL);
+      noiseLPR += lpAlpha * (whiteR - noiseLPR);
+
+      // Interpola amplitude e factores de leme
+      ampNow += 0.02 * (ampTarget - ampNow);
+      lfNow  += 0.02 * (lfTarget - lfNow);
+      rfNow  += 0.02 * (rfTarget - rfNow);
+
+      outL[i] = noiseLPL * envelope * ampNow * 1.1 * lfNow;
+      outR[i] = noiseLPR * envelope * ampNow * 1.1 * rfNow;
+    }
+
+    audioNoiseLPL = noiseLPL;
+    audioNoiseLPR = noiseLPR;
+    audioAmplitude = ampNow;
+    audioLeftFactor = lfNow;
+    audioRightFactor = rfNow;
+  };
+  procNode.connect(audioGain);
+}
+
+function actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, leftFactor, rightFactor, cicloMs, velocidadeAsa) {
+  audioTargetLF = leftFactor || 1.0;
+  audioTargetRF = rightFactor || 1.0;
+
+  // Velocidade máxima do servo (forma-unidades/s):
+  //   60°/ciclo ÷ AMPLITUDE_MAXIMA_SERVO° → forma/s
+  audioCicloMs = cicloMs || 70.0;
+  audioTargetVel = (velocidadeAsa !== undefined && velocidadeAsa !== null) ? velocidadeAsa : 0;
+
+  // Volume: throttle→amplitude. Sem atenuação extra — a velocidade já trata do resto.
+  audioTargetAmp = Math.min(1.0, (amplitudeDoBater || 0) / AMPLITUDE_MAXIMA_SERVO);
+  if (audioGain) {
+    audioGain.gain.setTargetAtTime(somAtivo ? 0.95 : 0, audioCtx.currentTime, 0.03);
+  }
+}
+
+// ── Botão de som ──
+document.getElementById('btn-sound').addEventListener('click', () => {
+  if (!audioCtx) iniciarAudio();
+  somAtivo = !somAtivo;
+  const btn = document.getElementById('btn-sound');
+  if (somAtivo) {
+    btn.textContent = '🔊 Som';
+    btn.classList.remove('muted');
+    audioNoiseLPL = 0.0;
+    audioNoiseLPR = 0.0;
+    audioGain.gain.setTargetAtTime(0.95, audioCtx.currentTime, 0.03);
+  } else {
+    btn.textContent = '🔇 Som';
+    btn.classList.add('muted');
+    audioGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.03);
+  }
+});
+
+// =========================================================================
+//  LOOP PRINCIPAL
+// =========================================================================
+let lastTime = null;
+
+function loop(timestamp) {
+  if (lastTime === null) lastTime = timestamp;
+  let dt = (timestamp - lastTime) * 0.001; // segundos
+  if (dt <= 0) dt = 0.001;
+  if (dt > 0.1) dt = 0.1; // clamp (equivale a DT_MAXIMO_DO_SONHO)
+  lastTime = timestamp;
+
+  // Lê valores dos sliders
+  const ch7 = parseInt(document.getElementById('ch7').value); // ferocidade bater
+  const ch8 = parseInt(document.getElementById('ch8').value); // ferocidade retorno
+  const ch3 = parseInt(document.getElementById('ch3').value); // throttle
+  const ch4 = parseInt(document.getElementById('ch4').value); // leme estelar (yaw)
+  const ch6 = parseInt(document.getElementById('ch6').value); // frequência (compasso)
+  const ch9 = parseInt(document.getElementById('ch9').value); // ferocidade do leme
+  const cicloMs = parseFloat(document.getElementById('ciclo').value);
+
+  // ── Switch de modo pendente: aplica quando CH3 ≤ 1000 (glide) ──
+  if (modoPendente && ch3 <= 1000) {
+    aplicarModo(modoPendente);
+  }
+
+  const fBater  = mapearRC(ch7, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
+  const fRetorno = mapearRC(ch8, FEROCIDADE_MINIMA, FEROCIDADE_MAXIMA);
+
+  // Actualiza a fase: CH6 → compasso (freq), CH9 → ferocidade leme (diff)
+  const { amplitudeDoBater, cadencia, fatorLeme, fatorCompasso } = actualizarFase(dt, ch3, ch6, ch9, cicloMs);
+
+  const cantoDoVento = Math.cos(anguloDaDancaAlada);
+
+  // ── Simulação da física do servo ──
+  // Velocidade angular máxima: 60° / ciclo (em °/s)
+  const velocidadeAngularServo = 60.0 / (cicloMs * 0.001);
+  const passoMax = velocidadeAngularServo * dt; // °/frame
+
+  // ── Leme Estelar (CH4) → diferencial multiplicativo (C++: fatorLemeEstelar) ──
+  const denom = (ch4 > 0) ? ch4 : 1500;
+  const fatorLemeEstelar = ((1500.0 / denom) - 1.0) * 2.0 + 1.0;
+
+  // ── CH6+CH9 → fatorLeme já combinado em actualizarFase ──
+  const fl = fatorLeme || 0;
+
+  // ── Limiar e ferocidades por asa ──
+  // CH9 desloca ferocidades no regime trapezoidal (f→0) e desloca o
+  // limiar (duty cycle) no regime quadrado (f→8). A transição é contínua:
+  // quadFactor = 0 → puro f-shift; 1 → puro limiar-shift.
+  // No meio, ambos os efeitos aplicam-se proporcionalmente.
+  const fDbase = Math.max(0, Math.min(8, fBater));
+  const fSbase = Math.max(0, Math.min(8, fRetorno));
+  const wDbase = Math.max(8.0 - fDbase, 0.01);
+  const wSbase = Math.max(8.0 - fSbase, 0.01);
+  const limiarBase = TWO_PI * wDbase / (wDbase + wSbase);
+  const avgF = (fDbase + fSbase) * 0.5;
+  const quadFactor = Math.max(0, Math.min(1, (avgF - 6.0) / 2.0));  // 0@f≤6 → 1@f=8
+  const shift = fl * (Math.PI / 8);
+
+  // Limiar: interpola do base (trapezoidal) para PI±shift (quadrado)
+  const limiarEsq = (1 - quadFactor) * limiarBase + quadFactor * Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI - shift));
+  const limiarDir = (1 - quadFactor) * limiarBase + quadFactor * Math.max(0.05, Math.min(TWO_PI - 0.05, Math.PI + shift));
+
+  // Ferocidades: CH9 shift atenua com quadFactor; em quad puro fica 8
+  const fBaterEsq  = Math.max(0, Math.min(8, fBater + fl * (1 - quadFactor)));
+  const fBaterDir  = Math.max(0, Math.min(8, fBater - fl * (1 - quadFactor)));
+  const fRetornoEsq = Math.max(0, Math.min(8, fRetorno + fl * (1 - quadFactor)));
+  const fRetornoDir = Math.max(0, Math.min(8, fRetorno - fl * (1 - quadFactor)));
+
+  const pulsoAsaEsq = formaDoBaterDasAsas(anguloDaDancaAlada, fBaterEsq, fRetornoEsq, limiarEsq);
+  const pulsoAsaDir = formaDoBaterDasAsas(anguloDaDancaAlada, fBaterDir, fRetornoDir, limiarDir);
+  const pulsoAsa = formaDoBaterDasAsas(anguloDaDancaAlada, fBater, fRetorno, limiarEsq);
+  const ampGraus = (amplitudeDoBater != null && !isNaN(amplitudeDoBater)) ? amplitudeDoBater : AMPLITUDE_MAXIMA_SERVO;
+
+  let comandoEsquerdo, comandoDireito;
+  let audioLF = fatorLemeEstelar, audioRF = 1.0 / fatorLemeEstelar;
+
+  comandoEsquerdo = pulsoAsaEsq * ampGraus * fatorLemeEstelar;
+  comandoDireito  = pulsoAsaDir * ampGraus / fatorLemeEstelar;
+
+  if (modoAlternativo) {
+    audioLF = fatorLemeEstelar * (1.0 + fl * 0.125);
+    audioRF = (1.0 - fl * 0.125) / fatorLemeEstelar;
+  }
+
+  // Cada servo persegue o seu comando com velocidade limitada
+  const deltaEsq = comandoEsquerdo - servoAngleEsquerdo;
+  const deltaDir = comandoDireito - servoAngleDireito;
+
+  servoAngleEsquerdo += Math.max(-passoMax, Math.min(passoMax, deltaEsq));
+  servoAngleDireito  += Math.max(-passoMax, Math.min(passoMax, deltaDir));
+
+  // Velocidade real da asa (servo-limited) para sonificação
+  const velEsq = (dt > 0.001) ? Math.abs(servoAngleEsquerdo - ultimoServoAngleEsq) / dt / AMPLITUDE_MAXIMA_SERVO : 0;
+  const velDir = (dt > 0.001) ? Math.abs(servoAngleDireito - ultimoServoAngleDir) / dt / AMPLITUDE_MAXIMA_SERVO : 0;
+  const velocidadeAsa = (velEsq + velDir) * 0.5;
+  ultimoServoAngleEsq = servoAngleEsquerdo;
+  ultimoServoAngleDir = servoAngleDireito;
+
+  // Armazena para o gráfico — usa ângulos reais do servo (com limite de velocidade), não o comando
+  pushHistory(cantoDoVento, pulsoAsa, ampGraus, servoAngleEsquerdo, servoAngleDireito);
+
+  // Desenha com os ângulos limitados pela física do servo
+  ultimaAmplitudeGraus = ampGraus;
+  drawServos(servoAngleEsquerdo, servoAngleDireito, amplitudeDoBater);
+  drawGraph();
+
+  // Actualiza som (estéreo: diferencial esquerda/direita via CH4 + CH9 combinados)
+  actualizarAudio(fBater, fRetorno, amplitudeDoBater, cadencia, audioLF, audioRF, cicloMs, velocidadeAsa);
+
+  // Calcula pesos e fracção de dwell para display
+  const wD = 8.0 - fBater, wS = 8.0 - fRetorno, wT = wD + wS;
+  const limiar = (wT < 0.02) ? Math.PI : TWO_PI * wD / wT;
+  const descida = (anguloDaDancaAlada % TWO_PI + TWO_PI) % TWO_PI < limiar;
+  const ferocidadeAtual = descida ? fBater : fRetorno;
+  const dwellFrac = ferocidadeAtual / 8.0;
+  const duracaoAtual = descida ? limiar : (TWO_PI - limiar);
+
+  // Actualiza info bar
+  const anguloMostrado = ((anguloDaDancaAlada % TWO_PI) + TWO_PI) % TWO_PI;
+  document.getElementById('info-angulo').textContent = anguloMostrado.toFixed(2);
+  document.getElementById('info-cadencia').textContent = cadencia.toFixed(2);
+  document.getElementById('info-freq').textContent = (cadencia / TWO_PI).toFixed(2);
+  document.getElementById('info-amp').textContent = (amplitudeDoBater || 0).toFixed(1);
+  document.getElementById('info-pulso').textContent = pulsoAsa.toFixed(3);
+  document.getElementById('info-dwell').textContent = (dwellFrac * 100).toFixed(0);
+  document.getElementById('info-duracao').textContent = duracaoAtual.toFixed(2);
+
+  // Actualiza labels dos sliders
+  document.getElementById('val-ch7').textContent = fBater.toFixed(1);
+  document.getElementById('val-ch8').textContent = fRetorno.toFixed(1);
+  document.getElementById('val-ch3').textContent = ch3 + ' µs';
+  document.getElementById('val-ch4').textContent = ch4 + ' µs';
+  document.getElementById('val-ch6').textContent = modoAlternativo
+    ? (cadencia / TWO_PI).toFixed(2) + ' Hz'
+    : (fatorCompasso >= 0 ? '+' : '') + fatorCompasso.toFixed(2) + '×';
+  document.getElementById('val-ch9').textContent = (fl >= 0 ? '+' : '') + fl.toFixed(1);
+
+  requestAnimationFrame(loop);
+}
+
+// ── Toggle de modo (só comuta em glide: CH3 ≤ 1000) ──
+let modoPendente = null; // 'normal' | 'alt' | null
+
+function aplicarModo(alvo) {
+  if (alvo === 'normal') {
+    modoAlternativo = false;
+    document.getElementById('btn-normal').classList.add('active');
+    document.getElementById('btn-alt').classList.remove('active');
+  } else {
+    modoAlternativo = true;
+    document.getElementById('btn-normal').classList.remove('active');
+    document.getElementById('btn-alt').classList.add('active');
+  }
+  modoPendente = null;
+  resetState();
+}
+
+document.getElementById('btn-normal').addEventListener('click', () => {
+  const ch3 = parseInt(document.getElementById('ch3').value);
+  if (ch3 <= 1000) {
+    aplicarModo('normal');
+  } else {
+    modoPendente = 'normal';
+    document.getElementById('btn-normal').style.outline = '2px dashed #f0a';
+    document.getElementById('btn-alt').style.outline = '';
+  }
+});
+document.getElementById('btn-alt').addEventListener('click', () => {
+  const ch3 = parseInt(document.getElementById('ch3').value);
+  if (ch3 <= 1000) {
+    aplicarModo('alt');
+  } else {
+    modoPendente = 'alt';
+    document.getElementById('btn-alt').style.outline = '2px dashed #f0a';
+    document.getElementById('btn-normal').style.outline = '';
+  }
+});
+
+// ── Toggle de ligação de ferocidade (∥ ↔ ↔) ──
+const linkBtns = {
+  independent: document.getElementById('btn-independent'),
+  synced:      document.getElementById('btn-synced'),
+  mirrored:    document.getElementById('btn-mirrored'),
+};
+function setLinkMode(mode) {
+  linkMode = mode;
+  Object.entries(linkBtns).forEach(([key, btn]) => {
+    btn.classList.toggle('active', key === mode);
+  });
+  // Ao entrar em synced, sincroniza CH8 = CH7 imediatamente
+  if (mode === 'synced') {
+    const ch7 = document.getElementById('ch7');
+    document.getElementById('ch8').value = ch7.value;
+  }
+  // Ao entrar em mirrored, espelha CH8 = 3000 − CH7
+  if (mode === 'mirrored') {
+    const ch7 = document.getElementById('ch7');
+    document.getElementById('ch8').value = 3000 - parseInt(ch7.value);
+  }
+}
+linkBtns.independent.addEventListener('click', () => setLinkMode('independent'));
+linkBtns.synced.addEventListener('click',      () => setLinkMode('synced'));
+linkBtns.mirrored.addEventListener('click',    () => setLinkMode('mirrored'));
+
+// ── Sliders de ferocidade ──
+document.getElementById('ch7').addEventListener('input', () => {
+  if (linkGuard) return;
+  const val = parseInt(document.getElementById('ch7').value);
+  if (linkMode === 'synced') {
+    linkGuard = true;
+    document.getElementById('ch8').value = val;
+    linkGuard = false;
+  } else if (linkMode === 'mirrored') {
+    linkGuard = true;
+    document.getElementById('ch8').value = 3000 - val;
+    linkGuard = false;
+  }
+});
+document.getElementById('ch8').addEventListener('input', () => {
+  if (linkGuard) return;
+  const val = parseInt(document.getElementById('ch8').value);
+  if (linkMode === 'synced') {
+    linkGuard = true;
+    document.getElementById('ch7').value = val;
+    linkGuard = false;
+  } else if (linkMode === 'mirrored') {
+    linkGuard = true;
+    document.getElementById('ch7').value = 3000 - val;
+    linkGuard = false;
+  }
+});
+
+// ── Acoplar CH9 ↔ CH4 ──
+document.getElementById('cb-couple-rudder').addEventListener('change', () => {
+  coupleRudder = document.getElementById('cb-couple-rudder').checked;
+  if (coupleRudder) {
+    // Ao activar, CH4 segue CH9 imediatamente
+    const ch9 = parseInt(document.getElementById('ch9').value);
+    document.getElementById('ch4').value = ch9;
+  }
+});
+
+document.getElementById('ch9').addEventListener('input', () => {
+  if (coupleGuard) return;
+  if (coupleRudder) {
+    coupleGuard = true;
+    document.getElementById('ch4').value = document.getElementById('ch9').value;
+    coupleGuard = false;
+  }
+});
+
+document.getElementById('ch4').addEventListener('input', () => {
+  if (coupleGuard) return;
+  if (coupleRudder) {
+    coupleGuard = true;
+    document.getElementById('ch9').value = document.getElementById('ch4').value;
+    coupleGuard = false;
+  }
+});
+
+// ── Arranque ──
+resetState();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

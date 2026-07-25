@@ -200,6 +200,13 @@ public:
   bool neopixelDesligado    = (GRALHA_TEM_CHAMA_AZUL == 0);
   bool telemetriaDesligado  = GRALHA_SUSSURRO_DESLIGADO;
 
+  /* ── Modo de Voo ─────────────────────────────────────────── */
+#ifdef MODO_DE_VOO_ALTERNATIVO
+  bool modoDeVooAlternativo  = true;   // runtime toggle, compile-time default
+#else
+  bool modoDeVooAlternativo  = false;  // runtime toggle, compile-time default
+#endif
+
   /* ── Portal dos Cantos ───────────────────────────────────── */
   uint8_t portalDosCantosCosmicos = PORTAL_DOS_CANTOS_COSMICOS;
   uint8_t numeroDeCantos          = NUMERO_DE_CANTOS;
@@ -258,6 +265,11 @@ private:
   bool limiarElevado = false;
   bool jaCruzouLimiarDeVoo = false;
   bool oraculoRespira = false;
+#ifdef MODO_DE_VOO_ALTERNATIVO
+  bool _modoAlternativoEfetivo = true;
+#else
+  bool _modoAlternativoEfetivo = false;
+#endif
 
   /* ── Vozes do Céu ────────────────────────────────────────── */
   int vozDoAletao = 1500;
@@ -340,7 +352,7 @@ private:
   /* ── Métodos Privados ────────────────────────────────────── */
   void tecerTransicaoGlide(float alvoEsquerdo, float alvoDireito);
   float mapearEntreEscalasHarmonicas(float valor, float minOrigem, float maxOrigem, float minDestino, float maxDestino);
-  float formaDoBaterDasAsas(float cantoDoVento, float ferocidadeDoBater, float ferocidadeDoRetorno);
+  float formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno, float limiarShared = NAN);
   void animarPulsarDoCoracaoAlado();
   void sustentarAltura();
   void manifestarOVooNosVentos();
@@ -535,12 +547,24 @@ inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireit
   if (!emTransicaoParaGlide) {
     emTransicaoParaGlide = true;
     // Captura a posição actual das asas — evita salto brusco no primeiro frame
-    anguloGlideEsquerdo = tendaoDaAsaMatutina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
-    anguloGlideDireito = tendaoDaAsaVespertina.read() - OFFSET_ANGULAR_NEUTRO_PADRAO;
+    int posEsq = tendaoDaAsaMatutina.read();
+    int posDir = tendaoDaAsaVespertina.read();
+    // Servo.read()=0 before first write on some platforms — clamp to neutral
+    if (posEsq == 0 && posDir == 0) {
+      anguloGlideEsquerdo = 0;
+      anguloGlideDireito = 0;
+    } else {
+      anguloGlideEsquerdo = posEsq - OFFSET_ANGULAR_NEUTRO_PADRAO;
+      anguloGlideDireito = posDir - OFFSET_ANGULAR_NEUTRO_PADRAO;
+    }
     microsUltimoPasso = micros();
     return;
   }
-  
+
+  // Clamp glide angles to servo range (±AMPLITUDE_MAXIMA_SERVO_PADRAO)
+  alvoEsquerdo = constrain(alvoEsquerdo, -AMPLITUDE_MAXIMA_SERVO_PADRAO, AMPLITUDE_MAXIMA_SERVO_PADRAO);
+  alvoDireito  = constrain(alvoDireito,  -AMPLITUDE_MAXIMA_SERVO_PADRAO, AMPLITUDE_MAXIMA_SERVO_PADRAO);
+
   // Nota: servo 0 = -60° (up position), 180 = +60° (down position)
   // Logo "subir" = mover para menor ângulo = decrescer posicao servo
   float ferocidadeEsquerdo = (anguloGlideEsquerdo > alvoEsquerdo)
@@ -549,34 +573,39 @@ inline void GralhaAzul::tecerTransicaoGlide(float alvoEsquerdo, float alvoDireit
   float ferocidadeDireito = (anguloGlideDireito > alvoDireito)
     ? mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO)
     : mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
-  
+
+  // Glide mínimo: mesmo com CH7/CH8 a 1000, as asas respondem ao stick
+  static constexpr float FEROCIDADE_MINIMA_GLIDE = 1.0f;
+  ferocidadeEsquerdo = fmax(ferocidadeEsquerdo, FEROCIDADE_MINIMA_GLIDE);
+  ferocidadeDireito  = fmax(ferocidadeDireito,  FEROCIDADE_MINIMA_GLIDE);
+
   // Taxa de movimento = ferocidade * velocidadeAngular * delta_micros
   uint32_t agora = micros();
   uint32_t deltaMicros = agora - microsUltimoPasso;
   if (deltaMicros > 100000) deltaMicros = 100000;  // max 100ms safety
   microsUltimoPasso = agora;
-  
+
   // Passo máximo permitido para cada asa
   float passoMaxEsquerdo = ferocidadeEsquerdo * velocidadeAngularPorMicros * deltaMicros;
   float passoMaxDireito = ferocidadeDireito * velocidadeAngularPorMicros * deltaMicros;
-  
+
   // Calcula erros
   float erroEsquerdo = alvoEsquerdo - anguloGlideEsquerdo;
   float erroDireito = alvoDireito - anguloGlideDireito;
-  
+
   // Move na direção correta, limitado ao passo máximo
   if (fabs(erroEsquerdo) <= passoMaxEsquerdo) {
     anguloGlideEsquerdo = alvoEsquerdo;  // Chegou ao alvo
   } else {
     anguloGlideEsquerdo += (erroEsquerdo > 0) ? passoMaxEsquerdo : -passoMaxEsquerdo;
   }
-  
+
   if (fabs(erroDireito) <= passoMaxDireito) {
     anguloGlideDireito = alvoDireito;  // Chegou ao alvo
   } else {
     anguloGlideDireito += (erroDireito > 0) ? passoMaxDireito : -passoMaxDireito;
   }
-  
+
   // Debug: reportar progresso (~2Hz)
   if (ecosPrescindiveis && (agora % 500000 < deltaMicros)) {
     ecosPrescindiveis->print("[GLIDE] Transição: esq=");
@@ -608,42 +637,62 @@ inline float GralhaAzul::mapearEntreEscalasHarmonicas(
 // ============================================================
 //  A FORMA DO BATER — A Geometria do Movimento Alado
 // ============================================================
-inline float GralhaAzul::formaDoBaterDasAsas(float cantoDoVento, float ferocidadeDoBater, float ferocidadeDoRetorno) {
-  // Zona de blend linear (±0.1 rad) em torno do cruzamento de zero.
-  // Elimina a oscilação soft-float quando ferocidadeDoBater ≠ ferocidadeDoRetorno
-  // (CH7 ≠ CH8). Sem fronteira discreta, o sin() do RP2040 pode devolver ±ε
-  // sem alternar a ferocidade — o blend interpola continuamente.
-  float ferocidade;
-  if (cantoDoVento >= 0.1f) {
-    ferocidade = ferocidadeDoBater;
-  } else if (cantoDoVento <= -0.1f) {
-    ferocidade = ferocidadeDoRetorno;
+inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocidadeDoBater, float ferocidadeDoRetorno, float limiarShared) {
+  // ── Modelo Trapezoidal Extremo-a-Extremo com Duração Variável ──
+  // Cada meia-onda (descida [0,π) ou subida [π,2π)) tem duração
+  // proporcional a (8-f): mais suave = mais longa, mais feroz = mais curta.
+  // Dentro de cada meia-onda: dwell d/2 no extremo inicial + rampa cos +
+  // dwell d/2 no extremo final. Nos extremos, os dwells de duas meias-ondas
+  // adjacentes somam-se, mantendo os planaltos simétricos.
+  // O limiar (fronteira descida/subida) é partilhado entre asas — calculado
+  // das ferocidades base (sem CH9). Cada asa aplica o seu próprio dwell dentro
+  // da mesma janela temporal, mantendo o sincronismo do bater.
+
+  // Fast-path: ferocidade máxima → onda quadrada pura, sem float math
+  if (ferocidadeDoBater >= 7.999f && ferocidadeDoRetorno >= 7.999f) {
+    float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
+    if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
+    return (theta < 3.14159265358979f) ? 1.0f : -1.0f;
+  }
+
+  float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
+  if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
+
+  const float pi = 3.14159265358979f;
+  const float twoPi = LIMITE_ANGULAR_DO_GIRO_PADRAO;
+
+  float fD = constrain(ferocidadeDoBater,   0.0f, 8.0f);
+  float fS = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
+
+  // Limiar partilhado — ambas as asas mudam de direcção no mesmo θ.
+  // Se não for passado (NaN), calcula das ferocidades locais (fallback).
+  float limiar;
+  if (!isnan(limiarShared)) {
+    limiar = limiarShared;
   } else {
-    // Interpolação linear: t=0 em -0.1 (retorno puro), t=1 em +0.1 (bater puro)
-    float t = (cantoDoVento + 0.1f) * 5.0f;  // mapeia [-0.1, 0.1] → [0, 1]
-    ferocidade = ferocidadeDoRetorno + (ferocidadeDoBater - ferocidadeDoRetorno) * t;
+    float wD_fb = fmax(8.0f - fD, 0.01f);
+    float wS_fb = fmax(8.0f - fS, 0.01f);
+    limiar = twoPi * wD_fb / (wD_fb + wS_fb);
   }
 
-  // ── Onda quadrada pura (Kazu-kaku mode) ──────────────────
-  // Ferocidade ≥ 90% → bypass do tanh, sinal binário directo.
-  // Funde o algoritmo binário do Dr. Kazu com o seno do Dantiel:
-  // o relógio interno (anguloDaDancaAlada) define o momento das
-  // transições UP↔DOWN, mas a forma é quadrada — o servo salta
-  // entre as posições extremas, como no código do Kazu-kaku.
-  if (ferocidade >= LIMIAR_DA_FEROCIDADE_QUADRADA_PADRAO) {
-    if (cantoDoVento > 0.0f) return 1.0f;
-    if (cantoDoVento < 0.0f) return -1.0f;
-    return 0.0f;
+  bool descida = (theta < limiar);
+  float t, ferocidade, d, dh;
+  if (descida) {
+    t = theta / limiar;
+    ferocidade = fD;
+  } else {
+    t = (theta - limiar) / (twoPi - limiar);
+    ferocidade = fS;
   }
+  d = ferocidade * 0.125f;  // f/8, [0,1]
+  dh = d * 0.5f;            // d/2 por extremo
 
-  float equilibrioDoCeu = tanh(ferocidade);
-  if (fabs(equilibrioDoCeu) < EPSILON_FORMA_BATER_PADRAO) {
-    return cantoDoVento;
-  }
-  float resultado = tanh(ferocidade * cantoDoVento) / equilibrioDoCeu;
-  if (resultado > LIMITE_FORMA_BATER_PADRAO) resultado = LIMITE_FORMA_BATER_PADRAO;
-  if (resultado < -LIMITE_FORMA_BATER_PADRAO) resultado = -LIMITE_FORMA_BATER_PADRAO;
-  return resultado;
+  if (d >= 1.0f) return descida ? 1.0f : -1.0f;
+  if (t < dh) return descida ? 1.0f : -1.0f;             // dwell extremo inicial
+  if (t > 1.0f - dh) return descida ? -1.0f : 1.0f;      // dwell extremo final
+
+  float ramp = cosf(pi * (t - dh) / (1.0f - d));
+  return descida ? ramp : -ramp;
 }
 
 // ============================================================
@@ -665,50 +714,44 @@ inline void GralhaAzul::animarPulsarDoCoracaoAlado() {
   if (estadoPresenteDaAlma == EM_DANCA_COM_OS_VENTOS && modoPresenteDoEspirito == EM_RITMO_DE_BATIDA_DAS_ASAS) {
 
     // A malha de controle — a vontade se torna movimento
-    #ifdef MODO_DE_VOO_ALTERNATIVO
+    if (_modoAlternativoEfetivo) {
       // Modo alternativo BIRD-LIKE: CH6 → frequência, throttle → % de amplitude permitida
-      // Física: para freqência F (Hz), período = 1/F. Ida+volta = 2*A/velocidade
-      // → A_max = velocidadeAngular / (2 * F) = 60 / (2 * CICLO * F)
+      // Física: A_max = velocidadeAngular / (2 * freq) [graus]
       float bracosDoRelogio = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
       
-      // Frequência máxima: 10% da capacidade física a amplitude mínima
-      // Capacidade a 1° = 1/(2*1*CICLO/60) = 30/CICLO Hz
-      // 10% disso → frequenciaMaxCH6 = 3/CICLO Hz
-      float frequenciaMaximaCH6_Hz = 3.0f / cicloDoCoracaoAlado;
-      float frequenciaPedida_Hz = bracosDoRelogio * frequenciaMaximaCH6_Hz;  // CH6=100% → proporcional
+      // CH6 1000–2000 → 0.5–f_max Hz. f_max = v_servo/(4·55°) — o servo
+      // percorre o arco em 50% do tempo; 50% para pausar nos extremos (águia).
+      const float FREQ_MINIMA = 0.5f;
+      const float FREQ_MAXIMA = velocidadeAngularServo / (4.0f * AMPLITUDE_MAXIMA_SERVO_PADRAO);
+      float freqEfetiva = FREQ_MINIMA + bracosDoRelogio * (FREQ_MAXIMA - FREQ_MINIMA);
       
-      // Amplitude máxima permitida para essa frequência
-      // A_max = velocidade / (2 * frequencia) [graus]
-      // Em CH6=100%: A_max = (60/CICLO) / (2 * 3/CICLO) = 10° (independente de CICLO!)
-      const float FREQ_MINIMA = 0.05f;  // evitar div/0, ~3 RPM mínimo
-      float freqEfetiva = fmax(frequenciaPedida_Hz, FREQ_MINIMA);
-      amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);  // guardado para usar abaixo
+      amplitudeMaximaPermitida = velocidadeAngularServo / (2.0f * freqEfetiva);
+      // Apenas o limite mecânico do servo — sem floor artificial
+      if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO)
+        amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
       
-      // Não clampar — amplitude é puramente física
-      if (amplitudeMaximaPermitida < 0.0f) amplitudeMaximaPermitida = 0.0f;
-      
-      cadenciaDoDestinoAlado = frequenciaPedida_Hz * 6.283185307f;  // 2*PI rad/s para o integrador
-    #else
+      cadenciaDoDestinoAlado = freqEfetiva * 6.283185307f;  // 2*PI rad/s para o integrador
+    } else {
       // Modo padrão (PI): throttle modula cadência + compasso afecta proporcionalmente
       float intencaoDeCadencia = (vozDoSoproVital - 480.0f) * ((1.0f / (120.0f * cicloDoCoracaoAlado)) +
-                                 ((vozDaFerocidadeDoLeme - 1500.0f) * 0.0000725f));
+                                 ((vozDoCompassoDaAlma - 1500.0f) * 0.0000725f));
       float variacaoDoDestinoAlado = 1.0f * intencaoDeCadencia - 10.0f * cadenciaDoDestinoAlado;
       cadenciaDoDestinoAlado += variacaoDoDestinoAlado * dt;
-    #endif
+    }
     anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
     if (fabs(anguloDaDancaAlada) > LIMITE_ANGULAR_DO_GIRO_PADRAO)
       anguloDaDancaAlada = fmod(anguloDaDancaAlada, LIMITE_ANGULAR_DO_GIRO_PADRAO);
   } else {
-    #ifdef MODO_DE_VOO_ALTERNATIVO
+    if (_modoAlternativoEfetivo) {
       // Modo alternativo: o ângulo continua a avançar com cadência decrescente
       // para manter continuidade de fase ao retomar o bater
       anguloDaDancaAlada += cadenciaDoDestinoAlado * dt;
       if (fabs(anguloDaDancaAlada) > LIMITE_ANGULAR_DO_GIRO_PADRAO)
         anguloDaDancaAlada = fmod(anguloDaDancaAlada, LIMITE_ANGULAR_DO_GIRO_PADRAO);
-    #else
+    } else {
       anguloDaDancaAlada *= DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO;
       if (fabs(anguloDaDancaAlada) < EPSILON_CADENCIA_ZERO_PADRAO) anguloDaDancaAlada = 0;
-    #endif
+    }
     cadenciaDoDestinoAlado *= DECAIMENTO_DA_CADENCIA_SONOLENTA_PADRAO;
     if (fabs(cadenciaDoDestinoAlado) < EPSILON_CADENCIA_ZERO_PADRAO) cadenciaDoDestinoAlado = 0;
   }
@@ -763,21 +806,6 @@ inline void GralhaAzul::sustentarAltura() {
 //  A MANIFESTAÇÃO — Quando a Vontade se Torna Voo
 // ============================================================
 inline void GralhaAzul::manifestarOVooNosVentos() {
-  if (estadoPresenteDaAlma != EM_DANCA_COM_OS_VENTOS) {
-    if (ultimoEscritoEsquerdo != OFFSET_ANGULAR_NEUTRO_PADRAO) {
-      tendaoDaAsaMatutina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
-      ultimoMicrosEscritaEsquerdo = micros();
-    }
-    if (ultimoEscritoDireito != OFFSET_ANGULAR_NEUTRO_PADRAO) {
-      tendaoDaAsaVespertina.write(OFFSET_ANGULAR_NEUTRO_PADRAO);
-      ultimoMicrosEscritaDireito = micros();
-    }
-    emaServoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    emaServoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    ultimoEscritoEsquerdo = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    ultimoEscritoDireito  = OFFSET_ANGULAR_NEUTRO_PADRAO;
-    return;
-  }
   float comandoAletao = (vozDoAletao - 1500.0f) * escalaAngularArticulacao;
   float comandoProfundor = (vozDoProfundor - 1500.0f) * ESCALA_ANGULAR_DO_PROFUNDOR_PADRAO;
   int anguloPortalEsquerdo, anguloPortalDireito;
@@ -798,9 +826,14 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     if (modoPresenteDoEspirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO && jaCruzouLimiarDeVoo) {
       limiarElevado = true;
     }
+    // ÆtherCodex: modo de voo só comuta em glide (throttle zero)
+    if (modoPresenteDoEspirito == EM_DESLIZE_ETERNO_E_CONTEMPLATIVO) {
+      _modoAlternativoEfetivo = modoDeVooAlternativo;
+    }
   } else {
     modoPresenteDoEspirito = EM_DESLIZE_ETERNO_E_CONTEMPLATIVO;
     limiarElevado = true;
+    _modoAlternativoEfetivo = modoDeVooAlternativo;
   }
 
   float amplitudeDoBater = 0.0f;
@@ -809,26 +842,58 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     emTransicaoParaGlide = false;
     anguloGlideEsquerdo = INFINITY;  // Força recaptura na próxima entrada
     anguloGlideDireito = INFINITY;
-    #ifdef MODO_DE_VOO_ALTERNATIVO
+    if (_modoAlternativoEfetivo) {
       // Modo alternativo BIRD-LIKE: frequência(CH6) → amplitude_max, throttle → % dessa amplitude
       // CH9 = rudder ferocity (independente)
       // Throttle escala de 0 até amplitudeMaximaPermitida (calculada acima pela física do servo)
-      float percentagemSopro = constrain((vozDoSoproVital - 480.0f) * 0.00125f, 0.0f, 1.0f);  // 480→2000 → 0→1
+      // Linear com offset: amplitude 0 no limiar do flap (1040), 100% a 2000
+      float percentagemSopro = constrain((soproEfetivo - 1040.0f) / (2000.0f - 1040.0f), 0.0f, 1.0f);
+      // Fallback: primeiro frame de flap após armar — amplitudeMaximaPermitida ainda 0
+      // porque animarPulsarDoCoracaoAlado() correu em modo glide. Calcula localmente.
+      if (amplitudeMaximaPermitida <= 0.0f) {
+        float bracos = constrain((vozDoCompassoDaAlma - 1000.0f) * 0.001f, 0.0f, 1.0f);
+        const float FR_MIN = 1.0f, FR_MAX = 15.0f;
+        float fE = FR_MIN + bracos * (FR_MAX - FR_MIN);
+        float vServo = 60.0f / cicloDoCoracaoAlado;
+        amplitudeMaximaPermitida = vServo / (2.0f * fE);
+        if (amplitudeMaximaPermitida > AMPLITUDE_MAXIMA_SERVO_PADRAO)
+          amplitudeMaximaPermitida = AMPLITUDE_MAXIMA_SERVO_PADRAO;
+      }
       amplitudeDoBater = percentagemSopro * amplitudeMaximaPermitida;
-    #else
+    } else {
       // Modo padrão: throttle modula ambos (cadência + amplitude via compasso)
-      amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDaFerocidadeDoLeme - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
-    #endif
-    float cantoOriginalDaAsa = sin(anguloDaDancaAlada);
+      amplitudeDoBater = ((soproEfetivo - (float)limiarAtual) * magnitudeDaBatida) * (1.0f - (vozDoCompassoDaAlma - 1500.0f) * MODULACAO_DO_COMPASSO_PADRAO);
+    }
     float ferocidadeDoBater = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoBater, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
     float ferocidadeDoRetorno = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoRetorno, 1000.0f, 2000.0f, FEROCIDADE_MINIMA_PADRAO, FEROCIDADE_MAXIMA_PADRAO);
-    float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
-    float ferocidadeBaterEsquerda = fmax(ferocidadeDoBater + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float ferocidadeBaterDireita  = fmax(ferocidadeDoBater - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float ferocidadeRetornoEsquerda = fmax(ferocidadeDoRetorno + fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float ferocidadeRetornoDireita  = fmax(ferocidadeDoRetorno - fatorDoLeme, FEROCIDADE_MINIMA_PADRAO);
-    float pulsoAsaEsquerda = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterEsquerda, ferocidadeRetornoEsquerda);
-    float pulsoAsaDireita = formaDoBaterDasAsas(cantoOriginalDaAsa, ferocidadeBaterDireita, ferocidadeRetornoDireita);
+    float fatorDoLeme = mapearEntreEscalasHarmonicas(vozDaFerocidadeDoLeme, 1000.0f, 2000.0f, DIFERENCIAL_LEME_MIN_PADRAO, DIFERENCIAL_LEME_MAX_PADRAO);
+
+    // Limiar e ferocidades por asa.
+    // CH9 desloca ferocidades no regime trapezoidal (f→0) e desloca o
+    // limiar (duty cycle) no regime quadrado (f→8). A transição é contínua:
+    // quadFactor = 0 → puro f-shift; 1 → puro limiar-shift.
+    const float pi = 3.14159265358979f;
+    const float twoPi = LIMITE_ANGULAR_DO_GIRO_PADRAO;
+    float fDbase = constrain(ferocidadeDoBater, 0.0f, 8.0f);
+    float fSbase = constrain(ferocidadeDoRetorno, 0.0f, 8.0f);
+    float wDbase = fmax(8.0f - fDbase, 0.01f);
+    float wSbase = fmax(8.0f - fSbase, 0.01f);
+    float limiarBase = twoPi * wDbase / (wDbase + wSbase);
+    float avgF = (fDbase + fSbase) * 0.5f;
+    float quadFactor = constrain((avgF - 6.0f) / 2.0f, 0.0f, 1.0f);  // 0@f≤6 → 1@f=8
+    float shift = fatorDoLeme * (pi / 8.0f);
+
+    // Limiar: interpola do base (trapezoidal) para pi±shift (quadrado)
+    float limiarEsq = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(pi - shift, 0.05f, twoPi - 0.05f);
+    float limiarDir = (1.0f - quadFactor) * limiarBase + quadFactor * constrain(pi + shift, 0.05f, twoPi - 0.05f);
+
+    // Ferocidades: CH9 shift atenua com quadFactor; em quad puro fica 8
+    float fBE = constrain(ferocidadeDoBater + fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
+    float fBD = constrain(ferocidadeDoBater - fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
+    float fRE = constrain(ferocidadeDoRetorno + fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
+    float fRD = constrain(ferocidadeDoRetorno - fatorDoLeme * (1.0f - quadFactor), FEROCIDADE_MINIMA_PADRAO, 8.0f);
+    float pulsoAsaEsquerda = formaDoBaterDasAsas(anguloDaDancaAlada, fBE, fRE, limiarEsq);
+    float pulsoAsaDireita = formaDoBaterDasAsas(anguloDaDancaAlada, fBD, fRD, limiarDir);
     float denominadorLeme = (vozDoLemeEstelar > 0) ? (float)vozDoLemeEstelar : 1500.0f;
     float fatorLemeEstelar = ((1500.0f / denominadorLeme) - 1.0f) * 2.0f + 1.0f;
     float grausAsaEsquerda = amplitudeDoBater * pulsoAsaEsquerda * fatorLemeEstelar;
@@ -852,12 +917,21 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   int novoEsquerdo = constrain(anguloPortalEsquerdo + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   int novoDireito  = constrain(anguloPortalDireito + OFFSET_ANGULAR_NEUTRO_PADRAO, 0, 180);
   // Filtro EMA sincronizado com cadência de 50Hz.
-  // v1.30.15 dessincronizava EMA (200Hz) das escritas (50Hz),
-  // causando saltos de 10–52 passos entre writes consecutivos —
-  // o servo recebia valores "fantasma" do EMA de há 15ms atrás.
-  // Agora: EMA e write correm ambos a 50Hz. O raw é capturado
-  // no momento exacto da escrita, eliminando a perseguição atrasada.
-  const float ALPHA_EMA = 0.3f;
+  // EMA adaptativo: glide → α=0.30 (fc 3.4Hz, suave nos sticks)
+  // flap sinusoidal → α=0.85 (fc 45Hz, segue onda até ~15Hz)
+  // flap quadrado (f≥7) → α=1.00 (raw directo — o servo já tem inércia)
+  // A ferocidade média determina a "quadratura" da onda: f alto = mais quadrada.
+  float alphaEma;
+  if (modoPresenteDoEspirito != EM_RITMO_DE_BATIDA_DAS_ASAS) {
+    alphaEma = 0.30f;
+  } else {
+    // Ferocidade média rápida a partir dos canais crus (0–8 range)
+    float fRaw = (vozDaFerocidadeDoBater + vozDaFerocidadeDoRetorno) * (4.0f / 1000.0f) - 8.0f;
+    // fRaw: 0 quando ambos=1000, 8 quando ambos=2000
+    if (fRaw >= 7.0f)      alphaEma = 1.00f;  // quadrado puro → raw, sem filtro
+    else if (fRaw >= 5.0f) alphaEma = 0.92f;  // misto → transição rápida
+    else                    alphaEma = 0.85f;  // sinusoidal → tracking suave
+  }
   const uint32_t INTERVALO_MIN_US = 20000;  // 20ms = 50Hz
   uint32_t agoraUs = micros();
   bool tickE = (agoraUs - ultimoMicrosEscritaEsquerdo >= INTERVALO_MIN_US);
@@ -867,7 +941,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
   int escreveEsq = (int)lround(emaServoEsquerdo);
   int escreveDir = (int)lround(emaServoDireito);
   if (tickE) {
-    emaServoEsquerdo = ALPHA_EMA * novoEsquerdo + (1.0f - ALPHA_EMA) * emaServoEsquerdo;
+    emaServoEsquerdo = alphaEma * novoEsquerdo + (1.0f - alphaEma) * emaServoEsquerdo;
     escreveEsq = (int)lround(emaServoEsquerdo);
     if (escreveEsq != ultimoEscritoEsquerdo) {
       tendaoDaAsaMatutina.write(escreveEsq);
@@ -877,7 +951,7 @@ inline void GralhaAzul::manifestarOVooNosVentos() {
     ultimoMicrosEscritaEsquerdo = agoraUs;
   }
   if (tickD) {
-    emaServoDireito = ALPHA_EMA * novoDireito + (1.0f - ALPHA_EMA) * emaServoDireito;
+    emaServoDireito = alphaEma * novoDireito + (1.0f - alphaEma) * emaServoDireito;
     escreveDir = (int)lround(emaServoDireito);
     if (escreveDir != ultimoEscritoDireito) {
       tendaoDaAsaVespertina.write(escreveDir);
@@ -1013,6 +1087,16 @@ inline void GralhaAzul::aoDespertarParaOCantoDoEter() {
   limiarElevado = false;
   jaCruzouLimiarDeVoo = false;
   guardiaoInicializado = false;
+  // Reset limpo — sem memória de voo anterior
+  // π/2 = meio do ciclo descendente → formaDoBaterDasAsas ≈ 0 (neutro).
+  // Evita que as asas disparem para o extremo no primeiro frame de flap.
+  anguloDaDancaAlada = 1.57079632679f;  // π/2
+  cadenciaDoDestinoAlado = 0;
+  amplitudeMaximaPermitida = 0.0f;
+  // Reset do glide — força recaptura da posição actual das asas
+  emTransicaoParaGlide = false;
+  anguloGlideEsquerdo = INFINITY;
+  anguloGlideDireito = INFINITY;
   if (ecosPrescindiveis) {
     ecosPrescindiveis->println("[PRESAGIO] O Elo Cósmico se formou — o Firmamento canta!");
     ecosPrescindiveis->print("[PRESAGIO] Sopros no vento após o elo: ");
@@ -1242,7 +1326,7 @@ inline void GralhaAzul::irradiarLuzDaAlma() {
     if (pulsacaoDaChamaPrimordial > 1.0f) pulsacaoDaChamaPrimordial = 0.0f;
   }
   float respiro = sin(pulsacaoDaChamaPrimordial * 2.0f * PI) * 0.5f + 0.5f;
-  float posicaoDasAsasNoCiclo = (sin(anguloDaDancaAlada) + 1.0f) * 0.5f;
+  float posicaoDasAsasNoCiclo = (cos(anguloDaDancaAlada) + 1.0f) * 0.5f;
   float eixoDoProfundorCeleste = mapearEntreEscalasHarmonicas(vozDoProfundor, 1000.0f, 2000.0f, -1.0f, 1.0f);
   float eixoDoSoproDeVida = mapearEntreEscalasHarmonicas(vozDoSoproVital, 1000.0f, 2000.0f, 0.0f, 1.0f);
   float eixoDoCompassoAnimico = mapearEntreEscalasHarmonicas(vozDoCompassoDaAlma, 1000.0f, 2000.0f, -1.0f, 1.0f);
