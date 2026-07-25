@@ -4,6 +4,8 @@
 
 A C++ library for RP2040-based ornithopters (flapping-wing aircraft) that controls servos, reads CRSF/PPM receivers, manages NeoPixel lighting, and streams telemetry.
 
+🕊️ **[Open Wingbeat Simulator →](docs/index.html)** — visualise and hear waveforms before uploading.
+
 ## Quick Start
 
 ### 1. Install the Library
