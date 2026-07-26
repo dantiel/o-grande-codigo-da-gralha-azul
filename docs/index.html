@@ -256,10 +256,13 @@ function mapearRC(x, outMin, outMax) {
 //  da mesma janela temporal, mantendo o sincronismo do bater.
 function formaDoBaterDasAsas(anguloDoCiclo, fBater, fRetorno, limiarShared) {
   // Fast-path: ferocidade máxima → onda quadrada pura
+  // Respeita o limiar partilhado para não dessincronizar asas
+  // quando CH9 empurra só uma asa para ferocidade máxima.
   if (fBater >= 7.999 && fRetorno >= 7.999) {
     let theta = anguloDoCiclo % TWO_PI;
     if (theta < 0) theta += TWO_PI;
-    return (theta < PI) ? 1.0 : -1.0;
+    const limiarFP = (limiarShared != null) ? limiarShared : PI;
+    return (theta < limiarFP) ? 1.0 : -1.0;
   }
 
   let theta = anguloDoCiclo % TWO_PI;

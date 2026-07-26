@@ -652,7 +652,8 @@ inline float GralhaAzul::formaDoBaterDasAsas(float anguloDoCiclo, float ferocida
   if (ferocidadeDoBater >= 7.999f && ferocidadeDoRetorno >= 7.999f) {
     float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
     if (theta < 0.0f) theta += LIMITE_ANGULAR_DO_GIRO_PADRAO;
-    return (theta < 3.14159265358979f) ? 1.0f : -1.0f;
+    float limiarFP = isnan(limiarShared) ? 3.14159265358979f : limiarShared;
+    return (theta < limiarFP) ? 1.0f : -1.0f;
   }
 
   float theta = fmod(anguloDoCiclo, LIMITE_ANGULAR_DO_GIRO_PADRAO);
